@@ -4,8 +4,44 @@
   <head>
       <title>detektiven</title>
       <link rel="stylesheet" href="css/default.css">
-      <script src="bundle.js"></script>
-      <script src="vendor/web-eid/web-eid.js"></script>
+      <script src="js/bundle.js"></script>
+      <script src="js/vendor/web-eid/web-eid.js"></script>
+      <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    background-image: url('images/default-background.jpg');
+    background-size: cover;
+    overflow: hidden;
+    font-family: 'Open Sans', sans-serif;
+  }
+  .main {
+    margin: 0 20px;
+    text-align: center;
+    color: #a19586;
+  }
+  .lead-text {
+    font-size: 45px;
+  }
+  .btn {
+    background: #ebba40;
+    background-image: linear-gradient(to bottom, #ebba40, #e68003);
+    border-radius: 15px;
+    border: solid #ebba40 0px;
+    color: #f7f7f7;
+    font-size: 30px;
+    padding: 10px 20px 13px 20px;
+    text-decoration: none;
+  }
+  .btn:hover {
+  background: #68c75f;
+  background-image: linear-gradient(to bottom, #68c750, #68c75f );
+}
+</style>
   </head>
 
   <body>
@@ -18,31 +54,49 @@
             <p><a href="http://enable-javascript.com">Instructions are available on <b>enable-javascript.com</b></a></p>
         </center>
       </noscript>
-
-      <div id="main"><div/>
+      <image src="images/hwcrypto_icon.png" width=40 style="padding: 10px 10px 10px 10px;">
+      <section class="main" name="main" id="main">
+      </section>
 
       <script>
+        // make a nonce
+        // see https://github.com/web-eid/web-eid.com/blob/master/hello.js#L24
+        function getNonce(l) {
+          if (l === undefined) {
+            l = 24;
+          }
+          var val = "";
+          var hex = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVXYZ";
+          for (var i = 0; i < l; i++) val += hex.charAt(Math.floor(Math.random() * hex.length));
+          return val;
+        }
         var m = document.getElementById("main");
-        var p = document.createElement("h1",{id:"msg"});
+        var p = document.createElement("p");
+        p.className = "lead-text";
         m.appendChild(p);
         webeid.hasExtension().then(function (d) {
           webeid.getVersion().then(function (v) {
             // TODO check version
-            p.appendChild(document.createTextNode("loading certificate from card, please wait ..."));
-            webeid.getCertificate().then(function (c) {
-              p.innerHTML = "got certificate";
-              m.appendChild(document.createTextNode(c));
+            p.appendChild(document.createTextNode("Loading certificate from card, please wait ..."));
+            webeid.getCertificate().then(function (certificate) {
+              // TODO get name from certificate
+              var name = certificate.substr(0,14);
+              p.innerHTML = "Hello <b>" + name + "</b>!<br>Please click on <i>authenticate</i> button to log in!";
               var b = document.createElement("button");
+              m.appendChild(b);
+              b.className = "btn";
+              b.innerHTML = "Authenticate";
+              b.onClick = alert('clicked');
             }).catch(function (e) {
-              p.innerHTML = "no card in reader !?";
+              p.innerHTML = "No card in reader !?";
               // TODO check again OR listen to connect ?
               // https://github.com/web-eid/web-eid.js#webeidconnect
             });
           }).catch(function (e) {
-            p.appendChild(document.createTextNode("no webeid"));
+            p.appendChild(document.createTextNode("No webeid."));
           });
         }).catch(function (e) {
-            p.appendChild(document.createTextNode("no webeid"));
+            p.appendChild(document.createTextNode("No webeid."));
         });
       </script>
 
