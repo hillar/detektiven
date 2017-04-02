@@ -3,65 +3,13 @@
 
   <head>
       <title>detektiven</title>
+      <script src="js/bundle.js"></script>
       <script src="src/vendor/web-eid/web-eid.js"></script>
-      <link rel="stylesheet" href="css/default.css">
+      <link  href="css/default.css" rel="stylesheet" type='text/css'>
       <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
-<style>
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-  body {
-    background-image: url('images/default-background.jpg');
-    background-size: cover;
-    overflow: hidden;
-    font-family: 'Open Sans', sans-serif;
-  }
-  .main {
-    margin: 0 20px;
-    text-align: center;
-    color: #a19586;
-  }
-  .lead-text {
-    font-size: 45px;
-  }
-  .btn {
-    background: #ebba40;
-    background-image: linear-gradient(to bottom, #ebba40, #e68003);
-    border-radius: 15px;
-    border: solid #ebba40 0px;
-    color: #f7f7f7;
-    font-size: 30px;
-    padding: 10px 20px 13px 20px;
-    text-decoration: none;
-  }
-  .btn:hover {
-    background: #68c75f;
-    background-image: linear-gradient(to bottom, #68c750, #68c75f );
-  }
-  @keyframes pulse_animation {
-    0% { transform: scale(1); }
-    30% { transform: scale(1.09); }
-    40% { transform: scale(1.18); }
-    50% { transform: scale(1); }
-    60% { transform: scale(1); }
-    70% { transform: scale(1.05); }
-    80% { transform: scale(1); }
-    100% { transform: scale(1); }
-  }
-  .pulse {
-  	animation-name: pulse_animation;
-  	animation-duration: 1500ms;
-  	transform-origin:70% 70%;
-  	animation-iteration-count: infinite;
-  	animation-timing-function: linear;
-  }
-</style>
   </head>
 
   <body>
-
       <noscript>
         <center>
           <h1>JavaScript is disabled</h1>
@@ -73,11 +21,9 @@
       <image id="webeid-logo" src="images/hwcrypto_icon.png" width=40 style="padding: 10px 10px 10px 10px;">
       <section class="main" name="main" id="main">
       </section>
-      <script src="js/bundle.js"></script>
       <script>
         main.hello();
       </script>
-
   </body>
 
 </html>
