@@ -1,4 +1,5 @@
-import webeid from './vendor/web-eid/web-eid.js';
+//import webeid from './vendor/web-eid/web-eid.js';
+//TODO configure rollup so, that import works 
 
 export function hello() {
 // make a nonce
