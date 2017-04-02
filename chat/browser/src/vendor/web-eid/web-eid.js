@@ -1,4 +1,3 @@
-// https://github.com/web-eid/web-eid.js/blob/master/web-eid.js
 (function (window) {
   'use strict';
 
