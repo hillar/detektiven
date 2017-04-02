@@ -11,6 +11,12 @@ body {
   overflow: hidden;
   font-family: 'Open Sans', sans-serif;
 }
+a {
+   color: #ebba40;
+}
+a:hover {
+   color: #68c75f;
+}
 .main {
   margin: 0 20px;
   text-align: center;
