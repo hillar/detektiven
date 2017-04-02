@@ -16,7 +16,7 @@ body {
   text-align: center;
   color: #a19586;
 }
-.lead-text {
+.message-text {
   font-size: 45px;
 }
 .btn {
@@ -38,15 +38,28 @@ body {
   30% { transform: scale(1.09); }
   40% { transform: scale(1.18); }
   50% { transform: scale(1); }
-  60% { transform: scale(1); }
-  70% { transform: scale(1.05); }
-  80% { transform: scale(1); }
+  60% { transform: scale(0.8); }
+  70% { transform: scale(1); }
+  80% { transform: scale(1.05); }
   100% { transform: scale(1); }
 }
 .pulse {
   animation-name: pulse_animation;
   animation-duration: 1500ms;
   transform-origin:70% 70%;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+@keyframes spin_animation {
+    from {
+        transform: rotate(0deg);
+    } to {
+        transform: rotate(360deg);
+    }
+}
+.spin {
+  animation-name: spin_animation;
+  animation-duration: 2500ms;
   animation-iteration-count: infinite;
   animation-timing-function: linear;
 }

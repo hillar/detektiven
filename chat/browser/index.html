@@ -1,6 +1,5 @@
 <!doctype html>
 <html>
-
   <head>
       <title>detektiven</title>
       <script src="js/bundle.js"></script>
@@ -8,7 +7,6 @@
       <link  href="css/default.css" rel="stylesheet" type='text/css'>
       <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css'>
   </head>
-
   <body>
       <noscript>
         <center>
@@ -18,12 +16,11 @@
             <p><a href="http://enable-javascript.com">Instructions are available on <b>enable-javascript.com</b></a></p>
         </center>
       </noscript>
-      <image id="webeid-logo" src="images/hwcrypto_icon.png" width=40 style="padding: 10px 10px 10px 10px;">
+      <image id="logo" src="images/hwcrypto_icon.png" width=40 style="padding: 10px 10px 10px 10px;">
       <section class="main" name="main" id="main">
       </section>
       <script>
-        main.hello();
+        main.hello(document.getElementById("logo"),document.getElementById("main"));
       </script>
   </body>
-
 </html>
