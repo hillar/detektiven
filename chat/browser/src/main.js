@@ -4,7 +4,7 @@
 //import chat from './chat.js'
 
 export function hello(logo, html) {
-    html.style.filter = "blur(1px)";
+    //html.style.filter = "blur(1px)";
     logo.className = "pulse";
     var message = document.createElement("p");
     message.className = "message-text";
@@ -56,7 +56,7 @@ export function hello(logo, html) {
             }).catch(function(e) { // getCertificate
                 message.innerHTML = "No card in reader !?" + e;
                 logo.className = "spin";
-                logo.style.filter = "blur(1px)";
+                logo.style.filter = "blur(2px)";
                 // TODO check again OR listen to connect ?
                 // https://github.com/web-eid/web-eid.js#webeidconnect
             });

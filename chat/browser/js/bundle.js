@@ -7,12 +7,12 @@
 //import chat from './chat.js'
 
 function hello(logo, html) {
-    html.style.filter = "blur(1px)";
+    //html.style.filter = "blur(1px)";
     logo.className = "pulse";
     var message = document.createElement("p");
     message.className = "message-text";
     html.appendChild(message);
-    webeid.hasExtension().then(function(d) {
+    webeid.isAvailable().then(function(d) {
         message.innerHTML = "Getting Web-eid version, please wait ...";
         webeid.getVersion().then(function(v) {
             // TODO check version
@@ -53,12 +53,13 @@ function hello(logo, html) {
                       }; // auth button
                       html.appendChild(authButton);
                 }).catch(function(e){ // getNonce
-                      message.innerHTML = "Get Nonce failed " + e;
+                      message.innerHTML = "Get nonce failed " + e;
+                      // TODO check again OR listen to websocket connect ?
                 });
             }).catch(function(e) { // getCertificate
                 message.innerHTML = "No card in reader !?" + e;
                 logo.className = "spin";
-                logo.style.filter = "blur(1px)";
+                logo.style.filter = "blur(2px)";
                 // TODO check again OR listen to connect ?
                 // https://github.com/web-eid/web-eid.js#webeidconnect
             });
@@ -70,7 +71,7 @@ function hello(logo, html) {
     }).catch(function(e) { // hasExtension
         logo.className = "";
         logo.style.filter = "invert() blur(1px)";
-        message.innerHTML = 'No web-eid. <br> Please go to <a href="https://web-eid.com/" target="_bank">web-eid.com</a>';
+        message.innerHTML = 'No web-eid. <br> Please go to <a href="https://web-eid.com/" target="_blank">web-eid.com</a>';
     });
 }
 

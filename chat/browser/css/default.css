@@ -7,7 +7,9 @@ html, body {
 }
 body {
   background-image: url('../images/default-background.jpg');
-  background-size: cover;
+  /* background-size: cover; */
+  background-size:100%;
+  background-position:left;
   overflow: hidden;
   font-family: 'Open Sans', sans-serif;
 }
@@ -24,6 +26,15 @@ a:hover {
 }
 .message-text {
   font-size: 45px;
+}
+.message-wait {
+  font-size: 45px;
+  animation: kb 30s infinite;
+  filter: blurr(1px);
+}
+.message-error {
+  font-size: 45px;
+  animation: kb 30s infinite;
 }
 .btn {
   background: #ebba40;
@@ -68,4 +79,18 @@ a:hover {
   animation-duration: 2500ms;
   animation-iteration-count: infinite;
   animation-timing-function: linear;
+}
+@keyframes kb {
+
+    50% {
+        transform: scale3d(1.1, 1.1, 1.1) translate3d(-10px, 10px, 10px);
+        animation-timing-function: ease-in;
+
+    }
+
+
+
+}
+.kb {
+  animation: kb 20s infinite;
 }
