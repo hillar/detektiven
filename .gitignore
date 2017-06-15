@@ -22,6 +22,7 @@ coverage
 
 # node-waf configuration
 .lock-wscript
+.vagrant
 
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release

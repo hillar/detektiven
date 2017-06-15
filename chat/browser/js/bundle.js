@@ -31,7 +31,8 @@ function hello(logo, html) {
                         logo.className = "pulse";
                         message.innerHTML = "Signing token ...";
                         authButton.innerHTML = "...";
-                        webeid.authenticatedWebSocket('ws://localhost:3000/',{autoclose:true,timeout:1}).then(function(server){
+                        var wss = window.location.href.replace('https','wss').slice(0, -1)+':443/chat'
+                        webeid.authenticatedWebSocket(wss,{autoclose:true,timeout:1}).then(function(server){
                           message.innerHTML = "done" ;
                           server.onmessage = function (event) {
                                   logo.style.filter = "";

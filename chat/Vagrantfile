@@ -1,0 +1,93 @@
+ENV["LC_ALL"] = "en_US.UTF-8"
+
+$provision_script = <<SCRIPT
+
+echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get -y upgrade
+
+apt-get -y install nginx
+apt-get -y install ssl-cert
+cat > /etc/nginx/sites-available/default <<EOF
+map \\$http_upgrade \\$connection_upgrade {
+    default upgrade;
+    '' close;
+}
+upstream websocket {
+    server 127.0.0.1:3000;
+}
+server {
+    listen 443 ssl default_server;
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+    location / {
+        try_files \\$uri \\$uri/ =404;
+    }
+    location /chat {
+      proxy_pass http://websocket;
+      proxy_http_version 1.1;
+      proxy_set_header Upgrade \\$http_upgrade;
+      proxy_set_header Connection \\$connection_upgrade;
+    }
+}
+EOF
+service nginx restart
+
+curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+apt-get install -y nodejs
+apt-get install -y npm
+npm --global install jsonwebtoken commander ws x509
+if [[ -d '/vagrant' ]];
+then
+    ln -s /vagrant/server /opt/detektiven
+    rm -rf /usr/share/nginx/html
+    ln -s /vagrant/browser /usr/share/nginx/html
+else
+    mkdir /opt/detektiven
+    cd /opt/detektiven
+    wget -q https://github.com/hillar/detektiven/archive/master.tar.gz
+fi
+
+nodejs /opt/detektiven/test.js -i /opt/detektiven/issuer.commonNames -s /opt/detektiven/subject.serialNumbers  > /tmp/det.log &
+netstat -ntple
+
+SCRIPT
+
+
+
+
+
+
+Vagrant.configure(2) do |config|
+
+  config.vm.provider "virtualbox"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.box = 'ubu14'
+
+  config.vm.provider :virtualbox do |vb,override|
+     vb.customize ["modifyvm", :id, "--memory", "1024"]
+     vb.customize ["modifyvm", :id, "--cpus", "1"]
+     override.vm.network :private_network, ip: "192.168.10.11"
+     override.vm.synced_folder ".", "/vagrant", disabled: false
+   end
+
+   config.vm.provider :aws do |aws, override|
+     aws.access_key_id = ENV['AWS_KEY']
+     aws.secret_access_key = ENV['AWS_SECRET']
+     aws.keypair_name = ENV['AWS_KEYNAME']
+     aws.instance_type = "t2.micro"
+     aws.region = "us-east-1"
+     aws.ami = "ami-772aa961"
+     override.ssh.username = 'ubuntu'
+     override.ssh.private_key_path = ENV['AWS_KEYPATH']
+
+   end
+
+   config.vm.provision "shell", inline: $provision_script
+
+end

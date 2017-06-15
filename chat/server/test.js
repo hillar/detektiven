@@ -4,6 +4,7 @@ const wsocket = require('ws')
 const crypto = require('crypto')
 const fs = require('fs')
 const jwt = require('jsonwebtoken')
+const x509 = require('x509')
 
 // helper functions
 // TODO move to separate fail
