@@ -5,6 +5,7 @@ const crypto = require('crypto')
 const fs = require('fs')
 const jwt = require('jsonwebtoken')
 const x509 = require('x509')
+const http = require('http');
 
 // helper functions
 // TODO move to separate fail
@@ -25,6 +26,26 @@ function getNonce (l) {
   return val
 }
 
+function abortConnection (socket, code, message) {
+  if (socket.writable) {
+    message = message || http.STATUS_CODES[code];
+    socket.write(
+      `HTTP/1.1 ${code} ${http.STATUS_CODES[code]}\r\n` +
+      'Connection: close\r\n' +
+      'Content-type: text/html\r\n' +
+      `Content-Length: ${Buffer.byteLength(message)}\r\n` +
+      '\r\n' +
+      message
+    );
+  }
+
+  socket.removeListener('error', socketError);
+  socket._socket.destroy();
+}
+function socketError () {
+  this.destroy();
+}
+
 // main
 cliParams
   .version('0.0.1')
@@ -33,7 +54,7 @@ cliParams
   .option('-s, --subjects [file]','subjects list','./subject.serialNumbers')
   .option('-p, --port [number]','port to listen',3000)
   .parse(process.argv);
-//console.log(' args: %j', cliParams.args);
+
 console.log('Starting server with:', cliParams.issuers, cliParams.subjects, cliParams.port);
 // load issuers and subjects
 try {
@@ -57,45 +78,67 @@ if (! subjects.serials || subjects.serials.length < 1) {
   process.exit(1);
 }
 // create websocketserver
-var wss = new wsocket.Server({port: cliParams.port})
+var wss = new wsocket.Server({port: cliParams.port, clientTracking: false})
+//console.dir(wss);
+var clients = new Set();
+
+function broadcast(msg,type){
+  var type = type || 'broadcast';
+  for (const client of clients) clinet.ws.send(JSON.stringify({type:msg}));
+}
 
 // On every new connection
-wss.on('connection', function (ws) {
+wss.on('connection', function (ws, httpobj) {
+  //console.dir(httpobj.headers);
+  console.dir(httpobj.url);
   // send a nonce , see https://github.com/martinpaljak/authenticated-websocket#sample-messages
   var nonce = getNonce();
   ws.send(JSON.stringify({nonce: nonce}));
-
-  ws.on('message', function (message) {
+  ws.onmessage = function onmessage(message) {
+    //console.dir(message);
     try {
-      var message = JSON.parse(message.trim());
+      var clientmessage = JSON.parse(message.data.trim());
     } catch (e) {
-      ws.terminate();
+      console.dir(e);
+      ws.close();
     }
-    if (!message.token)  {
-      ws.terminate();
+    if (!clientmessage.token)  {
+      ws.close();
     } else {
       // we good to check the token
-      //const sha = crypto.createHash('sha1').update(JSON.stringify(message.token)).digest('hex')
-      var pubcrt = cert(message.token);
+      var pubcrt = cert(clientmessage.token);
       var crt = x509.parseCert(pubcrt);
       var issuerOK = issuers.names.includes(crt.issuer.commonName);
       var subjectOK = subjects.serials.includes(crt.subject.serialNumber);
       if ( issuerOK && subjectOK ) {
-        jwt.verify(message.token, pubcrt, {ignoreExpiration: true, nonce: nonce}, (err, decoded) => {
+        jwt.verify(clientmessage.token, pubcrt, {ignoreExpiration: true, nonce: nonce}, (err, decoded) => {
           if (err) {
-            ws.send('No, no, no ...')
-            ws.terminate()
+            ws.send(JSON.stringify({error:'did not verify'}));
+            ws.close();
             console.log('Did not verify', err)
           } else {
-            //fs.writeFileSync('./like.' + sha, JSON.stringify(message.token))
-            ws.send('We like you too, ' + decoded.sub)
+            var client = {};
+            client.ws = ws;
+            client.sub = decoded.sub;
+            clients.add(client);
+            client.onclose = function close(c) {
+              console.log('client closed');
+              console.dir(c);
+              clients.delete(client);
+            }
+            ws.send(JSON.stringify({welcome:'welcome '+decoded.sub}))
+            //ws.broadcast(decoded.sub joined)
             console.log('Verified', decoded.sub)
+            ws.onmessage = function onmessage(message) {
+              console.dir(message.data);
+            }
           }
         });
       } else {
-        ws.terminate();
+        ws.send(JSON.stringify({error:'did not verify'}));
+        ws.close();
         console.log('issuer:', issuerOK, 'subject:', subjectOK);
       }
     }
-  })
+  }//fisrt message must be nonce
 })

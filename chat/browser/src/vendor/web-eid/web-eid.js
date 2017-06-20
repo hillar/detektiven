@@ -1,6 +1,6 @@
 (function (window) {
   'use strict'
-  var VERSION = '0.0.5.1'
+  var VERSION = '0.0.5'
   var APPURL = 'wss://app.web-eid.com:42123'
 
   // make a nonce
@@ -274,18 +274,13 @@
     fields.authenticatedWebSocket = function (url, options) {
       return new Promise(function (resolve, reject) {
         var socket = new WebSocket(url)
-        console.log(socket.url);
         function errorHandler (event) {
           reject(event)
         }
 
         function messageHandler (event) {
           socket.removeEventListener('message', messageHandler)
-          try {
-            var msg = JSON.parse(event.data)
-          } catch (e) {
-            reject(new Error('No JSON in first message'))
-          }
+          var msg = JSON.parse(event.data)
           if (!msg.nonce) {
             reject(new Error('No .nonce in first message'))
           }

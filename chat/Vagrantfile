@@ -9,6 +9,8 @@ apt-get update
 apt-get -y upgrade
 
 apt-get -y install nginx
+#https://nchan.io/download/nginx-common.ubuntu.deb
+#https://nchan.io/download/nginx-extras.ubuntu.deb
 apt-get -y install ssl-cert
 cat > /etc/nginx/sites-available/default <<EOF
 map \\$http_upgrade \\$connection_upgrade {
@@ -53,6 +55,8 @@ else
 fi
 
 nodejs /opt/detektiven/test.js -i /opt/detektiven/issuer.commonNames -s /opt/detektiven/subject.serialNumbers  > /tmp/det.log &
+sleep 1
+tail /tmp/det.log
 netstat -ntple
 
 SCRIPT
