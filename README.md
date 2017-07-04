@@ -2,11 +2,16 @@
 * see https://github.com/martinpaljak/x509-webauth &amp; https://et.wikipedia.org/wiki/Kalle_Blomkvist
 
 ----
+![bw](birdview.png)
+
+----
 
 ![Alt text](https://g.gravizo.com/svg?
 digraph G {
   b [label="browser" shape="box" style="filled" color="lightgreen" URL="https://github.com/hillar/detektiven/blob/master/chat/browser/README.md"]
+  sm [label="smartcard" shape="box"]
   {rank=min; b }
+  {rank=same; b sm}
   subgraph cluster_0 {
   style=filled;
   color=lightgreen;
@@ -17,6 +22,7 @@ digraph G {
   l [label="ldap"];
   {rank=same; h w }
   {rank=same; c i l}
+  b -> sm [style="dotted" dir="none"];
   l -> c;
   c -> i -> c;
   c -> h [dir="none"];
