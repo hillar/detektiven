@@ -26,24 +26,13 @@ function getNonce (l) {
   return val
 }
 
-function abortConnection (socket, code, message) {
-  if (socket.writable) {
-    message = message || http.STATUS_CODES[code];
-    socket.write(
-      `HTTP/1.1 ${code} ${http.STATUS_CODES[code]}\r\n` +
-      'Connection: close\r\n' +
-      'Content-type: text/html\r\n' +
-      `Content-Length: ${Buffer.byteLength(message)}\r\n` +
-      '\r\n' +
-      message
-    );
-  }
-
-  socket.removeListener('error', socketError);
-  socket._socket.destroy();
+//TODO better ip test
+function isIPv4(string) {
+    return !!/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(string);
 }
-function socketError () {
-  this.destroy();
+
+function isCUID(string) {
+  return !!/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(string);
 }
 
 // main
@@ -90,7 +79,22 @@ function broadcast(msg,type){
 // On every new connection
 wss.on('connection', function (ws, httpobj) {
   //console.dir(httpobj.headers);
-  console.dir(httpobj.url);
+  var bites = httpobj.url.split('/');
+  if (bites.length !== 4) {
+    console.dir(bites);
+    ws.close();
+  }
+  var remote_addr = bites[3];
+  if (!isIPv4(remote_addr)){
+    console.dir(bites);
+    ws.close();
+  }
+  var urlCUID = bites[2];
+  if (!isCUID(urlCUID)) {
+    console.dir(bites);
+    ws.close()
+  }
+
   // send a nonce , see https://github.com/martinpaljak/authenticated-websocket#sample-messages
   var nonce = getNonce();
   ws.send(JSON.stringify({nonce: nonce}));
@@ -105,7 +109,7 @@ wss.on('connection', function (ws, httpobj) {
     if (!clientmessage.token)  {
       ws.close();
     } else {
-      // we good to check the token
+      // check the token
       var pubcrt = cert(clientmessage.token);
       var crt = x509.parseCert(pubcrt);
       var issuerOK = issuers.names.includes(crt.issuer.commonName);
@@ -117,20 +121,43 @@ wss.on('connection', function (ws, httpobj) {
             ws.close();
             console.log('Did not verify', err)
           } else {
-            var client = {};
-            client.ws = ws;
-            client.sub = decoded.sub;
-            clients.add(client);
-            client.onclose = function close(c) {
-              console.log('client closed');
-              console.dir(c);
-              clients.delete(client);
-            }
             ws.send(JSON.stringify({welcome:'welcome '+decoded.sub}))
             //ws.broadcast(decoded.sub joined)
             console.log('Verified', decoded.sub)
             ws.onmessage = function onmessage(message) {
-              console.dir(message.data);
+              try {
+                var clientmessage = JSON.parse(message.data.trim());
+              } catch (e) {
+                console.dir(e);
+                ws.close();
+              }
+              console.dir(clientmessage);
+              if (!clientmessage.cuid) { // first thing after welcome must be cuid
+                ws.send(JSON.stringify({bye:'good bye '+decoded.sub}))
+                ws.close();
+              } else {
+                // finally we age good to do chat, add client to clients set
+                var client = {};
+                client.ws = ws;
+                client.sub = decoded.sub;
+                client.cuid = clientmessage.cuid;
+                clients.add(client);
+                client.onclose = function close(c) {
+                  console.log('client closed');
+                  console.dir(c);
+                  clients.delete(client);
+                }
+                ws.onmessage = function onmessage(message) {
+                  try {
+                    var clientmessage = JSON.parse(message.data.trim());
+                  } catch (e) {
+                    console.dir(e);
+                    ws.close();
+                  }
+                  console.dir(clientmessage);
+                  ws.send(JSON.stringify(clientmessage));
+                }
+              }
             }
           }
         });
