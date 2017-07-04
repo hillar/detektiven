@@ -31,10 +31,13 @@ IPAadminpassword="$DirectoryManagerpassword"
 
 echo -en "\n\n\n\n$DirectoryManagerpassword\n$DirectoryManagerpassword\n$IPAadminpassword\n$IPAadminpassword\nyes\n" | ipa-server-install
 echo -en "$IPAadminpassword" | kinit admin
-ipa user-find admin
-echo "admin password is $IPAadminpassword"
 
-# create read only bind user to search ldap
+# delete ssh & x509 cert self service
+ipa selfservice-del "Users can manage their own SSH public keys"
+ipa selfservice-del "Users can manage their own X.509 certificates"
+
+
+# create read only bind user to search for user
 #A. First, make that dedicated ldap auth user in FreeIPA, for example, username: readonly with a good password.
 ipa user-add webeid --first=web --last=eid  --homedir=/dev/null --shell=/sbin/nologin
 echo -en "kalakala\nkalakala\n" |ipa passwd webeid
