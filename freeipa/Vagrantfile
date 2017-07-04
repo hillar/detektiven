@@ -1,0 +1,142 @@
+ENV["LC_ALL"] = "en_US.UTF-8"
+
+$provision_script = <<SCRIPT
+
+XENIAL=$(lsb_release -c | cut -f2)
+if [ "$XENIAL" != "xenial" ]; then
+    echo "sorry, tested only with xenial ;(";
+    exit;
+fi
+
+IP=$1
+IP="192.168.10.2"
+
+echo "$IP" > /tmp/provision.log
+
+echo "127.0.0.1 localhost" > /etc/hosts
+echo "$IP ipa.example.org ipa" >> /etc/hosts
+
+export DEBIAN_FRONTEND=noninteractive
+
+curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash - >> /tmp/provision.log
+
+apt-get -y install nodejs >> /tmp/provision.log
+export NODE_PATH=/usr/lib/node_modules/
+apt-get -y install build-essential >> /tmp/provision.log
+apt-get -y install freeipa-server >> /tmp/provision.log
+
+
+DirectoryManagerpassword=$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+IPAadminpassword="$DirectoryManagerpassword"
+
+echo -en "\n\n\n\n$DirectoryManagerpassword\n$DirectoryManagerpassword\n$IPAadminpassword\n$IPAadminpassword\nyes\n" | ipa-server-install
+echo -en "$IPAadminpassword" | kinit admin
+ipa user-find admin
+echo "admin password is $IPAadminpassword"
+
+#A. First, make that dedicated ldap auth user in FreeIPA, for example, username: readonly with a good password.
+ipa user-add webeid --first=web --last=eid  --homedir=/dev/null --shell=/sbin/nologin
+echo -en "kalakala\nkalakala\n" |ipa passwd webeid
+#B. Next, go to IPA Server > Role Based Access Control > Permission
+#C. There, create a new Permission called Read Only LDAP Auth and select Granted rights: [x] read [x] search [x] compare
+ipa permission-add ReadOnlyLDAP  --filter='(!(cn=admins))'  --right=read --right=search --right=compare
+#D. Next, create a Privilege called Read Only LDAP Auth, and add the Permission just created.
+ipa privilege-add ReadOnlyLDAP
+ipa privilege-add-permission ReadOnlyLDAP --permissions=ReadOnlyLDAP
+#E. Finally, create a Role Read Only LDAP Auth, and add the Privilege Read Only LDAP Auth.
+ipa role-add ReadOnlyLDAP
+ipa role-add-privilege ReadOnlyLDAP --privileges=ReadOnlyLDAP
+#F. And lastly, add the user readonly to that Role.
+ipa role-add-member ReadOnlyLDAP --users=webeid
+
+ipa role-show ReadOnlyLDAP
+ipa user-find webeid
+ldapsearch -x -D "uid=webeid,cn=users,cn=accounts,dc=example,dc=org" -w kalakala -h 192.168.10.2 -b "cn=accounts,dc=example,dc=org" -s sub 'uid=webeid'
+
+#openssl smime -encrypt -binary -aes-256-cbc -in plainfile.zip -out encrypted.zip.enc -outform DER kala.pem
+
+
+DOMAIN="webeid.com"
+
+SN=$( echo $1 | egrep  -o "[0-9]{11}")
+SN="36712316013"
+if [ !  -z $SN ]
+then
+ldapsearch -x -h ldap.sk.ee -b c=EE "(serialNumber=$SN)" -o ldif-wrap=no -LLL > $SN.txt
+cat $SN.txt | grep "userCertificate;binary::" | cut -f2 -d" "| while read c;
+do
+  EMAIL=$(echo "$c" | base64 -d | openssl x509 -inform DER -noout -email)
+  if [ !  -z $EMAIL ]
+  then
+    SUBJ=$(echo "$c" | base64 -d | openssl x509 -inform DER -noout -subject -nameopt RFC2253,utf8,-esc_ctrl,-esc_msb)
+    ESTEID=$(echo $SUBJ | grep "OU=authentication,O=ESTEID,C=EE" | wc -l)
+    pem=$(echo "$c" | base64 -d | openssl x509 -inform DER -noout -pubkey)
+    sshkey=$(echo "$pem" | ssh-keygen -m PKCS8 -f /dev/stdin -i|cut -f2 -d" ")
+    if [ $ESTEID -eq 1 ]
+    then
+      SN=$(echo $SUBJ | cut -d, -f3| cut -d= -f2)
+      GN=$(echo $SUBJ | cut -d, -f2| cut -d= -f2)
+      SSN=$(echo $SUBJ | cut -d, -f1| cut -d= -f3)
+      user=$(echo $EMAIL| cut -d. -f1)
+	    fn=$(echo $EMAIL| cut -d@ -f1|cut -d. -f1,2)
+      cmd="ipa user-add $user --first=$GN --last=$SN --employeenumber=$SSN --email=$EMAIL --certificate=$c"
+      cmd2="ipa user-mod $user --addattr=mail=$fn@$DOMAIN"
+      cmd3="ipa user-mod $user --sshpubkey=$sshkey"
+      echo ""
+      echo "$cmd;$cmd2;$cmd3;"
+      echo ""
+      $cmd;$cmd2;$cmd3;
+
+    else
+      AUTH=$(echo $SUBJ | grep "OU=authentication,O=ESTEID" | wc -l)
+      if [ $AUTH -eq 1 ]
+      then
+         cmd="ipa user-add-cert $user --certificate=$c"
+         cmd3="echo \"you may add additinonal ssh key $sshkey\""
+         echo ""
+         echo "$cmd;"
+         echo ""
+         $cmd;$cmd3;
+      fi
+    fi
+  fi
+done
+else
+  echo "usage: $0 isikukood"
+fi
+
+
+echo "admin password is $IPAadminpassword"
+
+SCRIPT
+
+Vagrant.configure(2) do |config|
+
+  config.vm.provider "virtualbox"
+  config.vm.hostname= "ipa.example.org"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.box = 'ubuntu/xenial64'
+
+  config.vm.provider :virtualbox do |vb,override|
+     vb.customize ["modifyvm", :id, "--memory", "2048"]
+     vb.customize ["modifyvm", :id, "--cpus", "1"]
+     override.vm.network :private_network, ip: "192.168.10.2"
+     override.vm.synced_folder ".", "/vagrant", disabled: false
+   end
+
+   config.vm.provider :aws do |aws, override|
+     aws.access_key_id = ENV['AWS_KEY']
+     aws.secret_access_key = ENV['AWS_SECRET']
+     aws.keypair_name = ENV['AWS_KEYNAME']
+     aws.instance_type = "t2.micro"
+     aws.region = "us-east-1"
+     aws.ami = "ami-772aa961"
+     override.ssh.username = 'ubuntu'
+     override.ssh.private_key_path = ENV['AWS_KEYPATH']
+
+   end
+
+   config.vm.provision "shell", inline: $provision_script
+
+end
