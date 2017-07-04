@@ -34,6 +34,7 @@ echo -en "$IPAadminpassword" | kinit admin
 ipa user-find admin
 echo "admin password is $IPAadminpassword"
 
+# create read only bind user to search ldap
 #A. First, make that dedicated ldap auth user in FreeIPA, for example, username: readonly with a good password.
 ipa user-add webeid --first=web --last=eid  --homedir=/dev/null --shell=/sbin/nologin
 echo -en "kalakala\nkalakala\n" |ipa passwd webeid
@@ -53,59 +54,13 @@ ipa role-show ReadOnlyLDAP
 ipa user-find webeid
 ldapsearch -x -D "uid=webeid,cn=users,cn=accounts,dc=example,dc=org" -w kalakala -h 192.168.10.2 -b "cn=accounts,dc=example,dc=org" -s sub 'uid=webeid'
 
-#openssl smime -encrypt -binary -aes-256-cbc -in plainfile.zip -out encrypted.zip.enc -outform DER kala.pem
+#create fixture user
+ipa user-add hillar --first=HILLAR --last=AARELAID --employeenumber=36712316013 --email=hillar.aarelaid@eesti.ee --certificate=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;
+ipa user-mod hillar --addattr=mail=hillar.aarelaid@webeid.com;
+ipa user-mod hillar --sshpubkey=AAAAB3NzaC1yc2EAAAADAQABAAABAQCZoBOnNscP+wMaErl/lJckLqAb3nA+osjxrYYaKbyIcuq08WEBjsn1Tm7QZyHYhjhIIm14YUsA0KOJtgrH4diCwmg6I8+wdlK6Bf9vE4VPz3DrQT9wFRR0Dyo6jXexipkCZqtCRzW1EFRi/idY/EmAn/KrC3zrIiwQPQc9GuYIqcq1luLAvdukJea8eufx/wOzL9EGADSV9ILboaQP1Xm39LRug5mFsG8JX1uUU0K7z7usIuxPpfmmFUQimIEbGF6NzbQ5AKbkdKazO1HLskHV3HvqCj3bos0uCtMWrKcd+AC3XEQ0vNNswh1mrs3srnfpweJpW+P1daqAXRYwPJ4h,AAAAB3NzaC1yc2EAAAADAQABAAABAQCVGogSAzeTTXoARqvY/yvC+rtD3pCjBdeqOtfkESv4j3RnSZMmIXC7MW9tqf7FBgJK5je9zlyhhtMGy/qhAOmsm4SmyeQkZG6jz6xXrZ8HC+jWgnM5cYaKqFR1QyXW9M2pHwZgcU9gXA79Qo6+b3PO7DduqXM/foS7xHETvzr6PHj5wdP7erzNiBRQhROc2LJKA3lnqrB/XZltIC89DAT0+KelWnaM46W+Ok6DhqoQ/yEabeiU3yfjA3wpScV60e91wdJLVrzHqI3qZCL8GTCPs/viiE2VTYNsM/1btsnv06vli7lJwfmtytIuye/3Z0VzDB0OckXPMVI//GmnKz47;
 
-
-DOMAIN="webeid.com"
-
-SN=$( echo $1 | egrep  -o "[0-9]{11}")
-SN="36712316013"
-if [ !  -z $SN ]
-then
-ldapsearch -x -h ldap.sk.ee -b c=EE "(serialNumber=$SN)" -o ldif-wrap=no -LLL > $SN.txt
-cat $SN.txt | grep "userCertificate;binary::" | cut -f2 -d" "| while read c;
-do
-  EMAIL=$(echo "$c" | base64 -d | openssl x509 -inform DER -noout -email)
-  if [ !  -z $EMAIL ]
-  then
-    SUBJ=$(echo "$c" | base64 -d | openssl x509 -inform DER -noout -subject -nameopt RFC2253,utf8,-esc_ctrl,-esc_msb)
-    ESTEID=$(echo $SUBJ | grep "OU=authentication,O=ESTEID,C=EE" | wc -l)
-    pem=$(echo "$c" | base64 -d | openssl x509 -inform DER -noout -pubkey)
-    sshkey=$(echo "$pem" | ssh-keygen -m PKCS8 -f /dev/stdin -i|cut -f2 -d" ")
-    if [ $ESTEID -eq 1 ]
-    then
-      SN=$(echo $SUBJ | cut -d, -f3| cut -d= -f2)
-      GN=$(echo $SUBJ | cut -d, -f2| cut -d= -f2)
-      SSN=$(echo $SUBJ | cut -d, -f1| cut -d= -f3)
-      user=$(echo $EMAIL| cut -d. -f1)
-	    fn=$(echo $EMAIL| cut -d@ -f1|cut -d. -f1,2)
-      cmd="ipa user-add $user --first=$GN --last=$SN --employeenumber=$SSN --email=$EMAIL --certificate=$c"
-      cmd2="ipa user-mod $user --addattr=mail=$fn@$DOMAIN"
-      cmd3="ipa user-mod $user --sshpubkey=$sshkey"
-      echo ""
-      echo "$cmd;$cmd2;$cmd3;"
-      echo ""
-      $cmd;$cmd2;$cmd3;
-
-    else
-      AUTH=$(echo $SUBJ | grep "OU=authentication,O=ESTEID" | wc -l)
-      if [ $AUTH -eq 1 ]
-      then
-         cmd="ipa user-add-cert $user --certificate=$c"
-         cmd3="echo \"you may add additinonal ssh key $sshkey\""
-         echo ""
-         echo "$cmd;"
-         echo ""
-         $cmd;$cmd3;
-      fi
-    fi
-  fi
-done
-else
-  echo "usage: $0 isikukood"
-fi
-
-
+# save temporary password
+echo "$IPAadminpassword" > /root/ipapass.txt
 echo "admin password is $IPAadminpassword"
 
 SCRIPT
