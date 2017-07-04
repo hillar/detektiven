@@ -4,6 +4,19 @@
 //import webeid from './vendor/web-eid/web-eid.js';
 //TODO configure rollup so, that import works
 
+function guid() {
+  function s4() {
+    return Math.floor((1 + Math.random()) * 0x10000)
+      .toString(16)
+      .substring(1);
+  }
+  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+    s4() + '-' + s4() + s4() + s4();
+}
+function getGuid() {
+  var cookiestring=RegExp("guid[^;]+").exec(document.cookie);
+  return unescape(!!cookiestring ? cookiestring.toString().replace(/^[^=]+./,"") : "");
+}
 
 function parseMessage(message){
   try {
@@ -24,7 +37,9 @@ var authenticatedWebSocket = function (url) {
   return new Promise(function (resolve, reject) {
     var socket = new WebSocket(url)
     socket.onclose = function (c){
-      if (c.code !== 1000) { // server sent unclean close, we try to reconnect
+      // 1000	CLOSE_NORMAL
+      // 1008	Policy Violation
+      if (c.code !== 1000 && c.code !== 1008) { // server sent unclean close, we try to reconnect
         if (autoReconnectCounter < autoReconnectMaxCount ) {
         autoReconnectCounter += 1;
         console.log('reconnect '+ url + ' in ' + autoReconnectInterval + ' count ' + autoReconnectCounter)
@@ -83,7 +98,38 @@ var authenticatedWebSocket = function (url) {
 
 // -----
 
+// https://developer.mozilla.org/en-US/docs/Web/API/Document/cookie#Example_5_Do_something_only_once_–_a_general_library
+function executeOnce () {
+  var argc = arguments.length, bImplGlob = typeof arguments[argc - 1] === "string";
+  if (bImplGlob) { argc++; }
+  if (argc < 3) { throw new TypeError("executeOnce - not enough arguments"); }
+  var fExec = arguments[0], sKey = arguments[argc - 2];
+  if (typeof fExec !== "function") { throw new TypeError("executeOnce - first argument must be a function"); }
+  if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { throw new TypeError("executeOnce - invalid identifier"); }
+  if (decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) === "1") { return false; }
+  fExec.apply(argc > 3 ? arguments[1] : null, argc > 4 ? Array.prototype.slice.call(arguments, 2, argc - 2) : []);
+  document.cookie = encodeURIComponent(sKey) + "=1; expires=Fri, 31 Dec 9999 23:59:59 GMT" + (bImplGlob || !arguments[argc - 1] ? "; path=/" : "");
+  return true;
+}
+
 function hello(logo, html) {
+
+  function alertCookie (sMsg) {
+    var expiration_date = new Date();
+    var cookie_string = '';
+    expiration_date.setFullYear(expiration_date.getFullYear() + 1);
+    // Build the set-cookie string:
+    var uuid = guid();
+    cookie_string = "guid=" + uuid + "; path=/; expires=" + expiration_date.toUTCString();
+    // Create or update the cookie:
+    document.cookie = cookie_string;
+    alert(sMsg);
+  }
+
+  executeOnce(alertCookie, null, "this site uses cookies", "executeOnce");
+  const CUID = getGuid();
+
+
   const wsPING_INTERVAL = 30000;
   function msg(m){
     var div = document.createElement("div");
@@ -112,22 +158,28 @@ function hello(logo, html) {
 
       let signin = btn('auth',function click () {
         msg('asking nonce from server, please wait ...')
-        const url = window.location.href.replace('https','wss').slice(0, -1)+':443/chat';
+        const url = 'wss://'+window.location.host.replace(/:\d+/, '')+':443/chat/'+CUID;
+
         authenticatedWebSocket(url).then(function (ws) {
           console.dir(ws);
           msg('auth ok');
+          ws.send(JSON.stringify({cuid:CUID}));
           let qchat = input('q',function click () {
             ws.send(JSON.stringify({raw:this.parentElement.childNodes[0].value}));
             this.parentElement.childNodes[0].value = "";
           });
           html.appendChild(qchat);
-          window.setInterval(function ping() {
+          const ping = window.setInterval(function ping() {
             console.log('ping '+Date.now());
             ws.send(JSON.stringify({ping:Date.now()}));
           }, wsPING_INTERVAL);
           ws.onclose = function onclose(c){
             console.dir(c);
+            window.clearInterval(ping);
+            html.removeChild(qchat);
             msg('server closed');
+            html.appendChild(signin);
+
           }
           ws.onmessage = function onmessage(m) {
             console.dir(m);
