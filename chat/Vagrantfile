@@ -27,10 +27,11 @@ server {
     ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
     ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
     location / {
+	#proxy_pass http://websocket;
         try_files \\$uri \\$uri/ =404;
     }
     location /chat {
-      proxy_pass http://websocket;
+      proxy_pass http://websocket\\$request_uri/\\$remote_addr;
       proxy_http_version 1.1;
       proxy_set_header Upgrade \\$http_upgrade;
       proxy_set_header Connection \\$connection_upgrade;
@@ -39,10 +40,11 @@ server {
 EOF
 service nginx restart
 
-curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
 apt-get install -y nodejs
 apt-get install -y npm
-npm --global install jsonwebtoken commander ws x509
+export NODE_PATH=/usr/lib/node_modules/
+npm --global install jsonwebtoken commander ws ldapjs node-forge x509
 if [[ -d '/vagrant' ]];
 then
     ln -s /vagrant/server /opt/detektiven
@@ -59,6 +61,17 @@ sleep 1
 tail /tmp/det.log
 netstat -ntple
 
+
+#ipa client
+echo "192.168.10.2 ipa.example.org" >> /etc/hosts
+hostname chat.example.org
+apt-get -y install freeipa-client
+#echo -en "example.org\nipa.example.org\nyes\nyes\nhostenroll\nkalakala\n"| ipa-client-install
+echo -en "example.org\nipa.example.org\nyes\nyes\nhostenroll\nkalakala\n"| ipa-client-install -p hostenroll -w kalakala
+echo "ldap_user_certificate = noSuchAttribute" >> /etc/sssd/sssd.conf
+systemctl restart sssd.service
+
+
 SCRIPT
 
 
@@ -71,7 +84,7 @@ Vagrant.configure(2) do |config|
   config.vm.provider "virtualbox"
 
   config.vm.synced_folder ".", "/vagrant", disabled: true
-  config.vm.box = 'ubu14'
+  config.vm.box = 'ubuntu/xenial64'
 
   config.vm.provider :virtualbox do |vb,override|
      vb.customize ["modifyvm", :id, "--memory", "1024"]
