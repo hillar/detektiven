@@ -63,7 +63,11 @@ ipa role-add-privilege HostEnrollment --privileges='Host Administrators'
 ipa user-add hostenroll --first=host --last=enroll  --homedir=/dev/null --shell=/sbin/nologin
 echo -en "kalakala\nkalakala\n" |ipa passwd hostenroll
 ipa role-add-member HostEnrollment --users=hostenroll
-
+# do the first login, so hosts can use hostenroll
+echo -en "kalakala\nkalakala\n\kalakala\n" | kinit hostenroll
+klist
+echo -en "$IPAadminpassword" | kinit admin
+klist
 # create read only bind user to search for user
 #A. First, make that dedicated ldap auth user in FreeIPA, for example, username: readonly with a good password.
 ipa user-add webeid --first=web --last=eid  --homedir=/dev/null --shell=/sbin/nologin
