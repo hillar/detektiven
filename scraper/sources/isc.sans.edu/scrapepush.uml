@@ -1,0 +1,13 @@
+title scrape und push
+loop every x seconds
+scraper -> isc.sans.edu:get threatfeeds
+isc.sans.edu -> scraper:feeds + update times 
+scraper -> scraper: updates ?
+loop for each updated feed
+scraper -> scraper: not on disk?
+scraper -> isc.sans.edu:get threatX
+isc.sans.edu -> scraper:list
+scraper -> scraper: diff to last
+scraper -> DB: news
+end
+end
