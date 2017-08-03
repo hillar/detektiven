@@ -1,0 +1,72 @@
+ENV["LC_ALL"] = "en_US.UTF-8"
+
+$provision_script = <<SCRIPT
+
+echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4
+export DEBIAN_FRONTEND=noninteractive
+
+apt-get update
+apt-get -y upgrade
+
+apt-get -y install nginx
+apt-get -y install ssl-cert
+cat > /etc/nginx/sites-available/default <<EOF
+
+server {
+    listen 443 ssl default_server;
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+    location / {
+        try_files \\$uri \\$uri/ =404;
+    }
+}
+EOF
+service nginx restart
+
+curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
+apt-get install -y nodejs
+npm -g install restify
+npm -g install restify-clients
+
+export NODE_PATH=/usr/lib/node_modules/
+netstat -ntple
+
+SCRIPT
+
+
+
+
+
+
+Vagrant.configure(2) do |config|
+
+  config.vm.provider "virtualbox"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+  config.vm.box = 'ubuntu/xenial64'
+  config.vm.hostname= "collector.example.org"
+
+  config.vm.provider :virtualbox do |vb,override|
+     vb.customize ["modifyvm", :id, "--memory", "1024"]
+     vb.customize ["modifyvm", :id, "--cpus", "1"]
+     override.vm.network :private_network, ip: "192.168.10.13"
+     override.vm.synced_folder ".", "/vagrant", disabled: false
+   end
+
+   config.vm.provider :aws do |aws, override|
+     aws.access_key_id = ENV['AWS_KEY']
+     aws.secret_access_key = ENV['AWS_SECRET']
+     aws.keypair_name = ENV['AWS_KEYNAME']
+     aws.instance_type = "t2.micro"
+     aws.region = "us-east-1"
+     aws.ami = "ami-772aa961"
+     override.ssh.username = 'ubuntu'
+     override.ssh.private_key_path = ENV['AWS_KEYPATH']
+
+   end
+
+   config.vm.provision "shell", inline: $provision_script
+
+end

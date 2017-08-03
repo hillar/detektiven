@@ -8,5 +8,5 @@ while true; do
   else
     rm threatfeeds.$TIME.csv.gz
   fi
-  sleep 61
+  sleep 901
 done
