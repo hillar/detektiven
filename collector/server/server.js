@@ -10,14 +10,14 @@ function dummy(a,u,b) {
 }
 
 function flicsv(api,user,body) {
-  var bites = req.api.split('?')
+  var bites = api.split('?')
   var url = bites[0]
   var urlparams = bites.length > 1 ? bites[1] : '';
   var params = urlparams.split('&');
   var meta = {}
-  params.foreach(function(param){
+  params.forEach(function(param){
       var kv = param.split('=');
-      meta[k[0]] = k[1] || true;
+      meta[kv[0]] = kv[1] || true;
   })
   console.dir(meta)
 
@@ -25,7 +25,7 @@ function flicsv(api,user,body) {
 
 var routes = {
                   '/api/v0/fli/csv': {
-                      'POST': dummy
+                      'POST': flicsv
                   },
                   '/api/v0/fli/meta': {
                       'POST': dummy,

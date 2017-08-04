@@ -1,0 +1,26 @@
+title api key jwt
+alt
+user -> user: generate key pair
+user -> server : pub key + email
+server -> server: check email
+server -> server: generate API key
+server -> server: store email=APIkey
+server -> server: encrypt API key with user pub key
+server -> mail:  cryptogram
+mail -> user:  cryptogram
+user -> user: store cryptogram
+end
+loop (re)new JWT
+user -> user: decrypt API key with secret key
+user -> user: create JWT payload=APIkey
+user -> user: sign JWT
+end
+loop usage
+user -> server: API call header with JWT
+server -> server: check JWT & API key
+server -> user: accepted
+end
+loop daily
+server -> mail: usage stats
+mail -> user: usage stats
+end
