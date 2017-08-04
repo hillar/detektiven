@@ -9,6 +9,20 @@ function dummy(a,u,b) {
   console.dir(b.split('\n'));
 }
 
+function flicsv(api,user,body) {
+  var bites = req.api.split('?')
+  var url = bites[0]
+  var urlparams = bites.length > 1 ? bites[1] : '';
+  var params = urlparams.split('&');
+  var meta = {}
+  params.foreach(function(param){
+      var kv = param.split('=');
+      meta[k[0]] = k[1] || true;
+  })
+  console.dir(meta)
+
+}
+
 var routes = {
                   '/api/v0/fli/csv': {
                       'POST': dummy
@@ -25,8 +39,12 @@ server = http.createServer( function(req, res) {
     var userAgent = req.headers['user-agent'] || 'undefined';
     var authorization = req.headers['authorization'] || remoteAddress + userAgent ;
     console.log('Request started',remoteAddress,req.method,req.url,userAgent);
-    if ( ! (routes[req.url] && routes[req.url][req.method] && routes[req.url][req.method] instanceof Function)){
-        console.error('not implemented',remoteAddress,req.method,req.url,userAgent);
+    var bites = req.url.split('?')
+    var url = bites[0]
+    var urlparams = bites.length > 1 ? bites[1] : '';
+
+    if ( ! (routes[url] && routes[url][req.method] && routes[url][req.method] instanceof Function)){
+        console.error('not implemented',remoteAddress,req.method,url,userAgent);
         res.writeHead(501);
         res.end('Not Implemented');
         return
@@ -49,7 +67,7 @@ server = http.createServer( function(req, res) {
         res.end('Accepted');
         console.log('Request Accepted',remoteAddress,req.method,req.url,userAgent,total);
         body += decoder.end();
-        routes[req.url][req.method](req.url, authorization, body);
+        routes[url][req.method](req.url, authorization, body);
     });
 });
 
