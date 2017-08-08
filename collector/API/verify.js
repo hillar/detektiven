@@ -14,8 +14,7 @@ var token = fs.readFileSync(cliParams.token).toString().replace(/[\n\r]/g, '');
 jwt.verify(token, publickey, { algorithms: ['RS256']},function(err, decoded){
   if (err){
     console.error(err);
-
   } else {
-    console.log(JSON.stringify(decoded));
+    console.log("NODE Verified OK",JSON.stringify(decoded));
   }
 });
