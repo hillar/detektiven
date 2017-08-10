@@ -1,9 +1,10 @@
 echo "$1"
 name="$1"
 TIME=$(date +%s)
+BEARER=$(./sign_jwt.bash nonce kk@kk "http://localhost:3000/api" pushnews 100 private.pem)
 cd $name || exit
 APIURL="http://localhost:3000/api/v0/fli/csv?feed=$name&time=$TIME&$name"
-BEARER="xxxxx.yyyy.zzz"
+
 ll=$(ls *.csv.gz | tail -2)
 if [ $(echo "$ll" | wc -l) -eq 2 ]; then
   zdiff $ll | grep ">"| sed 's/> //'  > $name.$TIME.news
