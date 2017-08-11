@@ -7,6 +7,8 @@ const { StringDecoder } = require('string_decoder');
 const decoder = new StringDecoder('ascii');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
+const crypto = require('crypto');
+const base64url = require('base64url');
 
 const UPLOADDIR = '/tmp/uploads'
 
@@ -115,12 +117,27 @@ async function register(params,auth,key,res){
     if (! (auth && auth.ip && params && params.email && params.email.length>5 && key && key.length > 271)) {
       reject( new Error('register param missing'));
     }
+    var nonce = guid();
     try {
-      var nonce = guid();
+      var encryptedAndBase64UrlEncodedNonce = base64url(crypto.publicEncrypt(key,Buffer.from(nonce)));
+    } catch (err){
+      console.error();
+      reject( new Error('bad key'));
+    }
+    /*
+    TODO
+    test ip is 'abusing'
+    test is email
+    test is domain & ban sender with 3+ last same
+    test MX & host
+    test email not pwnd curl -v -D kala https://haveibeenpwned.com/api/v2/breachedaccount/oskar@kala.ee
+    test email exist on mx
+    */
+    try {
       var ok = await storePublicKeyToDB(UPLOADDIR,nonce,key,params.email,params);
       if (ok) {
-        res.end(nonce);
-        console.log("sent nonce",nonce,params.email,auth.ip);
+        res.end(encryptedAndBase64UrlEncodedNonce);
+        console.log("sent nonce",encryptedAndBase64UrlEncodedNonce,params.email,auth.ip);
       }
       resolve(true);
     } catch (err) {
@@ -173,6 +190,13 @@ server = http.createServer( function(req, res) {
     }
     var body = '';
     var total = 0;
+    /*
+    TODO 429
+    The 429 status code indicates that the user has sent too many
+    requests in a given amount of time ("rate limiting").
+    res.writeHead( 429 Too Many Requests)
+    Retry-After: 3600
+    */
 
     req.on('data', function (data) {
         total += data.length;
