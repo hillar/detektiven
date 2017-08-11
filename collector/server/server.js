@@ -119,9 +119,9 @@ async function register(params,auth,key,res){
     }
     var nonce = guid();
     try {
-      var encryptedAndBase64UrlEncodedNonce = base64url(crypto.publicEncrypt(key,Buffer.from(nonce)));
+      var encryptedAndBase64UrlEncodedNonce = base64url(crypto.publicEncrypt({ key: key, padding: crypto.constants.RSA_PKCS1_PADDING},Buffer.from(nonce)));
     } catch (err){
-      console.error();
+      console.error(err);
       reject( new Error('bad key'));
     }
     /*

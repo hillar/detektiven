@@ -1,0 +1,7 @@
+# test register
+
+openssl genrsa 1024 > private.pem
+openssl rsa -in private.pem -pubout > public.pem
+curl -v -XPOST localhost:3000/api/v0/register?email=h@k.kk --data-binary @public.pem > nonce.dec
+bash decrypt_nonce.bash nonce.dec > nonce
+cat nonce
