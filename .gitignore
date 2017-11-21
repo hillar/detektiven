@@ -1,3 +1,11 @@
+*.pem
+package-lock.json
+*.old
+*.swp
+*.DS_Store
+*.sign
+*.bin
+
 # Logs
 logs
 *.log
