@@ -82,14 +82,14 @@ SCRIPT
 Vagrant.configure(2) do |config|
 
   config.vm.provider "virtualbox"
-
+  config.vm.hostname = 'chat'
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.box = 'ubuntu/xenial64'
 
   config.vm.provider :virtualbox do |vb,override|
      vb.customize ["modifyvm", :id, "--memory", "1024"]
      vb.customize ["modifyvm", :id, "--cpus", "1"]
-     override.vm.network :private_network, ip: "192.168.10.11"
+     override.vm.network :private_network, ip: "192.168.0.11"
      override.vm.synced_folder ".", "/vagrant", disabled: false
    end
 
