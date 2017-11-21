@@ -1,4 +1,5 @@
 *.pem
+*.deb
 package-lock.json
 *.old
 *.swp
