@@ -6,11 +6,22 @@ import router from './router'
 import axios from 'axios'
 import Buefy from 'buefy'
 import 'buefy/lib/buefy.css'
-//import 'mdi/css/materialdesignicons.css'
+import 'mdi/css/materialdesignicons.css'
+
 
 Vue.config.productionTip = false
 Vue.prototype.$http = axios
 Vue.use(Buefy)
+
+Vue.directive('innerhtml', {
+    deep: false,
+    bind(el, binding) {
+      el.innerHTML = binding.value
+    },
+    componentUpdated(el, binding) {
+      el.innerHTML = binding.value
+    }
+})
 
 /* eslint-disable no-new */
 new Vue({
