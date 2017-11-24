@@ -23,10 +23,33 @@ Vue.directive('innerhtml', {
     }
 })
 
-/* eslint-disable no-new */
-new Vue({
-  el: '#app',
-  router,
-  template: '<App/>',
-  components: { App }
-})
+
+// set solr server
+const solr_server = 'https://192.168.11.2'
+Vue.prototype.$solr_server = solr_server
+console.log('solr server',Vue.prototype.$solr_server)
+// grab fields
+// https://192.168.11.2/solr/core1/schema/fields?showDefaults=true
+
+axios.get(`${solr_server}/solr/core1/schema/fields?showDefaults=true`)
+  .then(function(response) {
+    console.log(response.data.fields);
+    Vue.prototype.$solr_fields = response.data.fields
+    Vue.prototype.$solr_fields2get = []
+    response.data.fields.forEach((item) => {
+      // we do not want to grab content !
+      if (item.name != 'content') Vue.prototype.$solr_fields2get.push(item.name)
+    })
+    console.log('field list',Vue.prototype.$solr_fields2get.join(','))
+    /* eslint-disable no-new */
+    new Vue({
+      el: '#app',
+      router,
+      template: '<App/>',
+      components: { App },
+      solr_server: solr_server
+    })
+  })
+  .catch(function(error) {
+    console.error(error);
+  })

@@ -1,24 +1,58 @@
 <template>
     <section>
-
-      <p v-model="total" align="left"> found: {{ total}}  </p>
-
-      <b-field grouped>
-        <p class="control">
-        <b-switch grouped v-model="isAndOr"
-                  @input = "loadAsyncData()"
-                  true-value="AND"
-                  false-value="OR">
-                  {{ isAndOr }}
-        </b-switch>
-      </p>
-        <b-input grouped placeholder="Search..."
-            v-model="userQuery"
-            @keyup.native.enter = "test()"
-            type="search"
-            icon="search">
-        </b-input>
+      <div class="flipper">
+      <div class="front">
+      <b-field grouped style='width:90%;'>
+          &nbsp;
+          <b-collapse :open="false">
+            <button class="button is-primary" slot="trigger">
+              <b-icon icon="settings"></b-icon>
+            </button>
+            <div class="notification" style="position: absolute; left: 10px">
+                <div class="content" align="left">
+                    <h3>
+                        SETTINGS
+                    </h3>
+                    <b-field label="results per page">
+                      <b-input v-model="perPage"
+                        type="number"
+                        min="1"
+                        max="100"
+                      ></b-input>
+                    </b-field>
+                </div>
+            </div>
+          </b-collapse>
+          &nbsp;
+          <b-switch grouped is-small v-model="isAndOr"
+                    @input = "loadAsyncData()"
+                    true-value="AND"
+                    false-value="OR">
+                    {{ isAndOr }}
+          </b-switch>
+          &nbsp;
+          <b-input grouped placeholder="Search..." style='width:90%;'
+              v-model="userQuery"
+              @keyup.native.enter = "test()"
+              type="search"
+              icon="magnify">
+          </b-input>
+          &nbsp;
+          <b-collapse :open="false">
+            <button class="button is-primary" slot="trigger">
+              <b-icon icon="help"></b-icon></button>
+            <div class="notification" style="position: absolute; right: 10px">
+                    <h3>HELP</h3>
+                    <p>
+                        <br>double click row for result preview
+                        <br>click gear on top left for settings
+                    </p>
+            </div>
+          </b-collapse>
+          &nbsp;
+          &nbsp;
       </b-field>
+
       <hr>
         <b-table
             @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
@@ -43,20 +77,29 @@
               <b-table-column field="file_modified_dt" label="lastupdate" sortable centered>
                   {{ props.row.file_modified_dt ? new Date(props.row.file_modified_dt).toLocaleDateString() : '' }}
               </b-table-column>
-                <b-table-column field="path_basename_s" label="Name" sortable>
-                    {{ props.row.path_basename_s }}
+                <b-table-column field="id" label="Name" sortable>
+                    {{ props.row.name }}
                 </b-table-column>
                 <b-table-column label="content">
                     <p v-innerhtml="props.row.truncated"></p>
                 </b-table-column>
             </template>
+
             <template slot="detail" slot-scope="props">
               <strong>{{ props.row.id }} </strong>
               <hr>
-              <pre v-innerhtml="props.row.highlighted"></pre>
+              <pre v-innerhtml="props.row.json"></pre>
+            </template>
+
+            <template slot="bottom-left">
+                        &nbsp;<b>Total found</b>: {{ total }}
             </template>
 
         </b-table>
+      </div>
+      <div class="back">
+      </div>
+    </div>
     </section>
 </template>
 
@@ -64,7 +107,7 @@
     export default {
         data() {
             return {
-                userQuery: 'laeva kapten',
+                userQuery: 'hillar aarelaid',
                 isAndOr: 'AND',
                 data: [],
                 total: 0,
@@ -80,7 +123,6 @@
         methods: {
 
             test (){
-              console.dir(this.userQuery)
               if (!this.userQuery == "") {
                 this.$toast.open({
                     message: `searching for: ${this.userQuery}`,
@@ -89,37 +131,36 @@
                 this.loadAsyncData()
               }
             },
-            test2 (){
-              console.dir(this)
-              if (!this.userQuery == "") {
-                this.$toast.open({
-                    message: `test2 ${this.userQuery}`,
-                    type: 'is-success'
-                })
-
-              }
+            letsFlip: function(item){
+              console.log('flipping')
             },
 
             loadAsyncData() {
-
                 this.loading = true
                 let start = (this.page - 1) * this.perPage
                 let rows = this.perPage
                 let fragsize = this.fragsize
                 let sort = `${this.sortField}%20${this.sortOrder}`
-                let pre = "hl.tag.pre=<highlighted>"
-                let post = ""
                 let op = `q.op=${this.isAndOr}`
-                let fl = 'fl=id,file_modified_dt,path_basename_s'
-                let hl = `on&hl.fl=content&hl.fragsize=${fragsize}&hl.encoder=html&hl.snippets=100`
-                let q_url = `https://192.168.11.2/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${rows}&sort=${sort}&hl=${hl}`
-                console.log(q_url)
+                //let fl = 'fl=id,file_modified_dt'
+                let fl = this.$solr_fields2get.join(',')
+                //this.$toast.open(this.$solr_fields2get.join(','))
+                let pre = "hl.tag.pre=<highlighted>"
+                let post = "hl.tag.post=</highlighted>"
+                let hl = `on&hl.fl=content&hl.fragsize=${fragsize}&hl.encoder=html&hl.snippets=1`
+                let q_url = `${this.$solr_server}/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${rows}&sort=${sort}&hl=${hl}`
                 this.$http.get(q_url)
                     .then(({ data }) => {
                         this.data = []
                         let currentTotal = data.response.numFound
                         this.total = currentTotal
                         data.response.docs.forEach((item) => {
+                          Object.keys(item).forEach((k) => {
+                            console.log(k,(item[k] === true))
+                            // delete all etl_* 
+                            if (item[k] === true) delete(item[k])
+                          })
+                          item.name = item.id.substring(7,17)+'..'+item.id.substring(item.id.length-16)
                           if (data.highlighting) {
                             if (data.highlighting[item.id]) {
                               if (data.highlighting[item.id].content) {
@@ -128,6 +169,7 @@
                               }
                             }
                           }
+                          item.json = JSON.stringify(item,null,4)
                           this.data.push(item)
                         })
                         this.loading = false
@@ -147,20 +189,12 @@
 
             onPageChange(page) {
                 this.page = page
-                this.$toast.open({
-                    message: `going to page ${page} `,
-                    type: 'is-success'
-                })
                 this.loadAsyncData()
             },
 
             onSort(field, order) {
                 this.sortField = field
                 this.sortOrder = order
-                this.$toast.open({
-                    message: `sorting on ${field} ${order}`,
-                    type: 'is-success'
-                })
                 this.loadAsyncData()
             }
         },
@@ -170,6 +204,39 @@
     }
 </script>
 <style>
+  em {background: #ff0;}
 
-em {background: #ff0;}
+  /* 3D FLIP CARD */
+  .flipper{
+    transition: 0.6s;
+  	transform-style: preserve-3d;
+  	position: relative;
+  }
+  .flipper.flip{
+    transform: rotateY(180deg);
+  }
+
+  .front,
+  .back {
+    margin: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+  	top: 0;
+  	left: 0;
+    backface-visibility: hidden;
+  }
+
+  .front {
+    z-index: 2;
+  	/* for firefox 31 */
+  	transform: rotateY(0deg);
+  }
+  .back {
+    transform: rotateY( 180deg );
+  }
+
+
+
 </style>
