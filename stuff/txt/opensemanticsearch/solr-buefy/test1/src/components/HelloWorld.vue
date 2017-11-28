@@ -56,6 +56,7 @@
       <hr>
         <b-table
             @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
+            @details-open="(row, index) => this.connected(`${row.id}`,`${row.json}`,`${row}`)"
             :data="data"
             :loading="loading"
 
@@ -74,6 +75,9 @@
             @sort="onSort">
 
             <template slot-scope="props">
+              <b-table-column field="score" label="Score" numeric sortable>
+                  {{ props.row.score }}
+              </b-table-column>
               <b-table-column field="file_modified_dt" label="lastupdate" sortable centered>
                   {{ props.row.file_modified_dt ? new Date(props.row.file_modified_dt).toLocaleDateString() : '' }}
               </b-table-column>
@@ -86,9 +90,16 @@
             </template>
 
             <template slot="detail" slot-scope="props">
-              <strong>{{ props.row.id }} </strong>
-              <hr>
-              <pre v-innerhtml="props.row.json"></pre>
+                <!-- word cloud /solr/core1/select?&fl=id&rows=0&q=*&q.op=AND&wt=json&facet=true&facet.field=_text_&facet.minCount=1&facet.limit=50 -->
+                <!-- to {{ props.row.g.getNodesCount() || 0}}  {{ props.row.g.getLinksCount() || 0}} -->
+                <strong>{{ props.row.id }} connceted </strong>
+                <hr>
+                <div v-observe-visibility="(isVisible, entry) => gvisibilityChanged(isVisible, entry, `${props.row.id}`)">
+                  <code style="font-size:50%"> {{props.row.connections}} </code>
+                </div>
+                <hr>
+                <pre style="font-size:50%" v-innerhtml="props.row.json"></pre>
+
             </template>
 
             <template slot="bottom-left">
@@ -104,12 +115,16 @@
 </template>
 
 <script>
+    import axios from 'axios'
     export default {
+
         data() {
             return {
-                userQuery: 'hillar aarelaid',
-                isAndOr: 'AND',
+                userQuery: 'kala maja sõiduauto',
+                isAndOr: 'OR',
                 data: [],
+                g: {},
+                layout: {},
                 total: 0,
                 loading: false,
                 sortField: 'file_modified_dt',
@@ -131,11 +146,94 @@
                 this.loadAsyncData()
               }
             },
+            gvisibilityChanged (isVisible, entry, id) {
+              console.log(isVisible, entry, id)
+              if (isVisible) {
+                
+              }
+            },
             letsFlip: function(item){
               console.log('flipping')
             },
 
-            loadAsyncData() {
+            async connected (id,meta) {
+              let datarow = null
+              // look up our data row
+              for (let rr of this.data) {
+                if (rr.id == id){
+                  if ( rr.connections) {
+                    console.log(rr.g)
+                    this.$toast.open('using cached '+id)
+                    return
+                  }
+                }
+              }
+              // lets load connections
+              this.loading = true
+              let connections = {}
+              let q = []
+              let row = null
+              try {
+                row = await JSON.parse(meta)
+              } catch (e) {
+                console.error('row is not json')
+                return
+              }
+              // find all *_ss from row meta
+              for (let k of Object.keys(row)) {
+                if (Array.isArray(row[k]) === true && k.indexOf('_ss')>0) {
+                  for (let v of row[k] ) {
+                    q.push({'field': k, 'value': v})
+                  }
+                }
+              }
+              // build ngraph.graph
+              const createGraph = require('ngraph.graph')
+              let g = createGraph()
+              g.beginUpdate();
+              g.addNode(id,row)
+              // query all *_ss and append to row.connections
+              const axios = require('axios')
+              for (let i of q) {
+                g.addNode(i.value)
+                g.addLink(id,i.value,i.field)
+                let q_url = `${this.$solr_server}/solr/core1/select?fl=id,score,title&q=${i.field}:${i.value}&wt=json&rows=100`
+                console.log(q_url)
+                let res = await axios(q_url)
+                for (let doc of res.data.response.docs) {
+                  g.addNode(doc.id,doc)
+                  g.addLink(i.value,doc.id,i.field)
+                  if (!connections[doc.id]) connections[doc.id] = {'title':doc.title[0],'fields':[]}
+                  connections[doc.id].fields.push({'field':i.field, 'value':i.value})
+                }
+              }
+              g.endUpdate()
+              // put it into data
+              for (let rr of this.data) {
+                if (rr.id == id){
+                  rr.connections = JSON.stringify(connections,null,4)
+                  rr.connectedCount = Object.keys(connections).length
+                  rr.g = g
+                  const toJSON = require('ngraph.tojson');
+                  const toDot = require('ngraph.todot');
+                  let layout = require('ngraph.forcelayout3d')(g);
+                  let ITERATIONS_COUNT = 100
+                  for (var i = 0; i < ITERATIONS_COUNT; ++i) {
+                    layout.step();
+                  }
+                  g.forEachNode(function(node) {
+                      node.position = layout.getNodePosition(node.id)
+                      // Node position is pair of x,y,z coordinates:
+                      // {x: ... , y: ... , z: ... }
+                    });
+                  rr.connections = toJSON(g)
+                }
+              }
+
+              this.loading = false
+            },
+
+            loadAsyncData () {
                 this.loading = true
                 let start = (this.page - 1) * this.perPage
                 let rows = this.perPage
@@ -143,11 +241,11 @@
                 let sort = `${this.sortField}%20${this.sortOrder}`
                 let op = `q.op=${this.isAndOr}`
                 //let fl = 'fl=id,file_modified_dt'
-                let fl = this.$solr_fields2get.join(',')
+                let fl = '&fl=*,score,content:[value v=""]'//`fl=${this.$solr_fields2get.join(',')}`
                 //this.$toast.open(this.$solr_fields2get.join(','))
                 let pre = "hl.tag.pre=<highlighted>"
                 let post = "hl.tag.post=</highlighted>"
-                let hl = `on&hl.fl=content&hl.fragsize=${fragsize}&hl.encoder=html&hl.snippets=1`
+                let hl = `on&hl.fl=content&hl.fragsize=${fragsize}&hl.encoder=html&hl.snippets=100`
                 let q_url = `${this.$solr_server}/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${rows}&sort=${sort}&hl=${hl}`
                 this.$http.get(q_url)
                     .then(({ data }) => {
@@ -155,11 +253,12 @@
                         let currentTotal = data.response.numFound
                         this.total = currentTotal
                         data.response.docs.forEach((item) => {
+                          delete(item['content'])
                           Object.keys(item).forEach((k) => {
-                            console.log(k,(item[k] === true))
-                            // delete all etl_* 
+                            // delete all etl_*
                             if (item[k] === true) delete(item[k])
                           })
+                          item.json = JSON.stringify(item,null,4)
                           item.name = item.id.substring(7,17)+'..'+item.id.substring(item.id.length-16)
                           if (data.highlighting) {
                             if (data.highlighting[item.id]) {
@@ -169,7 +268,7 @@
                               }
                             }
                           }
-                          item.json = JSON.stringify(item,null,4)
+
                           this.data.push(item)
                         })
                         this.loading = false

@@ -6,7 +6,7 @@ import router from './router'
 import axios from 'axios'
 import Buefy from 'buefy'
 import 'buefy/lib/buefy.css'
-import 'mdi/css/materialdesignicons.css'
+//import 'mdi/css/materialdesignicons.css'
 
 
 Vue.config.productionTip = false
@@ -23,9 +23,14 @@ Vue.directive('innerhtml', {
     }
 })
 
+import { ObserveVisibility } from 'vue-observe-visibility'
+
+Vue.directive('observe-visibility', ObserveVisibility)
+
 
 // set solr server
 const solr_server = 'https://192.168.11.2'
+//const solr_server = ''
 Vue.prototype.$solr_server = solr_server
 console.log('solr server',Vue.prototype.$solr_server)
 // grab fields
@@ -52,4 +57,5 @@ axios.get(`${solr_server}/solr/core1/schema/fields?showDefaults=true`)
   })
   .catch(function(error) {
     console.error(error);
+    alert('can not talk to solr server ;( ', solr_server)
   })
