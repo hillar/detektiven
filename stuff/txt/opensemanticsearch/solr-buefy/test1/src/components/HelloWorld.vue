@@ -20,6 +20,21 @@
                         max="100"
                       ></b-input>
                     </b-field>
+                    <b-field label="graph force">
+                      <b-input v-model="options.force"
+                        type="number"
+                        min="1000"
+                        max="10000"
+                      ></b-input>
+                      </b-field>
+                      <b-field label="graph node size">
+                        <b-input v-model="options.nodeSize"
+                          type="number"
+                          min="1"
+                          max="100"
+                        ></b-input>
+
+                    </b-field>
                 </div>
             </div>
           </b-collapse>
@@ -46,6 +61,8 @@
                     <p>
                         <br>double click row for result preview
                         <br>click gear on top left for settings
+                        <br>alt-click on graph node sets filter
+                        <br>shift-click on graph node ..
                     </p>
             </div>
           </b-collapse>
@@ -58,6 +75,8 @@
             @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
             @details-open="(row, index) => this.connected(`${row.id}`,`${row.json}`,`${row}`)"
             :data="data"
+            :nodes="currentNodes"
+            :links="currentLinks"
             :loading="loading"
 
             detailed
@@ -89,17 +108,12 @@
                 </b-table-column>
             </template>
 
-            <template slot="detail" slot-scope="props">
-                <!-- word cloud /solr/core1/select?&fl=id&rows=0&q=*&q.op=AND&wt=json&facet=true&facet.field=_text_&facet.minCount=1&facet.limit=50 -->
-                <!-- to {{ props.row.g.getNodesCount() || 0}}  {{ props.row.g.getLinksCount() || 0}} -->
-                <strong>{{ props.row.id }} connceted </strong>
-                <hr>
-                <div v-observe-visibility="(isVisible, entry) => gvisibilityChanged(isVisible, entry, `${props.row.id}`)">
-                  <code style="font-size:50%"> {{props.row.connections}} </code>
-                </div>
-                <hr>
-                <pre style="font-size:50%" v-innerhtml="props.row.json"></pre>
-
+            <template slot="detail" slot-scope="props" :nodes="nodes">
+              <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
+              <button class="button block" @click="isMeta = !isMeta">Meta</button>
+              <b-message :title="`${props.row.id}`" :active.sync="isMeta">
+                  {{ props.row.json }}
+              </b-message>
             </template>
 
             <template slot="bottom-left">
@@ -115,24 +129,36 @@
 </template>
 
 <script>
-    import axios from 'axios'
     export default {
-
         data() {
             return {
                 userQuery: 'kala maja sõiduauto',
                 isAndOr: 'OR',
                 data: [],
+                currentNodes: [],
+                currentLinks: [],
+                nodes: {},
+                links: {},
+                options:
+                        {
+                          canvas: false,
+                          //size: {h: 1000},
+                          force: 2500,
+                          nodeSize: 10,
+                          nodeLabels: true,
+                          linkWidth:1
+                        },
                 g: {},
                 layout: {},
                 total: 0,
                 loading: false,
-                sortField: 'file_modified_dt',
+                sortField: 'score',
                 sortOrder: 'desc',
                 defaultSortOrder: 'desc',
                 page: 1,
                 perPage: 10,
-                fragsize: 1024
+                fragsize: 1024,
+                isMeta: true
             }
         },
         methods: {
@@ -146,10 +172,62 @@
                 this.loadAsyncData()
               }
             },
+            async nodeClick (event, node) {
+              //expand current node
+              if (event.shiftKey) {
+                if (node.expand && node.root){
+                  //this.nodes[node.root].findIndex()
+                  this.loading = true
+                  let q_url = `${this.$solr_server}/solr/core1/select?&q=id:"${node.expand}"&wt=json&rows=1`
+                  console.log(q_url)
+                  const axios = require('axios')
+                  node._color = 'yellow'
+                  let res = await axios(q_url)
+                  for (let row of res.data.response.docs) {
+                    for (let k of Object.keys(row)) {
+                      if (Array.isArray(row[k]) === true && k.indexOf('_ss')>0) {
+                        for (let v of row[k] ) {
+                          //q.push({'field': k, 'value': v})
+                          let index = await this.currentNodes.findIndex((node) => { return node.id === v })
+                          if (index>-1){
+                            this.$toast.open('on the graph already '+k+':'+v)
+                          } else {
+                            this.currentNodes.push({ id: v, name: v , _size:25, _color:'orange' })
+                          }
+                          this.currentLinks.push({ sid: node.id, tid: v, _color:'orange' })
+                        }
+                      }
+                    }
+                  }
+                  this.loading = false
+                }
+              }
+              // set current node to filter
+              if (event.altKey){
+                if (node.filter){
+                  this.userQuery += node.filter
+                  this.$toast.open(node.filter)
+                  /*
+                  this.$dialog.confirm({
+                      message: 'set this filter:'+node.filter,
+                      onConfirm: () => this.userQuery += node.filter
+                  })
+                  */
+                }
+              }
+              if (event.ctrlKey) {
+                this.$toast.open('ctrlKey')
+              }
+              if (!node.pinned) {
+                node.pinned = true
+                node.fx = node.x
+                node.fy = node.y
+              }
+            },
             gvisibilityChanged (isVisible, entry, id) {
-              console.log(isVisible, entry, id)
+              //console.log(isVisible, entry, id)
               if (isVisible) {
-                
+
               }
             },
             letsFlip: function(item){
@@ -157,22 +235,20 @@
             },
 
             async connected (id,meta) {
-              let datarow = null
-              // look up our data row
-              for (let rr of this.data) {
-                if (rr.id == id){
-                  if ( rr.connections) {
-                    console.log(rr.g)
-                    this.$toast.open('using cached '+id)
-                    return
-                  }
-                }
+              this.currentNodes = []
+              this.currentLinks = []
+              if (this.nodes[id] && this.links[id]) {
+                //this.$toast.open('using cached '+id)
+                this.currentNodes = this.nodes[id]
+                this.currentLinks = this.links[id]
+                return
               }
-              // lets load connections
               this.loading = true
+              this.nodes[id] = []
+              this.links[id] = []
               let connections = {}
-              let q = []
-              let row = null
+              let q = [] // holds field values filtered from meta
+              let row = null // parsed meta obj
               try {
                 row = await JSON.parse(meta)
               } catch (e) {
@@ -188,53 +264,62 @@
                 }
               }
               // build ngraph.graph
+              /*
               const createGraph = require('ngraph.graph')
               let g = createGraph()
               g.beginUpdate();
               g.addNode(id,row)
+              */
+              this.currentNodes.push({ id: id, name: id, _color:'red', _size:50 })
               // query all *_ss and append to row.connections
               const axios = require('axios')
               for (let i of q) {
+                /*
                 g.addNode(i.value)
                 g.addLink(id,i.value,i.field)
+                */
+                //if (!nodeExists(id, this.nodes[id]))
+                let index = await this.currentNodes.findIndex((node) => { return node.id === i.value })
+                if (index>-1){
+                  this.$toast.open(i.value)
+                } else {
+                  this.currentNodes.push({ id: i.value, name: i.value, _size:25, _color:'blue',filter:' "'+i.value+'"' })
+                }
+                this.currentLinks.push({ sid: id, tid: i.value, _color:'red' })
                 let q_url = `${this.$solr_server}/solr/core1/select?fl=id,score,title&q=${i.field}:${i.value}&wt=json&rows=100`
                 console.log(q_url)
                 let res = await axios(q_url)
                 for (let doc of res.data.response.docs) {
+                  /*
                   g.addNode(doc.id,doc)
                   g.addLink(i.value,doc.id,i.field)
-                  if (!connections[doc.id]) connections[doc.id] = {'title':doc.title[0],'fields':[]}
-                  connections[doc.id].fields.push({'field':i.field, 'value':i.value})
-                }
-              }
-              g.endUpdate()
-              // put it into data
-              for (let rr of this.data) {
-                if (rr.id == id){
-                  rr.connections = JSON.stringify(connections,null,4)
-                  rr.connectedCount = Object.keys(connections).length
-                  rr.g = g
-                  const toJSON = require('ngraph.tojson');
-                  const toDot = require('ngraph.todot');
-                  let layout = require('ngraph.forcelayout3d')(g);
-                  let ITERATIONS_COUNT = 100
-                  for (var i = 0; i < ITERATIONS_COUNT; ++i) {
-                    layout.step();
+                  */
+                  //if (!nodeExists(doc.id, this.nodes[id]))
+                  let index = await this.currentNodes.findIndex((node) => { return node.id === doc.id })
+                  if (index>-1){
+                    //this.currentNodes[index]._size *= 1.2;
+                  } else {
+                    this.currentNodes.push({ id: doc.id, name: doc.title[0], expand: doc.id, root:id, _color:'green'})
                   }
-                  g.forEachNode(function(node) {
-                      node.position = layout.getNodePosition(node.id)
-                      // Node position is pair of x,y,z coordinates:
-                      // {x: ... , y: ... , z: ... }
-                    });
-                  rr.connections = toJSON(g)
+                  this.currentLinks.push({ sid: i.value, tid: doc.id, _color:'green' })
+                  //if (!connections[doc.id]) connections[doc.id] = {'title':doc.title[0],'fields':[]}
+                  //connections[doc.id].fields.push({'field':i.field, 'value':i.value})
                 }
               }
-
+              //g.endUpdate()
+              this.nodes[id] = this.currentNodes
+              this.links[id] = this.currentLinks
               this.loading = false
             },
 
             loadAsyncData () {
                 this.loading = true
+                this.data = []
+                this.nodes = {}
+                this.links = {}
+                this.currentNodes = []
+                this.currentLinks = []
+                this.total = 0
                 let start = (this.page - 1) * this.perPage
                 let rows = this.perPage
                 let fragsize = this.fragsize
@@ -274,6 +359,10 @@
                         this.loading = false
                     }, response => {
                         this.data = []
+                        this.nodes = {}
+                        this.links = {}
+                        this.currentNodes = []
+                        this.currentLinks = []
                         this.total = 0
                         this.loading = false
                     })

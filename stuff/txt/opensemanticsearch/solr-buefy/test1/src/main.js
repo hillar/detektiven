@@ -7,11 +7,13 @@ import axios from 'axios'
 import Buefy from 'buefy'
 import 'buefy/lib/buefy.css'
 //import 'mdi/css/materialdesignicons.css'
-
+Vue.use(Buefy)
+import D3Network  from 'vue-d3-network'
+Vue.component('d3-network',D3Network)
 
 Vue.config.productionTip = false
 Vue.prototype.$http = axios
-Vue.use(Buefy)
+
 
 Vue.directive('innerhtml', {
     deep: false,
@@ -24,7 +26,6 @@ Vue.directive('innerhtml', {
 })
 
 import { ObserveVisibility } from 'vue-observe-visibility'
-
 Vue.directive('observe-visibility', ObserveVisibility)
 
 
