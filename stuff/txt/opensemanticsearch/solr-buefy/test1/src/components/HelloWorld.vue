@@ -133,7 +133,7 @@
         data() {
             return {
                 userQuery: 'kala maja sõiduauto',
-                isAndOr: 'OR',
+                isAndOr: 'AND',
                 data: [],
                 currentNodes: [],
                 currentLinks: [],
@@ -158,7 +158,7 @@
                 page: 1,
                 perPage: 10,
                 fragsize: 1024,
-                isMeta: true
+                isMeta: false
             }
         },
         methods: {
@@ -178,13 +178,28 @@
                 if (node.expand && node.root){
                   //this.nodes[node.root].findIndex()
                   this.loading = true
-                  let q_url = `${this.$solr_server}/solr/core1/select?&q=id:"${node.expand}"&wt=json&rows=1`
+                  let q_url = `${this.$solr_server}/solr/core1/select?&q=${node.expand}&wt=json&rows=1`
                   console.log(q_url)
                   const axios = require('axios')
                   node._color = 'yellow'
-                  let res = await axios(q_url)
+                  let res = {}
+                  try {
+                    res = await axios(q_url)
+                  } catch (e) {
+                    console.dir(e)
+                    this.$snackbar.open('contact your admin:'+e.message)
+                    this.loading = false
+                    return
+                  }
                   for (let row of res.data.response.docs) {
-                    for (let k of Object.keys(row)) {
+                    let index = await this.currentNodes.findIndex((node) => { return node.id === row.id })
+                    if (index>-1){
+                      //this.currentNodes[index]._size *= 1.2;
+                    } else {
+                      this.currentNodes.push({ id: row.id, name: row.title[0], expand: 'id:"'+row.id+'"', root:node.root, _color:'green'})
+                    }
+                    this.currentLinks.push({ sid: node.id, tid: row.id })
+                  for (let k of Object.keys(row)) {
                       if (Array.isArray(row[k]) === true && k.indexOf('_ss')>0) {
                         for (let v of row[k] ) {
                           //q.push({'field': k, 'value': v})
@@ -192,9 +207,9 @@
                           if (index>-1){
                             this.$toast.open('on the graph already '+k+':'+v)
                           } else {
-                            this.currentNodes.push({ id: v, name: v , _size:25, _color:'orange' })
+                            this.currentNodes.push({ id: v, name: v, _color:'green' ,expand: '"'+v+'"', root:node.root, filter:'"'+v+'"' })
                           }
-                          this.currentLinks.push({ sid: node.id, tid: v, _color:'orange' })
+                          this.currentLinks.push({ sid: row.id, tid: v, _color:'orange' })
                         }
                       }
                     }
@@ -299,7 +314,7 @@
                   if (index>-1){
                     //this.currentNodes[index]._size *= 1.2;
                   } else {
-                    this.currentNodes.push({ id: doc.id, name: doc.title[0], expand: doc.id, root:id, _color:'green'})
+                    this.currentNodes.push({ id: doc.id, name: doc.title[0], expand: 'id:"'+doc.id+'"', root:id, _color:'green'})
                   }
                   this.currentLinks.push({ sid: i.value, tid: doc.id, _color:'green' })
                   //if (!connections[doc.id]) connections[doc.id] = {'title':doc.title[0],'fields':[]}
