@@ -109,7 +109,9 @@
             </template>
 
             <template slot="detail" slot-scope="props" :nodes="nodes">
+              <div v-observe-visibility="gvisibilityChanged">
               <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
+            </div>
               <button class="button block" @click="isMeta = !isMeta">Meta</button>
               <b-message :title="`${props.row.id}`" :active.sync="isMeta">
                   {{ props.row.json }}
@@ -129,6 +131,8 @@
 </template>
 
 <script>
+
+import panzoom from 'panzoom'
     export default {
         data() {
             return {
@@ -142,7 +146,7 @@
                 options:
                         {
                           canvas: false,
-                          //size: {h: 1000},
+                          size: {h: 1000},
                           force: 2500,
                           nodeSize: 10,
                           nodeLabels: true,
@@ -233,6 +237,7 @@
               if (event.ctrlKey) {
                 this.$toast.open('ctrlKey')
               }
+              if (!event.shiftKey && !event.altKey && !event.ctrlKey)
               if (!node.pinned) {
                 node.pinned = true
                 node.fx = node.x
@@ -242,7 +247,8 @@
             gvisibilityChanged (isVisible, entry, id) {
               //console.log(isVisible, entry, id)
               if (isVisible) {
-
+                console.dir(entry)
+                panzoom(entry.target.childNodes[0])
               }
             },
             letsFlip: function(item){
