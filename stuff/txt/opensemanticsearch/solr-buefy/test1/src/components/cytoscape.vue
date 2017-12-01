@@ -277,7 +277,7 @@ export default {
 
 <style>
 #cy {
-  /*background-color: yellow;*/
+  background-color: yellow;
   width: 100% !important;
   height: 100% !important;
 }

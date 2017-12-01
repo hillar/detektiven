@@ -6,10 +6,11 @@ import router from './router'
 import axios from 'axios'
 import Buefy from 'buefy'
 import 'buefy/lib/buefy.css'
-//import 'mdi/css/materialdesignicons.css'
+import 'mdi/css/materialdesignicons.css'
 Vue.use(Buefy)
-import D3Network  from 'vue-d3-network'
-Vue.component('d3-network',D3Network)
+
+import cytoscape from '@/components/cytoscape.vue'
+Vue.component('cytoscape',cytoscape)
 
 Vue.config.productionTip = false
 Vue.prototype.$http = axios
@@ -24,9 +25,6 @@ Vue.directive('innerhtml', {
       el.innerHTML = binding.value
     }
 })
-
-import { ObserveVisibility } from 'vue-observe-visibility'
-Vue.directive('observe-visibility', ObserveVisibility)
 
 
 // set solr server
