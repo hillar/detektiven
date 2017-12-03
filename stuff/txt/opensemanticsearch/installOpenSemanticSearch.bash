@@ -26,28 +26,33 @@ apt-get -y upgrade >> /vagrant/provision.log 2>&1
 
 cd /vagrant/
 [ -f open-semantic-search_$OSSVERSION.deb ] || wget -q https://www.opensemanticsearch.org/download/open-semantic-search_$OSSVERSION.deb
-echo "$(date) installing depes .."
+#echo "$(date) installing depes .."
 # see https://raw.githubusercontent.com/opensemanticsearch/open-semantic-search/master/build/deb/stable/DEBIAN/control
-apt-get -y install tesseract-ocr scantailor
-apt-get -y install default-jre-headless apache2 libapache2-mod-php php php-bcmath libapache2-mod-wsgi-py3 python3-django python3-rdflib python3-pysolr python3-dateutil python3-lxml python3-feedparser poppler-util pst-utils daemon python3-pyinotify python3-celery python3-nltk >> /vagrant/provision.log 2>&1
-echo "$(date) installing open-semantic-search .."
-# TODO fix install hunging here ;(
+apt-get -y install tesseract-ocr scantailor >> /vagrant/provision.log 2>&1
+#apt-get -y install default-jre-headless apache2 libapache2-mod-php php php-bcmath libapache2-mod-wsgi-py3 python3-django python3-rdflib python3-pysolr python3-dateutil python3-lxml python3-feedparser poppler-util pst-utils daemon python3-pyinotify python3-celery python3-nltk >> /vagrant/provision.log 2>&1
+echo "$(date) INFO dpkg -i open-semantic-search_$OSSVERSION.deb" 
+# hack to fix solr install hunging here ;(
+# see https://github.com/opensemanticsearch/solr.deb/issues/1
+export SYSTEMD_PAGER=''
 dpkg -i open-semantic-search_$OSSVERSION.deb
+echo "$(date) INFO apt-get -y -f install"
 apt-get -y -f install
+echo 'SOLR_HOST="0.0.0.0"' >>  /etc/default/solr.in.sh
+service solr restart
 #sleep 2
 #echo "$(date) indexing sample documents .."
-#opensemanticsearch-index-dir /vagrant/sampledocs/
+opensemanticsearch-index-dir /vagrant/sampledocs/
 
 echo "$(date) installing nodejs"
-curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-sudo apt-get install -y nodejs
+curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash - >> /vagrant/provision.log 2>&1
+sudo apt-get install -y nodejs >> /vagrant/provision.log 2>&1
 
 echo "$(date) installing solr-security-proxy"
 cd /opt
 mkdir solr-security-proxy
 cd solr-security-proxy
 echo '{}' > package.json
-npm install solr-security-proxy
+npm install solr-security-proxy >> /vagrant/provision.log 2>&1
 mkdir bin
 ln -s $(npm bin)/solr-security-proxy /opt/solr-security-proxy/bin/solr-security-proxy
 mkdir -p /var/log/solr-security-proxy
