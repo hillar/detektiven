@@ -14,12 +14,9 @@
     "buefy": "^0.6.1",
     "cytoscape": "^3.2.6",
     "cytoscape-cxtmenu": "^2.10.3",
+    "fingerprintjs2": "^1.5.1",
     "mdi": "^2.0.46",
-    "ngraph.graph": "0.0.14",
-    "panzoom": "^4.0.0",
     "vue": "^2.5.2",
-    "vue-d3-network": "^0.1.23",
-    "vue-observe-visibility": "^0.3.1",
     "vue-router": "^3.0.1",
     "weaverjs": "^1.2.0"
   },

@@ -35,6 +35,10 @@ console.log('solr server',Vue.prototype.$solr_server)
 // grab fields
 // https://192.168.11.2/solr/core1/schema/fields?showDefaults=true
 
+import fingerprint from '@/utils/fingerprint'
+fingerprint()
+.then(function(fp){
+  console.log('fingerprint',fp)
 axios.get(`${solr_server}/solr/core1/schema/fields?showDefaults=true`)
   .then(function(response) {
     console.log(response.data.fields);
@@ -58,3 +62,8 @@ axios.get(`${solr_server}/solr/core1/schema/fields?showDefaults=true`)
     console.error(error);
     alert('can not talk to solr server ;( ', solr_server)
   })
+})
+.catch(function(error) {
+  console.error(error);
+  alert('can not fingerprint browser ;( ')
+})
