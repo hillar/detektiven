@@ -51,8 +51,6 @@ export default {
         coolingFactor: 0.99,
         minTemp: 1.0,
       },
-      //   elements: [],
-      //elements: [{data:{id:'a',data:{name:'kala'}}},{data:{id:'b'}},{data:{id:'c'}},{data:{id:'ab',source:'a',target:'b'}},{data:{id:'bc',source:'b',target:'c'}}],
       style: [
               {
                selector: 'node',
@@ -114,6 +112,10 @@ export default {
         {
           content: 'exportNodeJson',
           select: this.exportNodeJson
+        },
+        {
+          content: 'exportNodeFile',
+          select: this.exportNodeFile
         }
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
@@ -193,6 +195,7 @@ export default {
     },
     expandNode(node) {
       console.log('expandNode')
+
       let that = this
       this.$toast.open('expanding: '+node.data('label'))
       const axios = require('axios')
@@ -213,7 +216,7 @@ export default {
             if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
               for (let value of doc[key]) {
                 if (that.cy.getElementById(key+value).length == 0)
-                  that.cy.add({data:{id:key+value,label:value}})
+                  that.cy.add({data:{id:key+value,label:value, doc:{key:key,value:value}}})
                 that.cy.add({data:{source:doc.id,target:key+value}})
               }
             }
@@ -221,6 +224,7 @@ export default {
         }
         let layout = that.cy.makeLayout(that.layout);
         layout.run();
+        that.highlightNode(node)
         that.loading = false
       })
       .catch(function(error) {
@@ -234,11 +238,23 @@ export default {
     this.$toast.open(node.data('label'))
     },
     exportNodeJson: function(node) {
-      this.download(
-        "graph.json",
-        JSON.stringify(node.data('doc')),
-        "data:text/plain;charset=utf-8,"
-      );
+      console.log('exportNodeJson')
+      let filename = `${node.data('id')}.json`
+      let filecontent = JSON.stringify(node.data('doc'))
+      this.$toast.open(filecontent)
+      this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
+    },
+    exportNodeFile: function(node) {
+      console.log('exportNodeFile')
+      let filename = node.data('filename')
+      if (filename ) {
+      this.$dialog.confirm({
+                    message: `Download file ${filename}?`,
+                    onConfirm: () => this.$toast.open('User confirmed')
+                })
+      } else {
+        this.$toast.open('sorry, no file')
+      }
     },
     // context menu items for core
     centerOnGraph: function() {

@@ -1,5 +1,7 @@
 <template>
     <section>
+
+      <!-- authenticated und authorized -->
       <div class="flipper">
       <div class="front">
       <b-field grouped style='width:90%;'>
@@ -113,12 +115,14 @@
               <!--
               <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
               -->
+              <div style="height:600px">
               <cytoscape :elements="currentEles" :queryURL="queryURL"></cytoscape>
 
               <button class="button block" @click="isMeta = !isMeta">Meta</button>
               <b-message :title="`${props.row.id}`" :active.sync="isMeta">
                   {{ props.row.json }}
               </b-message>
+              </div>
             </template>
 
             <template slot="bottom-left">
@@ -187,21 +191,17 @@
                 let doc = JSON.parse(json)
                 console.dir(doc)
                 this.eles[id] = []
-                this.eles[id].push({data:{id:doc.id,label:doc.title.join(',')}})
-                  for (let key of Object.keys(doc)){
-                    if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
-                      for (let value of doc[key]) {
-                        this.eles[id].push({data:{id:key+value,label:value}})
-                        this.eles[id].push({data:{source:doc.id,target:key+value}})
-                      }
+                this.eles[id].push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
+                for (let key of Object.keys(doc)){
+                  if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
+                    for (let value of doc[key]) {
+                      this.eles[id].push({data:{id:key+value,label:value,doc:{key:key,value:value}}})
+                      this.eles[id].push({data:{source:doc.id,target:key+value}})
                     }
                   }
-
+                }
+                this.currentEles = this.eles[id]
               }
-
-
-
-
             },
             loadAsyncData () {
                 this.loading = true
@@ -223,7 +223,8 @@
                 let post = "hl.tag.post=</highlighted>"
                 let hl = `on&hl.fl=content&hl.fragsize=${fragsize}&hl.encoder=html&hl.snippets=100`
                 let q_url = `${this.$solr_server}/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${rows}&sort=${sort}&hl=${hl}`
-                this.$http.get(q_url)
+                const axios = require('axios')
+                axios.get(q_url)
                     .then(({ data }) => {
                         this.data = []
                         let currentTotal = data.response.numFound
