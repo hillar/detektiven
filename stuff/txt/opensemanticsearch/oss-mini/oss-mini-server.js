@@ -8,6 +8,7 @@ const fs = require('fs')
 const path = require('path')
 const mailer = require('./mailer')
 const cliParams = require('commander');
+const freeipa = require('./freeipa');
 
 cliParams
   .version('0.0.1')
@@ -21,10 +22,12 @@ cliParams
 	.option('--smtp-host [host]','smtp host')
 	.option('--smtp-port [number]','smtp port')
 	.option('--smtp-sender [email]','smtp sender')
+	.option('--ipa-server [host]','freeipa server (or any other ldap)')
+	.option('--ipa-base [string]','ldap base')
+	.option('--ipa-user [string]','ldap bind user')
+	.option('--ipa-pass [string]','ldap bind password')
+	.option('--ipa-group [string]','ldap search group')
   .parse(process.argv);
-
-console.dir(cliParams)
-console.log('got from command line:', cliParams.config, cliParams.target, cliParams.port);
 
 try {
 	var config = require(cliParams.config)
@@ -32,7 +35,7 @@ try {
 	console.error('can not load config from',cliParams.config)
 	process.exit(1);
 }
-console.dir(config)
+
 
 let portListen = cliParams.port || config.port
 let ipListen = cliParams.host || config.host
@@ -42,15 +45,37 @@ let apiUrl = cliParams.api || config.api
 let smtpfrom = cliParams.smtpSender || config.smtpSender
 let smtphost = cliParams.smtpHost || config.smtpHost
 let smtpport = cliParams.smtpPort || config.smtpPort
+let IPASERVER = cliParams.ipaServer || config.ipaServer
+let BASE = cliParams.ipaBase || config.ipaBase
+let bindpass = cliParams.ipaPass || config.ipaPass
+let binduser = cliParams.ipaUser || config.ipaUser
+let groupName = cliParams.ipaGroup || config.ipaGroup
+let realm = config.realm || 'oss-mini'
 
 //done with config
-console.log('starting with:',ipListen,portListen,portTarget,apiUrl)
+console.log('starting with:',ipListen,portListen,staticDir,portTarget,apiUrl,smtphost,smtpport,smtpfrom)
+
 // authentication
-let users = {}
+let users = {} //TODO load users history
 let basic = auth.basic({
-		realm: "oss-mini"
-	}, (username, password, callback) => {
-		callback(username === "kala" && password === "maja");
+		realm: realm
+	}, async (username, password, callback) => {
+		process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+		//TODO get employeeNumber from header
+		let employeeNumber = '36712316013'
+		try {
+    	let user = await freeipa.getUser(IPASERVER, BASE, binduser, bindpass, employeeNumber,password,groupName);
+			if (username == user.uid) {
+				users[username]['ipa'] = user
+				users[username]['logintime'] = Date.now()
+				callback(true);
+			} else {
+				callback(false);
+			}
+		} catch (error) {
+			console.error('auth error',error)
+			callback(false)
+		}
 	}
 );
 basic.on('success', (result, req) => {
@@ -95,10 +120,9 @@ proxy.on('error', function (err, req, res) {
   res.end('Something went wrong.');
 });
 
-
 // server
 let server = http.createServer(basic, (req, res) => {
-  // solr queries proxied
+  // api queries proxied to target
   if (req.url.startsWith(apiUrl)) {
     if (users[req.user]['fp']) {
       proxy.web(req, res);
@@ -157,8 +181,9 @@ let server = http.createServer(basic, (req, res) => {
           // read file from file system
           fs.readFile(pathname, function(err, data){
             if(err){
+							console.error('error reading file',pathname,Date.now(),req.socket.remoteAddress,req.user,req.url)
               res.statusCode = 500
-              res.end(`Error getting the file: ${err}.`)
+              res.end('Something went wrong')
             } else {
               const ext = path.parse(pathname).ext
               res.setHeader('Content-type', mimeType[ext] || 'text/plain' )

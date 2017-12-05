@@ -6,6 +6,10 @@
   "api": "/solr/core",
   "smtpHost": "localhost",
   "smtpPort": 25,
-  "smtpSender": "noreplay-oss-mini-server@localhost"
-
+  "smtpSender": "noreplay-oss-mini-server@localhost",
+  "ipaServer": "192.168.10.2",
+  "ipaBase": "cn=accounts,dc=example,dc=org",
+  "ipaPass": "kalakala",
+  "ipaUser": "webeid",
+  "ipaGroup": "chat"
 }
