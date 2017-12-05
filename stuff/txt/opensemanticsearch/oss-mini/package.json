@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "commander": "^2.12.2",
     "http-auth": "^3.2.3",
     "http-proxy": "^1.16.2",
     "nodemailer": "^4.4.0"

@@ -1,0 +1,11 @@
+{
+  "port": 9983,
+  "host": "192.168.11.2",
+  "static": "../solr-buefy/test1/dist",
+  "target": "127.0.0.1:8983",
+  "api": "/solr/core",
+  "smtpHost": "localhost",
+  "smtpPort": 25,
+  "smtpSender": "noreplay-oss-mini-server@localhost"
+
+}

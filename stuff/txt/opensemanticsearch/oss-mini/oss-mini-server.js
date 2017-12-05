@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const http = require('http')
 const httpProxy = require('http-proxy')
 const auth = require('http-auth')
@@ -5,20 +7,49 @@ const url = require('url')
 const fs = require('fs')
 const path = require('path')
 const mailer = require('./mailer')
+const cliParams = require('commander');
 
-let portTarget = 8983 // solr
-let portListen = 9983
-let ipListen = '192.168.11.2'
-let staticDir = '../solr-buefy/test1/dist'
-let smtpfrom = 'noreplay@oss-mini'
-let smtphost = '127.0.0.1' 
-let smtpport = 25
+cliParams
+  .version('0.0.1')
+  .usage('[options]')
+  .option('-c, --config [file]', 'config file','./config.json')
+	.option('-p, --port [number]','port to listen')
+	.option('-h, --host [number]','host to listen')
+	.option('-s, --static [path]','static files to serve')
+  .option('-t, --target [host:port]','api target host and port')
+	.option('-a, --api [path]','api path')
+	.option('--smtp-host [host]','smtp host')
+	.option('--smtp-port [number]','smtp port')
+	.option('--smtp-sender [email]','smtp sender')
+  .parse(process.argv);
+
+console.dir(cliParams)
+console.log('got from command line:', cliParams.config, cliParams.target, cliParams.port);
+
+try {
+	var config = require(cliParams.config)
+} catch (e) {
+	console.error('can not load config from',cliParams.config)
+	process.exit(1);
+}
+console.dir(config)
+
+let portListen = cliParams.port || config.port
+let ipListen = cliParams.host || config.host
+let staticDir = cliParams.static || config.static
+let portTarget = cliParams.target || config.target
+let apiUrl = cliParams.api || config.api
+let smtpfrom = cliParams.smtpSender || config.smtpSender
+let smtphost = cliParams.smtpHost || config.smtpHost
+let smtpport = cliParams.smtpPort || config.smtpPort
+
+//done with config
+console.log('starting with:',ipListen,portListen,portTarget,apiUrl)
 // authentication
 let users = {}
 let basic = auth.basic({
 		realm: "oss-mini"
 	}, (username, password, callback) => {
-    //if (users[username]) return true
 		callback(username === "kala" && password === "maja");
 	}
 );
@@ -36,29 +67,24 @@ basic.on('success', (result, req) => {
   let user_online = users[result.user]['lastseen'] - users[result.user]['logintime']
 	console.log(`User ${result.user} authenticated since ${users[result.user]['logintime']} online time ${user_online}`);
 });
-
 basic.on('fail', (result, req) => {
   delete users[result.user]
 	console.log(`User authentication failed: ${req.socket.remoteAddress}`);
 });
-
 basic.on('error', (error, req) => {
 	console.log(`Authentication error: ${error.code + " - " + error.message}`);
 });
 
 // api is prxy for solr
-let proxy = httpProxy.createProxyServer({changeOrigin:true,target: `http://127.0.0.1:${portTarget}`});
+let proxy = httpProxy.createProxyServer({changeOrigin:true,target: `http://${portTarget}`});
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
   console.log('proxy',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers['user-agent']))
 });
 proxy.on('proxyRes', function (proxyRes, req, res) {
 	if (proxyRes.statusCode != 200) {
+		// TODO find where headers are sent before this and set content to undefined
+		proxyRes.statusCode = 418
 		console.error('proxy',proxyRes.statusMessage,req.socket.remoteAddress,req.user,req.url)
-		// TODO find where headers are sent before this
-		res.writeHead(418, {
-	    'Content-Type': 'text/plain'
-	  });
-	  res.end('Something went wrong.');
 	}
 });
 proxy.on('error', function (err, req, res) {
@@ -73,7 +99,7 @@ proxy.on('error', function (err, req, res) {
 // server
 let server = http.createServer(basic, (req, res) => {
   // solr queries proxied
-  if (req.url.startsWith("/solr/core")) {
+  if (req.url.startsWith(apiUrl)) {
     if (users[req.user]['fp']) {
       proxy.web(req, res);
     }
@@ -116,8 +142,9 @@ let server = http.createServer(basic, (req, res) => {
                         '.png': 'image/png'}
         fs.exists(pathname, function (exist) {
           if(!exist) {
-            res.statusCode = 404
-            res.end(`File ${pathname} not found!`)
+						console.error('file not exists',Date.now(),req.socket.remoteAddress,req.user,req.url)
+            res.statusCode = 418
+            res.end(`something went wrong`)
             return
           }
           if (fs.statSync(pathname).isDirectory()) {
@@ -140,6 +167,8 @@ let server = http.createServer(basic, (req, res) => {
           })
         })
       } else {
+
+					console.error('should never happen!',Date.now(),req.socket.remoteAddress,req.user,req.url)
           res.writeHead(302, {
                 "Location": "/index.html"
           });
