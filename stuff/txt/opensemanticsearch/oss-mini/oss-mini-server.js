@@ -29,6 +29,7 @@ cliParams
 	.option('--ipa-group [string]','ldap search group')
   .parse(process.argv);
 
+// load config file
 try {
 	var config = require(cliParams.config)
 } catch (e) {
@@ -36,7 +37,7 @@ try {
 	process.exit(1);
 }
 
-
+// override config with cmd params
 let portListen = cliParams.port || config.port
 let ipListen = cliParams.host || config.host
 let staticDir = cliParams.static || config.static
@@ -51,6 +52,7 @@ let bindpass = cliParams.ipaPass || config.ipaPass
 let binduser = cliParams.ipaUser || config.ipaUser
 let groupName = cliParams.ipaGroup || config.ipaGroup
 let realm = config.realm || 'oss-mini'
+let reauth = config.reauth || 1000 * 60
 
 //done with config
 console.log('starting with:',ipListen,portListen,staticDir,portTarget,apiUrl,smtphost,smtpport,smtpfrom)
@@ -60,21 +62,32 @@ let users = {} //TODO load users history
 let basic = auth.basic({
 		realm: realm
 	}, async (username, password, callback) => {
-		process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-		//TODO get employeeNumber from header
-		let employeeNumber = '36712316013'
-		try {
-    	let user = await freeipa.getUser(IPASERVER, BASE, binduser, bindpass, employeeNumber,password,groupName);
-			if (username == user.uid) {
-				users[username]['ipa'] = user
-				users[username]['logintime'] = Date.now()
-				callback(true);
-			} else {
-				callback(false);
+		// do not reauth in X milliseconds
+		if (users[username] && users[username]['lastseen'] && (Date.now() - users[username]['lastseen'] < reauth)){
+			 callback(true)
+		} else {
+			console.log('notice start auth for',username)
+			process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+			//TODO get employeeNumber from header
+			let employeeNumber = '36712316013'
+			try {
+	    	let user = await freeipa.getUser(IPASERVER, BASE, binduser, bindpass, employeeNumber,password,groupName);
+				if (username == user.uid) {
+					if (!users[username]) {
+						users[username] = {}
+						console.log('notice user first time login', username)
+					}
+					users[username]['ipa'] = user
+					users[username]['logintime'] = Date.now()
+					callback(true);
+				} else {
+					console.error('should not happen, user',username,' does not match system user',user.uid)
+					callback(false);
+				}
+			} catch (error) {
+				console.error('auth error for',username,error)
+				callback(false)
 			}
-		} catch (error) {
-			console.error('auth error',error)
-			callback(false)
 		}
 	}
 );
@@ -83,7 +96,7 @@ basic.on('success', (result, req) => {
     users[result.user] = {logintime:Date.now(), lastseen:Date.now(), ip: req.socket.remoteAddress}
   } else {
     users[result.user]['lastseen'] = Date.now()
-    if (req.socket.remoteAddress != users[result.user]['ip']) {
+    if (users[result.user]['ip'] && req.socket.remoteAddress != users[result.user]['ip']) {
       console.log('WARNING! user', req.user, 'has new ip',req.socket.remoteAddress,'old',users[req.user]['ip'])
       //TODO send email to user
       //mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
@@ -103,7 +116,7 @@ basic.on('error', (error, req) => {
 // api is prxy for solr
 let proxy = httpProxy.createProxyServer({changeOrigin:true,target: `http://${portTarget}`});
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
-  console.log('proxy',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers['user-agent']))
+  //console.log('proxy',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers['user-agent']))
 });
 proxy.on('proxyRes', function (proxyRes, req, res) {
 	if (proxyRes.statusCode != 200) {
@@ -124,9 +137,13 @@ proxy.on('error', function (err, req, res) {
 let server = http.createServer(basic, (req, res) => {
   // api queries proxied to target
   if (req.url.startsWith(apiUrl)) {
+		console.log('proxy',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers['user-agent']))
+
     if (users[req.user]['fp']) {
       proxy.web(req, res);
-    }
+    } else {
+			console.error('notice user do not have fingerprint',req.user,req.socket.remoteAddress)
+		}
   } else {
     console.log('query',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers))
     // get to / with params .. obscurity
