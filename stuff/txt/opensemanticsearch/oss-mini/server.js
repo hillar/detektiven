@@ -6,14 +6,15 @@ const fs = require('fs');
 const path = require('path');
 
 let portTarget = 8983 // solr
-let portListen = 9983 
+let portListen = 9983
 let ipListen = '192.168.11.2'
 let staticDir = '../solr-buefy/test1/dist'
+
 // authentication
 let users = {}
 let basic = auth.basic({
 		realm: "oss-mini"
-	}, (username, password, callback) => { 
+	}, (username, password, callback) => {
     //if (users[username]) return true
 		callback(username === "kala" && password === "maja");
 	}
@@ -34,7 +35,7 @@ basic.on('success', (result, req) => {
 
 basic.on('fail', (result, req) => {
   delete users[result.user]
-	console.log(`User authentication failed: ${result.user}`);
+	console.log(`User authentication failed: ${req.socket.remoteAddress}`);
 });
 
 basic.on('error', (error, req) => {
@@ -42,9 +43,14 @@ basic.on('error', (error, req) => {
 });
 
 // api is prxy for solr
-let proxy = httpProxy.createProxyServer({});
+let proxy = httpProxy.createProxyServer({changeOrigin:true,target: `http://127.0.0.1:${portTarget}`});
 proxy.on('proxyReq', function(proxyReq, req, res, options) {
   console.log('proxy',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers['user-agent']))
+});
+proxy.on('proxyRes', function (proxyRes, req, res) {
+	if (proxyRes.statusCode != 200) {
+		console.error('proxy',proxyRes.statusMessage,req.socket.remoteAddress,req.user,req.url)
+	}
 });
 proxy.on('error', function (err, req, res) {
   console.error('proxy ERROR',Date.now(),err)
@@ -54,15 +60,14 @@ proxy.on('error', function (err, req, res) {
   res.end('Something went wrong.');
 });
 
+
 // server
 let server = http.createServer(basic, (req, res) => {
-  // solr queries proxied 
+  // solr queries proxied
   if (req.url.startsWith("/solr/core")) {
     if (users[req.user]['fp']) {
-      proxy.web(req, res, {
-          target: `http://127.0.0.1:${portTarget}`
-      });
-    }  
+      proxy.web(req, res);
+    }
   } else {
     console.log('query',Date.now(),req.socket.remoteAddress,req.user,req.url,JSON.stringify(req.headers))
     // get to / with params .. obscurity
@@ -128,7 +133,7 @@ let server = http.createServer(basic, (req, res) => {
           res.writeHead(302, {
                 "Location": "/index.html"
           });
-          res.end(); 
+          res.end();
       }
     }
   }
@@ -140,4 +145,3 @@ try {
 } catch (e) {
   console.error(e)
 }
-
