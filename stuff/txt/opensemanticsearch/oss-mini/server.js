@@ -1,15 +1,18 @@
 const http = require('http')
 const httpProxy = require('http-proxy')
 const auth = require('http-auth')
-const url = require('url');
-const fs = require('fs');
-const path = require('path');
+const url = require('url')
+const fs = require('fs')
+const path = require('path')
+const mailer = require('./mailer')
 
 let portTarget = 8983 // solr
 let portListen = 9983
 let ipListen = '192.168.11.2'
 let staticDir = '../solr-buefy/test1/dist'
-
+let smtpfrom = 'noreplay@oss-mini'
+let smtphost = '127.0.0.1' 
+let smtpport = 25
 // authentication
 let users = {}
 let basic = auth.basic({
@@ -27,6 +30,7 @@ basic.on('success', (result, req) => {
     if (req.socket.remoteAddress != users[result.user]['ip']) {
       console.log('WARNING! user', req.user, 'has new ip',req.socket.remoteAddress,'old',users[req.user]['ip'])
       //TODO send email to user
+      //mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
     }
   }
   let user_online = users[result.user]['lastseen'] - users[result.user]['logintime']
@@ -96,6 +100,7 @@ let server = http.createServer(basic, (req, res) => {
         }
         res.end()
         console.log('got user',req.user,'new params',params.join(','),'all',JSON.stringify(users[req.user]))
+        mailer.send('kala@kala.na', 'subject', 'body', smtpfrom, smtphost, smtpport)
     } else {
       // static files
       if (req.url.startsWith("/")) {
