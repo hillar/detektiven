@@ -50,11 +50,16 @@ proxy.on('proxyReq', function(proxyReq, req, res, options) {
 proxy.on('proxyRes', function (proxyRes, req, res) {
 	if (proxyRes.statusCode != 200) {
 		console.error('proxy',proxyRes.statusMessage,req.socket.remoteAddress,req.user,req.url)
+		// TODO find where headers are sent before this
+		res.writeHead(418, {
+	    'Content-Type': 'text/plain'
+	  });
+	  res.end('Something went wrong.');
 	}
 });
 proxy.on('error', function (err, req, res) {
   console.error('proxy ERROR',Date.now(),err)
-  res.writeHead(500, {
+  res.writeHead(418, {
     'Content-Type': 'text/plain'
   });
   res.end('Something went wrong.');
