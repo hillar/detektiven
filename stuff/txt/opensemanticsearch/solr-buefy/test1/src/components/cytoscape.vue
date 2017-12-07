@@ -198,7 +198,7 @@ export default {
       }, this);
       this.cy.remove(node);
     },
-    expandNode(node) {
+    async expandNode(node) {
       console.log('expandNode')
 
       let that = this
@@ -215,31 +215,41 @@ export default {
         if (response.data.responseHeader.params.rows && response.data.response.numFound > response.data.responseHeader.params.rows){
           let notshowing = response.data.response.numFound - response.data.responseHeader.params.rows
           console.log('not showing',notshowing)
-          console.dir(response.data)
           that.$toast.open('to many results, not showing '+notshowing)
         }
-
         let currentID = node.data('id')
+        let addedNodes = 0
+        let addedEdges = 0
         // TODO make response.data.response.docs param
         for (let doc of response.data.response.docs) {
-          if (that.cy.getElementById(doc.id).length == 0)
+          if (that.cy.getElementById(doc.id).length == 0) {
             // TODO make doc.id & doc.title.join param
+            addedNodes ++
             that.cy.add({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
-          if (doc.id != currentID) // do not link self
+          }
+          if (doc.id != currentID) { // do not link self
             that.cy.add({data:{source:currentID,target:doc.id}})
+            addedEdges ++
+          }
           for (let key of Object.keys(doc)){
             // TODO make _ss param
             if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
               for (let value of doc[key]) {
-                if (that.cy.getElementById(key+value).length == 0)
+                if (that.cy.getElementById(key+value).length == 0) {
                   that.cy.add({data:{id:key+value,label:value, doc:{key:key,value:value}}})
+                  addedNodes ++
+                }
                 that.cy.add({data:{source:doc.id,target:key+value}})
+                addedEdges ++
               }
             }
           }
         }
+        console.log('new nodes',addedNodes,'edges',addedEdges)
+        //let layoutstart = Date.now()
         let layout = that.cy.makeLayout(that.layout);
         layout.run();
+        //console.log('layout took', Date.now() - layoutstart)
         that.highlightNode(node)
       } else {
         that.$snackbar.open('contact your admin:'+response.status)
