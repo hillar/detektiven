@@ -26,7 +26,8 @@ export default {
                 type: Array,
                 default: () => []
             },
-            queryURL : ''
+            queryURL : '',
+            peekURL : ''
   },
   data () {
     return {
@@ -114,7 +115,11 @@ export default {
           select: this.exportNodeJson
         },
         {
-          content: 'exportNodeFile',
+          content: 'peek',
+          select: this.peekNodeContent
+        },
+        {
+          content: 'export',
           select: this.exportNodeFile
         }
       ],
@@ -201,8 +206,19 @@ export default {
       const axios = require('axios')
       let q_url = `${this.queryURL}"${node.data('label')}"`
       this.loading = true
+      console.log('expanding node',node.data('label'),q_url)
       axios.get(q_url)
       .then(function(response){
+        if (response.status == 200) {
+        console.log('found',response.data.response.numFound)
+        console.log('got',response.data.responseHeader.params.rows)
+        if (response.data.responseHeader.params.rows && response.data.response.numFound > response.data.responseHeader.params.rows){
+          let notshowing = response.data.response.numFound - response.data.responseHeader.params.rows
+          console.log('not showing',notshowing)
+          console.dir(response.data)
+          that.$toast.open('to many results, not showing '+notshowing)
+        }
+
         let currentID = node.data('id')
         // TODO make response.data.response.docs param
         for (let doc of response.data.response.docs) {
@@ -225,6 +241,9 @@ export default {
         let layout = that.cy.makeLayout(that.layout);
         layout.run();
         that.highlightNode(node)
+      } else {
+        that.$snackbar.open('contact your admin:'+response.status)
+      }
         that.loading = false
       })
       .catch(function(error) {
@@ -243,6 +262,37 @@ export default {
       let filecontent = JSON.stringify(node.data('doc'),null,4)
       this.$modal.open(`${filename}<hr><pre>${filecontent}</pre>`)
       //this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
+    },
+    peekNodeContent:function(node) {
+      console.log('peekNodeContent')
+      let doc = node.data('doc')
+      if (doc && doc.id) {
+        this.loading = false
+        let that = this
+        let q_url = `${this.peekURL}"${doc.id}"`
+        const axios = require('axios')
+        this.loading = true
+        axios.get(q_url)
+        .then(function(response){
+          let currentID = node.data('id')
+          // TODO make response.data.response.docs param
+          for (let doc of response.data.response.docs) {
+                    //.replace(/\n\n\n\n/g, "")
+                    let content = doc.content.join('\n') //
+                    content = content.replace(/\n\n/g, "\n")
+                    that.loading = false
+                    that.$modal.open(`${doc.id}<hr><pre>${content}</pre>`)
+          }
+        })
+        .catch(function(error) {
+          that.loading = false
+          console.error(error);
+          that.$snackbar.open('contact your admin:'+error.message)
+        })
+
+      } else {
+      this.$toast.open(`no doc ${node.data('id')}`)
+      }
     },
     exportNodeFile: function(node) {
       console.log('exportNodeFile')

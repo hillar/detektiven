@@ -22,11 +22,11 @@
                         max="100"
                       ></b-input>
                     </b-field>
-                    <b-field label="graph force">
-                      <b-input v-model="options.force"
+                    <b-field label="results per node expand">
+                      <b-input v-model="perExpand"
                         type="number"
-                        min="1000"
-                        max="10000"
+                        min="2"
+                        max="1024"
                       ></b-input>
                       </b-field>
                       <b-field label="graph node size">
@@ -116,7 +116,7 @@
               <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
               -->
               <div style="height:600px">
-              <cytoscape :elements="currentEles" :queryURL="queryURL"></cytoscape>
+              <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL"></cytoscape>
 
               <button class="button block" @click="isMeta = !isMeta">Meta</button>
               <b-message :title="`${props.row.id}`" :active.sync="isMeta">
@@ -150,7 +150,10 @@
                 links: {},
                 eles: {},
                 currentEles:  [],
-                queryURL : this.$solr_server+'/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&q=',
+                perExpand : 64,
+                // TODO fix perExpand undefined
+                queryURL : `${this.$solr_server}/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&rows=${this.perExpand||64}&q=`,
+                peekURL : `${this.$solr_server}/solr/core1/select?fl=content&wt=json&rows=1&q=id:`,
                 options:
                         {
                           canvas: false,
@@ -189,7 +192,7 @@
                 this.currentEles = this.eles[id]
               } else {
                 let doc = JSON.parse(json)
-                console.dir(doc)
+                //console.dir(doc)
                 this.eles[id] = []
                 this.eles[id].push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
                 for (let key of Object.keys(doc)){

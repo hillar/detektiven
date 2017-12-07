@@ -35,7 +35,7 @@ fingerprint()
   console.log('sending fingerprint',fp,'to',Vue.prototype.$solr_server)
   axios.get(`${solr_server}/?fp=${fp}`)
   .then(function(response) {
-    console.log(response)
+    if (response.status == 200) {
     /* eslint-disable no-new */
     new Vue({
       el: '#app',
@@ -44,10 +44,13 @@ fingerprint()
       components: { App },
       solr_server: solr_server
     })
+  } else {
+      alert('can not talk to server ;(',response.status)
+  }
   })
   .catch(function(error) {
     console.error(error);
-    alert('can not talk to solr server ;( ', solr_server)
+    alert('can not talk to server ;( ', solr_server)
   })
 })
 .catch(function(error) {
