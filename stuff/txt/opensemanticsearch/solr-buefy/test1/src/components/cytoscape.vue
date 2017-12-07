@@ -110,7 +110,7 @@ export default {
           select: this.removeNode
         },
         {
-          content: 'exportNodeJson',
+          content: 'meta',
           select: this.exportNodeJson
         },
         {
@@ -240,9 +240,9 @@ export default {
     exportNodeJson: function(node) {
       console.log('exportNodeJson')
       let filename = `${node.data('id')}.json`
-      let filecontent = JSON.stringify(node.data('doc'))
-      this.$toast.open(filecontent)
-      this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
+      let filecontent = JSON.stringify(node.data('doc'),null,4)
+      this.$modal.open(`${filename}<hr><pre>${filecontent}</pre>`)
+      //this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
     },
     exportNodeFile: function(node) {
       console.log('exportNodeFile')
