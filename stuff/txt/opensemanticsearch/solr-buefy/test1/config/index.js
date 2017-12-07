@@ -10,7 +10,14 @@ module.exports = {
     // Paths
     assetsSubDirectory: 'static',
     assetsPublicPath: '/',
-    proxyTable: {},
+    proxyTable: {
+      // proxy all requests starting with /api to jsonplaceholder
+      '/solr': {
+        target: 'http://192.168.11.2:9983',
+        changeOrigin: true
+
+      }
+    },
 
     // Various Dev Server settings
     host: '0.0.0.0', // can be overwritten by process.env.HOST
