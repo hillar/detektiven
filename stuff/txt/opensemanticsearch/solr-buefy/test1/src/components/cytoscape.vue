@@ -264,7 +264,9 @@ export default {
     },
     searchbarNode (node) {
     console.log('searchbarNode')
-    this.$toast.open(node.data('label'))
+    let label = node.data('label')
+    // TODO find a better way to emit
+    this.$parent.$emit('add2filter',label)
     },
     exportNodeJson: function(node) {
       console.log('exportNodeJson')

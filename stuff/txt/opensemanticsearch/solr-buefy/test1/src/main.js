@@ -23,8 +23,7 @@ Vue.directive('innerhtml', {
     }
 })
 
-// set solr server
-//const solr_server = 'http://192.168.11.2:9983'
+
 const solr_server = ''
 Vue.prototype.$solr_server = solr_server
 
@@ -36,6 +35,10 @@ fingerprint()
   axios.get(`${solr_server}/?fp=${fp}`)
   .then(function(response) {
     if (response.status == 200) {
+    /*
+    get list of fields
+    http://localhost:8080/solr/core1/select?q=*:*&wt=csv&rows=0&facet
+    */
     /* eslint-disable no-new */
     new Vue({
       el: '#app',

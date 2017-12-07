@@ -76,6 +76,7 @@
         <b-table
             @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
             @details-open="(row, index) => this.connected(`${row.id}`,`${row.json}`,`${row}`)"
+            @add2filter="addtoquery"
             :data="data"
             :nodes="currentNodes"
             :links="currentLinks"
@@ -110,7 +111,7 @@
                 </b-table-column>
             </template>
 
-            <template slot="detail" slot-scope="props" :nodes="nodes">
+            <template slot="detail" slot-scope="props" :nodes="nodes" >
 
               <!--
               <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
@@ -187,6 +188,9 @@
                 this.loadAsyncData()
               }
             },
+            addtoquery (filter) {
+              this.userQuery += ` "${filter}"`
+            },
             connected (id, json, row) {
               if (this.eles[id]){
                 this.currentEles = this.eles[id]
@@ -198,8 +202,10 @@
                 for (let key of Object.keys(doc)){
                   if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
                     for (let value of doc[key]) {
-                      this.eles[id].push({data:{id:key+value,label:value,doc:{key:key,value:value}}})
-                      this.eles[id].push({data:{source:doc.id,target:key+value}})
+                      if (value.length>0) {
+                        this.eles[id].push({data:{id:key+value,label:value,doc:{key:key,value:value}}})
+                        this.eles[id].push({data:{source:doc.id,target:key+value}})
+                      }
                     }
                   }
                 }
@@ -233,7 +239,7 @@
                         let currentTotal = data.response.numFound
                         this.total = currentTotal
                         data.response.docs.forEach((item) => {
-                          delete(item['content'])
+                          //delete(item['content'])
                           Object.keys(item).forEach((k) => {
                             // delete all etl_*
                             if (item[k] === true) delete(item[k])

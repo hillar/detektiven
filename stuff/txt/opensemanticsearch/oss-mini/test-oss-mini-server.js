@@ -136,7 +136,7 @@ proxy.on('error', function (err, req, res) {
 });
 
 // server
-  users['mock'] = {}
+users['mock'] = {}
 let server = http.createServer((req, res) => {
   req.user = 'mock'
 

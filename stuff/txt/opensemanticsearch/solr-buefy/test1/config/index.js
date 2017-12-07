@@ -15,7 +15,6 @@ module.exports = {
       '/solr': {
         target: 'http://192.168.11.2:9983',
         changeOrigin: true
-
       }
     },
 
