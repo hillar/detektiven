@@ -61,13 +61,13 @@ Client.prototype.search = function (base, options, controls) {
   });
 };
 
-exports.getUser = async function (server='127.0.0.1', base='cn=accounts,dc=example,dc=org', binduser='readonly', bindpass='password', uid='test', pass='passwd',group='chat'){
+exports.getUser = async function (server='127.0.0.1', base='cn=accounts,dc=example,dc=org', binduser='readonly', bindpass='password', uid='employeeNumber==test', pass='passwd',group='chat'){
     let client = new Client({url: 'ldaps://'+server});
     let bindid = 'uid='+binduser+',cn=users,'+base;
     return new Promise(function (resolve, reject) {
       client.bind(bindid,bindpass).then(function () {
         let grf = '(memberof=cn='+group+',cn=groups,'+base+')';
-        let opts = { filter: '(&(employeeNumber='+ uid +')'+grf+')', scope: 'sub'};
+        let opts = { filter: '(&('+ uid +')'+grf+')', scope: 'sub'};
         client.search(base, opts).then(function (result) {
           if (result.entries) {
             if (result.entries.length === 1) {

@@ -27,7 +27,8 @@ export default {
                 default: () => []
             },
             queryURL : '',
-            peekURL : ''
+            peekURL : '',
+            fieldFilter: ''
   },
   data () {
     return {
@@ -198,13 +199,39 @@ export default {
       }, this);
       this.cy.remove(node);
     },
-    async expandNode(node) {
+    expandNode(node) {
       console.log('expandNode')
-
+      let filter = `"${node.data('label')}"`
+      let fieldFilter = this.fieldFilter
       let that = this
+      let doc = node.data('doc')
+      if (doc && doc.id) {
+        let fields = []
+        for (let key of Object.keys(doc)){
+
+          if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
+            console.log(key,fieldFilter)
+            for (let value of doc[key]) {
+                fields.push(`"${value}"`)
+            }
+          }
+        }
+        if (fields.length > 0) {
+          if (fields.length < 64) {
+            filter = fields.join(' AND ')
+          } else {
+            this.$toast.open(filter+' will explode, not doing ', + fields.length)
+            return
+          }
+        } else {
+          this.$toast.open(filter+' nothing to expand on ;(')
+          return
+        }
+      }
+      console.log('expandNode',filter)
       this.$toast.open('expanding: '+node.data('label'))
       const axios = require('axios')
-      let q_url = `${this.queryURL}"${node.data('label')}"`
+      let q_url = `${this.queryURL}${filter}`
       this.loading = true
       console.log('expanding node',node.data('label'),q_url)
       axios.get(q_url)
@@ -232,15 +259,18 @@ export default {
             addedEdges ++
           }
           for (let key of Object.keys(doc)){
-            // TODO make _ss param
-            if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
+            if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
               for (let value of doc[key]) {
-                if (that.cy.getElementById(key+value).length == 0) {
-                  that.cy.add({data:{id:key+value,label:value, doc:{key:key,value:value}}})
+                if (that.cy.getElementById(value).length == 0) {
+                  // TODO fix exlosion ;(
+                  //that.cy.add({data:{id:value,label:value}})
+                  // that.cy.add({data:{source:doc.id,target:value}})
                   addedNodes ++
-                }
-                that.cy.add({data:{source:doc.id,target:key+value}})
+                  addedEdges ++
+                } else {
+                that.cy.add({data:{source:doc.id,target:value}})
                 addedEdges ++
+                }
               }
             }
           }
@@ -271,17 +301,18 @@ export default {
     exportNodeJson: function(node) {
       console.log('exportNodeJson')
       let filename = `${node.data('id')}.json`
-      let filecontent = JSON.stringify(node.data('doc'),null,4)
+      let filecontent = JSON.stringify(node.data(),null,4)
       this.$modal.open(`${filename}<hr><pre>${filecontent}</pre>`)
       //this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
     },
     peekNodeContent:function(node) {
-      console.log('peekNodeContent')
+      //console.log('peekNodeContent')
       let doc = node.data('doc')
       if (doc && doc.id) {
         this.loading = false
         let that = this
         let q_url = `${this.peekURL}"${doc.id}"`
+        console.log('peek',q_url)
         const axios = require('axios')
         this.loading = true
         axios.get(q_url)

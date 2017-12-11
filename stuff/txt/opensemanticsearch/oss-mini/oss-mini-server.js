@@ -69,7 +69,7 @@ let basic = auth.basic({
 			console.log('notice start auth for',username)
 			process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 			//TODO get employeeNumber from header
-			let employeeNumber = '36712316013'
+			let employeeNumber = 'uid='+username
 			try {
 	    	let user = await freeipa.getUser(IPASERVER, BASE, binduser, bindpass, employeeNumber,password,groupName);
 				if (username == user.uid) {

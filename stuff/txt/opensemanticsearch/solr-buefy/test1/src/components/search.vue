@@ -117,7 +117,7 @@
               <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
               -->
               <div style="height:600px">
-              <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL"></cytoscape>
+              <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL" :fieldFilter="fieldFilter"></cytoscape>
 
               <button class="button block" @click="isMeta = !isMeta">Meta</button>
               <b-message :title="`${props.row.id}`" :active.sync="isMeta">
@@ -155,6 +155,7 @@
                 // TODO fix perExpand undefined
                 queryURL : `${this.$solr_server}/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&rows=${this.perExpand||64}&q=`,
                 peekURL : `${this.$solr_server}/solr/core1/select?fl=content&wt=json&rows=1&q=id:`,
+                fieldFilter: '_ss',
                 options:
                         {
                           canvas: false,
@@ -192,6 +193,7 @@
               this.userQuery += ` "${filter}"`
             },
             connected (id, json, row) {
+              this.loading = true
               if (this.eles[id]){
                 this.currentEles = this.eles[id]
               } else {
@@ -200,17 +202,34 @@
                 this.eles[id] = []
                 this.eles[id].push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
                 for (let key of Object.keys(doc)){
-                  if (Array.isArray(doc[key]) === true && key.indexOf('_ss')>0) {
-                    for (let value of doc[key]) {
-                      if (value.length>0) {
-                        this.eles[id].push({data:{id:key+value,label:value,doc:{key:key,value:value}}})
-                        this.eles[id].push({data:{source:doc.id,target:key+value}})
+                  if (Array.isArray(doc[key]) === true && key.indexOf(this.fieldFilter)>0) {
+                    if (doc[key].length > 32) {
+                      this.eles[id].push({data:{id:key,label:'<b>'+key+' : '+ doc[key].length+'</b>', doc:doc[key]}})
+                      this.eles[id].push({data:{source:doc.id,target:key}})
+                    }
+                    if (doc[key].length > 16 && doc[key].length < 32) {
+                      this.eles[id].push({data:{id:key,label:key}})
+                      this.eles[id].push({data:{source:doc.id,target:key}})
+                      for (let value of doc[key]) {
+                        if (value.length>0) {
+                          this.eles[id].push({data:{id:value,label:value}})
+                          this.eles[id].push({data:{source:key,target:value}})
+                        }
+                      }
+                    }
+                    if (doc[key].length < 17) {
+                      for (let value of doc[key]) {
+                        if (value.length>0) {
+                          this.eles[id].push({data:{id:value,label:value}})
+                          this.eles[id].push({data:{source:doc.id,target:value}})
+                        }
                       }
                     }
                   }
                 }
                 this.currentEles = this.eles[id]
               }
+              this.loading = false
             },
             loadAsyncData () {
                 this.loading = true
@@ -266,6 +285,11 @@
                         this.currentLinks = []
                         this.total = 0
                         this.loading = false
+                    })
+                    .catch(function(error) {
+                      that.loading = false
+                      console.error(error);
+                      that.$snackbar.open('refresh browser, no backend'+error.message)
                     })
             },
 
