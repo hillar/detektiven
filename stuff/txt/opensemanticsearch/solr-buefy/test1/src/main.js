@@ -23,6 +23,9 @@ Vue.directive('innerhtml', {
     }
 })
 
+const config = require('@/config.json')
+
+Vue.prototype.$fieldFilter = config.fieldFilter || '_ss'
 
 const solr_server = ''
 Vue.prototype.$solr_server = solr_server
@@ -35,21 +38,20 @@ fingerprint()
   axios.get(`${solr_server}/?fp=${fp}`)
   .then(function(response) {
     if (response.status == 200) {
-    /*
-    get list of fields
-    http://localhost:8080/solr/core1/select?q=*:*&wt=csv&rows=0&facet
-    */
-    /* eslint-disable no-new */
-    new Vue({
-      el: '#app',
-      router,
-      template: '<App/>',
-      components: { App },
-      solr_server: solr_server
-    })
-  } else {
-      alert('can not talk to server ;(',response.status)
-  }
+      /*
+      get list of fields
+      http://localhost:8080/solr/core1/select?q=*:*&wt=csv&rows=0&facet
+      */
+      /* eslint-disable no-new */
+      new Vue({
+        el: '#app',
+        router,
+        template: '<App/>',
+        components: { App }
+      })
+    } else {
+        alert('can not talk to server ;(',response.status)
+    }
   })
   .catch(function(error) {
     console.error(error);

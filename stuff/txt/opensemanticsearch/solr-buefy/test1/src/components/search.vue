@@ -155,7 +155,7 @@
                 // TODO fix perExpand undefined
                 queryURL : `${this.$solr_server}/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&rows=${this.perExpand||64}&q=`,
                 peekURL : `${this.$solr_server}/solr/core1/select?fl=content&wt=json&rows=1&q=id:`,
-                fieldFilter: '_ss',
+                fieldFilter: this.$fieldFilter, //TODO move to parent
                 options:
                         {
                           canvas: false,
@@ -207,7 +207,7 @@
                       this.eles[id].push({data:{id:key,label:'<b>'+key+' : '+ doc[key].length+'</b>', doc:doc[key]}})
                       this.eles[id].push({data:{source:doc.id,target:key}})
                     }
-                    if (doc[key].length > 16 && doc[key].length < 32) {
+                    if (doc[key].length > 16 && doc[key].length < 33) {
                       this.eles[id].push({data:{id:key,label:key}})
                       this.eles[id].push({data:{source:doc.id,target:key}})
                       for (let value of doc[key]) {
