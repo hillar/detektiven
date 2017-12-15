@@ -85,12 +85,12 @@ export default {
     Object.assign(this, { cy: {} });
   },
   mounted () {
+    this.loading = true
     this.cy = cytoscape({
         container: document.getElementById('cy'),
         layout: this.layout,
         style: this.style
     });
-    this.loading = true
     this.cy.zoom({level:this.initialZoom/100})
     this.cy.cxtmenu({
       selector: "node",
@@ -135,34 +135,46 @@ export default {
           select: this.clearHighlights
         },
         {
-          content: "Center graph",
+          content: "Highlight root",
           select: this.centerOnGraph
         },
         {
-          content: "Redraw graph",
+          content: "Redraw",
           select: this.reDrawGraph
         },
         {
-          content: "Get json",
+          content: "json",
           select: this.exportGraphJson
         },
         {
-          content: "Get png",
+          content: "png",
           select: this.exportGraphImage
         }
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
     })
-
-    for (let element of this.elements) {
-      if (this.cy.getElementById(element.data.id).length == 0) {
-          this.cy.add(element)
-      } else {
-        console.log('cy dublicate element',element.data.id)
+    console.dir(this.elements)
+    if (this.elements && this.elements.length > 0) {
+      for (let element of this.elements) {
+        if (element && element.data && (element.data.id||(element.data.source && element.data.target))) {
+          if (this.cy.getElementById(element.data.id).length == 0) {
+              this.cy.add(element)
+          } else {
+            console.log('cy dublicate element',element.data.id)
+          }
+        } else {
+          console.error('not a element')
+          this.$snackbar.open('contact your admin, graph is broken: '+JSON.stringify(element))
+        }
       }
+    } else {
+      console.log('no elements')
+      this.$toast.open('empty graph')
     }
     let layout = this.cy.makeLayout(this.layout);
     layout.run();
+    // find root & highlight it
+    this.highlightNode(this.cy.getElementById('root'))
     this.loading = false
   },
   methods: {
@@ -351,8 +363,9 @@ export default {
     },
     // context menu items for core
     centerOnGraph: function() {
-      this.cy.center();
+      this.cy.center(this.cy.getElementById('root'));
       this.cy.zoom(this.initialZoom);
+      this.highlightNode(this.cy.getElementById('root'))
     },
     reDrawGraph: function() {
       let layout = this.cy.makeLayout(this.layout);

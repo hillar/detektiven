@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "axios": "^0.17.1",
-    "buefy": "^0.6.1",
+    "buefy": "^0.6.2",
     "cytoscape": "^3.2.6",
     "cytoscape-cxtmenu": "^2.10.3",
     "fingerprintjs2": "^1.5.1",

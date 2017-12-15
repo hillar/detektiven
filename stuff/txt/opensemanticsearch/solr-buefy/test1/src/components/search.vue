@@ -1,9 +1,5 @@
 <template>
     <section>
-
-      <!-- authenticated und authorized -->
-      <div class="flipper">
-      <div class="front">
       <b-field grouped style='width:90%;'>
           &nbsp;
           <b-collapse :open="false">
@@ -75,7 +71,7 @@
       <hr>
         <b-table
             @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
-            @details-open="(row, index) => this.connected(`${row.id}`,`${row.json}`,`${row}`)"
+            @details-open="connected"
             @add2filter="addtoquery"
             :data="data"
             :nodes="currentNodes"
@@ -131,14 +127,36 @@
             </template>
 
         </b-table>
-      </div>
-      <div class="back">
-      </div>
-    </div>
     </section>
 </template>
 
 <script>
+
+function doc2graph(doc,fieldFilter,id){
+  return new Promise((resolve, reject) => {
+    console.log('doc2graph start',id,doc.id)
+    let tmp = []
+    tmp.push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
+    if (id) tmp.push({data:{source:id,target:doc.id}})
+    for (let key of Object.keys(doc)){
+      if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
+        if (doc[key].length > 32) {
+          tmp.push({data:{id:doc.id+key,label:key+' - to many '+key+': '+ doc[key].length, [key]:doc[key]}})
+          tmp.push({data:{source:doc.id,target:doc.id+key}})
+        } else {
+          for (let value of doc[key]) {
+            if (value.length>0) {
+              tmp.push({data:{id:value,label:value}})
+              tmp.push({data:{source:doc.id,target:value}})
+            }
+          }
+        }
+      }
+    }
+    console.log('doc2graph end',tmp.length)
+    resolve(tmp.slice())
+  })
+}
     export default {
         data() {
             return {
@@ -153,7 +171,7 @@
                 currentEles:  [],
                 perExpand : 64,
                 // TODO fix perExpand undefined
-                queryURL : `${this.$solr_server}/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&rows=${this.perExpand||64}&q=`,
+                queryURL : `${this.$solr_server}/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&rows=${this.perExpand||64}&sort=score DESC&q=`,
                 peekURL : `${this.$solr_server}/solr/core1/select?fl=content&wt=json&rows=1&q=id:`,
                 fieldFilter: this.$fieldFilter, //TODO move to parent
                 options:
@@ -192,44 +210,79 @@
             addtoquery (filter) {
               this.userQuery += ` "${filter}"`
             },
-            connected (id, json, row) {
-              this.loading = true
-              if (this.eles[id]){
-                this.currentEles = this.eles[id]
-              } else {
-                let doc = JSON.parse(json)
-                //console.dir(doc)
-                this.eles[id] = []
-                this.eles[id].push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
-                for (let key of Object.keys(doc)){
-                  if (Array.isArray(doc[key]) === true && key.indexOf(this.fieldFilter)>0) {
-                    if (doc[key].length > 32) {
-                      this.eles[id].push({data:{id:key,label:'<b>'+key+' : '+ doc[key].length+'</b>', doc:doc[key]}})
-                      this.eles[id].push({data:{source:doc.id,target:key}})
-                    }
-                    if (doc[key].length > 16 && doc[key].length < 33) {
-                      this.eles[id].push({data:{id:key,label:key}})
-                      this.eles[id].push({data:{source:doc.id,target:key}})
-                      for (let value of doc[key]) {
-                        if (value.length>0) {
-                          this.eles[id].push({data:{id:value,label:value}})
-                          this.eles[id].push({data:{source:key,target:value}})
-                        }
-                      }
-                    }
-                    if (doc[key].length < 17) {
-                      for (let value of doc[key]) {
-                        if (value.length>0) {
-                          this.eles[id].push({data:{id:value,label:value}})
-                          this.eles[id].push({data:{source:doc.id,target:value}})
-                        }
-                      }
+            async doc2graphExpand(doc,fieldFilter,queryURL){
+              const axios = require('axios')
+              //prepare query url's
+              let urls = []
+              for (let key of Object.keys(doc)){
+                if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
+                  for (let value of doc[key]) {
+                    if (value.length > 0) {
+                      urls.push(`${queryURL}"${value}"`)
                     }
                   }
                 }
-                this.currentEles = this.eles[id]
               }
+              // await till all queries are done
+              let arrayOfDocs = await Promise.all(urls.map(function (url) {
+                return new Promise((res,rej)=>{
+                  axios.get(url)
+                  .then((response) => {
+                    res(response.data.response.docs)
+                  })
+                })
+              }))
+              //concat all docs, remove duplicates
+              let docs = []
+              doc['id'] = 'root'
+              docs.push(doc)
+              for (let ds of arrayOfDocs){
+                for (let d in ds){
+                  if (!docs.find((v) => {return (v.id == ds[d].id)} )){
+                      docs.push(ds[d])
+                  } else {
+                    console.log('dup',ds[d].id)
+                  }
+                }
+              }
+              // build array of nodes & edges
+              let tmp = []
+              for (let i in docs) {
+                let doc = docs[i]
+                tmp.push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
+                for (let key of Object.keys(doc)){
+                  if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter) > 0) {
+                      for (let value of doc[key]) {
+                        if (value.length > 0) {
+                          if (!tmp.find((v) => {return (v.id == value)} )){
+                            tmp.push({data:{id:value,label:value}})
+                          }
+                          tmp.push({data:{source:doc.id,target:value}})
+                        }
+                      }
+                  }
+                }
+              }
+              return tmp.slice()
+            },
+            async connected (row) {
+              this.loading = true
+              let currentrow = Object.assign({}, row);
+              this.$children[1].closeDetailRow(currentrow)
+              let id = row.id
+              if (this.eles[id]){
+                //TODO fix it with vue.set !?
+                this.currentEles = this.eles[id]
+              } else {
+
+                this.eles[id] = await this.doc2graphExpand(row, this.fieldFilter,this.queryURL)
+                this.currentEles = this.eles[id]
+
+                //this.currentEles = this.eles[id]
+              }
+              this.$children[1].openDetailRow(currentrow)
               this.loading = false
+
             },
             loadAsyncData () {
                 this.loading = true
@@ -312,6 +365,7 @@
             }
         },
         mounted() {
+            console.log('mounted search')
             this.loadAsyncData()
         }
     }
