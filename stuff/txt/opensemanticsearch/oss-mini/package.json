@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "busboy": "^0.2.14",
     "commander": "^2.12.2",
     "http-auth": "^3.2.3",
     "http-proxy": "^1.16.2",

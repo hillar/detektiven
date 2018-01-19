@@ -1,6 +1,8 @@
 <template>
     <section>
-      <b-field grouped class="is-fullwidth">
+      <div class="flipper">
+      <div class="front">
+      <b-field grouped style='width:90%;'>
           &nbsp;
           <b-collapse :open="false">
             <button class="button is-primary" slot="trigger">
@@ -18,11 +20,11 @@
                         max="100"
                       ></b-input>
                     </b-field>
-                    <b-field label="results per node expand">
-                      <b-input v-model="perExpand"
+                    <b-field label="graph force">
+                      <b-input v-model="options.force"
                         type="number"
-                        min="2"
-                        max="1024"
+                        min="1000"
+                        max="10000"
                       ></b-input>
                       </b-field>
                       <b-field label="graph node size">
@@ -44,26 +46,13 @@
                     {{ isAndOr }}
           </b-switch>
           &nbsp;
-          <b-input grouped placeholder="Search..."
+          <b-input grouped placeholder="Search..." style='width:90%;'
               v-model="userQuery"
               @keyup.native.enter = "test()"
-              class="is-expanded"
+              type="search"
               icon="magnify">
           </b-input>
-
-          <b-upload v-model="files">
-    <a class="button is-primary">
-        <b-icon icon="upload"></b-icon>
-    </a>
-</b-upload>
-<div v-if="files && files.length">
-    <span class="file-name">
-        {{ files[0].name }}
-    </span>
-</div>
-
           &nbsp;
-
           <b-collapse :open="false">
             <button class="button is-primary" slot="trigger">
               <b-icon icon="help"></b-icon></button>
@@ -84,13 +73,12 @@
       <hr>
         <b-table
             @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
-            @details-open="connected"
-            @add2filter="addtoquery"
+            @details-open="(row, index) => this.connected(`${row.id}`,`${row.json}`,`${row}`)"
             :data="data"
             :nodes="currentNodes"
             :links="currentLinks"
             :loading="loading"
-            hoverable
+
             detailed
             detail-key="id"
 
@@ -120,19 +108,14 @@
                 </b-table-column>
             </template>
 
-            <template slot="detail" slot-scope="props" :nodes="nodes" >
-
-              <!--
+            <template slot="detail" slot-scope="props" :nodes="nodes">
+              <div v-observe-visibility="gvisibilityChanged">
               <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
-              -->
-              <div style="height:600px">
-              <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL" :fieldFilter="fieldFilter"></cytoscape>
-
+            </div>
               <button class="button block" @click="isMeta = !isMeta">Meta</button>
               <b-message :title="`${props.row.id}`" :active.sync="isMeta">
                   {{ props.row.json }}
               </b-message>
-              </div>
             </template>
 
             <template slot="bottom-left">
@@ -140,36 +123,16 @@
             </template>
 
         </b-table>
+      </div>
+      <div class="back">
+      </div>
+    </div>
     </section>
 </template>
 
 <script>
 
-function doc2graph(doc,fieldFilter,id){
-  return new Promise((resolve, reject) => {
-    console.log('doc2graph start',id,doc.id)
-    let tmp = []
-    tmp.push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
-    if (id) tmp.push({data:{source:id,target:doc.id}})
-    for (let key of Object.keys(doc)){
-      if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
-        if (doc[key].length > 32) {
-          tmp.push({data:{id:doc.id+key,label:key+' - to many '+key+': '+ doc[key].length, [key]:doc[key]}})
-          tmp.push({data:{source:doc.id,target:doc.id+key}})
-        } else {
-          for (let value of doc[key]) {
-            if (value.length>0) {
-              tmp.push({data:{id:value,label:value}})
-              tmp.push({data:{source:doc.id,target:value}})
-            }
-          }
-        }
-      }
-    }
-    console.log('doc2graph end',tmp.length)
-    resolve(tmp.slice())
-  })
-}
+import panzoom from 'panzoom'
     export default {
         data() {
             return {
@@ -180,13 +143,6 @@ function doc2graph(doc,fieldFilter,id){
                 currentLinks: [],
                 nodes: {},
                 links: {},
-                eles: {},
-                currentEles:  [],
-                perExpand : 64,
-                // TODO fix perExpand undefined
-                queryURL : `${this.$solr_server}/solr/core1/select?fl=*,score,content:[value v=""]&wt=json&rows=${this.perExpand||64}&sort=score DESC&q=`,
-                peekURL : `${this.$solr_server}/solr/core1/select?fl=content&wt=json&rows=1&q=id:`,
-                fieldFilter: this.$fieldFilter, //TODO move to parent
                 options:
                         {
                           canvas: false,
@@ -220,83 +176,163 @@ function doc2graph(doc,fieldFilter,id){
                 this.loadAsyncData()
               }
             },
-            addtoquery (filter) {
-              this.userQuery += ` "${filter}"`
-            },
-            async doc2graphExpand(doc,fieldFilter,queryURL){
-              const axios = require('axios')
-              //prepare query url's
-              let urls = []
-              for (let key of Object.keys(doc)){
-                if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
-                  for (let value of doc[key]) {
-                    if (value.length > 0) {
-                      urls.push(`${queryURL}"${value}"`)
+            async nodeClick (event, node) {
+              //expand current node
+              if (event.shiftKey) {
+                if (node.expand && node.root){
+                  //this.nodes[node.root].findIndex()
+                  this.loading = true
+                  let q_url = `${this.$solr_server}/solr/core1/select?&q=${node.expand}&wt=json&rows=1`
+                  console.log(q_url)
+                  const axios = require('axios')
+                  node._color = 'yellow'
+                  let res = {}
+                  try {
+                    res = await axios(q_url)
+                  } catch (e) {
+                    console.dir(e)
+                    this.$snackbar.open('contact your admin:'+e.message)
+                    this.loading = false
+                    return
+                  }
+                  for (let row of res.data.response.docs) {
+                    let index = await this.currentNodes.findIndex((node) => { return node.id === row.id })
+                    if (index>-1){
+                      //this.currentNodes[index]._size *= 1.2;
+                    } else {
+                      this.currentNodes.push({ id: row.id, name: row.title[0], expand: 'id:"'+row.id+'"', root:node.root, _color:'green'})
                     }
-                  }
-                }
-              }
-              // await till all queries are done
-              let arrayOfDocs = await Promise.all(urls.map(function (url) {
-                return new Promise((res,rej)=>{
-                  axios.get(url)
-                  .then((response) => {
-                    res(response.data.response.docs)
-                  })
-                })
-              }))
-              //concat all docs, remove duplicates
-              let docs = []
-              doc['id'] = 'root'
-              docs.push(doc)
-              for (let ds of arrayOfDocs){
-                for (let d in ds){
-                  if (!docs.find((v) => {return (v.id == ds[d].id)} )){
-                      docs.push(ds[d])
-                  } else {
-                    console.log('dup',ds[d].id)
-                  }
-                }
-              }
-              // build array of nodes & edges
-              let tmp = []
-              for (let i in docs) {
-                let doc = docs[i]
-                tmp.push({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
-                for (let key of Object.keys(doc)){
-                  if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter) > 0) {
-                      for (let value of doc[key]) {
-                        if (value.length > 0) {
-                          if (!tmp.find((v) => {return (v.id == value)} )){
-                            tmp.push({data:{id:value,label:value}})
+                    this.currentLinks.push({ sid: node.id, tid: row.id })
+                  for (let k of Object.keys(row)) {
+                      if (Array.isArray(row[k]) === true && k.indexOf('_ss')>0) {
+                        for (let v of row[k] ) {
+                          //q.push({'field': k, 'value': v})
+                          let index = await this.currentNodes.findIndex((node) => { return node.id === v })
+                          if (index>-1){
+                            this.$toast.open('on the graph already '+k+':'+v)
+                          } else {
+                            this.currentNodes.push({ id: v, name: v, _color:'green' ,expand: '"'+v+'"', root:node.root, filter:'"'+v+'"' })
                           }
-                          tmp.push({data:{source:doc.id,target:value}})
+                          this.currentLinks.push({ sid: row.id, tid: v, _color:'orange' })
                         }
                       }
+                    }
+                  }
+                  this.loading = false
+                }
+              }
+              // set current node to filter
+              if (event.altKey){
+                if (node.filter){
+                  this.userQuery += node.filter
+                  this.$toast.open(node.filter)
+                  /*
+                  this.$dialog.confirm({
+                      message: 'set this filter:'+node.filter,
+                      onConfirm: () => this.userQuery += node.filter
+                  })
+                  */
+                }
+              }
+              if (event.ctrlKey) {
+                this.$toast.open('ctrlKey')
+              }
+              if (!event.shiftKey && !event.altKey && !event.ctrlKey)
+              if (!node.pinned) {
+                node.pinned = true
+                node.fx = node.x
+                node.fy = node.y
+              }
+            },
+            gvisibilityChanged (isVisible, entry, id) {
+              //console.log(isVisible, entry, id)
+              if (isVisible) {
+                console.dir(entry)
+                panzoom(entry.target.childNodes[0])
+              }
+            },
+            letsFlip: function(item){
+              console.log('flipping')
+            },
+
+            async connected (id,meta) {
+              this.currentNodes = []
+              this.currentLinks = []
+              if (this.nodes[id] && this.links[id]) {
+                //this.$toast.open('using cached '+id)
+                this.currentNodes = this.nodes[id]
+                this.currentLinks = this.links[id]
+                return
+              }
+              this.loading = true
+              this.nodes[id] = []
+              this.links[id] = []
+              let connections = {}
+              let q = [] // holds field values filtered from meta
+              let row = null // parsed meta obj
+              try {
+                row = await JSON.parse(meta)
+              } catch (e) {
+                console.error('row is not json')
+                return
+              }
+              // find all *_ss from row meta
+              for (let k of Object.keys(row)) {
+                if (Array.isArray(row[k]) === true && k.indexOf('_ss')>0) {
+                  for (let v of row[k] ) {
+                    q.push({'field': k, 'value': v})
                   }
                 }
               }
-              return tmp.slice()
-            },
-            async connected (row) {
-              this.loading = true
-              let currentrow = Object.assign({}, row);
-              this.$children[1].closeDetailRow(currentrow)
-              let id = row.id
-              if (this.eles[id]){
-                //TODO fix it with vue.set !?
-                this.currentEles = this.eles[id]
-              } else {
-
-                this.eles[id] = await this.doc2graphExpand(row, this.fieldFilter,this.queryURL)
-                this.currentEles = this.eles[id]
-
-                //this.currentEles = this.eles[id]
+              // build ngraph.graph
+              /*
+              const createGraph = require('ngraph.graph')
+              let g = createGraph()
+              g.beginUpdate();
+              g.addNode(id,row)
+              */
+              this.currentNodes.push({ id: id, name: id, _color:'red', _size:50 })
+              // query all *_ss and append to row.connections
+              const axios = require('axios')
+              for (let i of q) {
+                /*
+                g.addNode(i.value)
+                g.addLink(id,i.value,i.field)
+                */
+                //if (!nodeExists(id, this.nodes[id]))
+                let index = await this.currentNodes.findIndex((node) => { return node.id === i.value })
+                if (index>-1){
+                  this.$toast.open(i.value)
+                } else {
+                  this.currentNodes.push({ id: i.value, name: i.value, _size:25, _color:'blue',filter:' "'+i.value+'"' })
+                }
+                this.currentLinks.push({ sid: id, tid: i.value, _color:'red' })
+                let q_url = `${this.$solr_server}/solr/core1/select?fl=id,score,title&q=${i.field}:${i.value}&wt=json&rows=100`
+                console.log(q_url)
+                let res = await axios(q_url)
+                for (let doc of res.data.response.docs) {
+                  /*
+                  g.addNode(doc.id,doc)
+                  g.addLink(i.value,doc.id,i.field)
+                  */
+                  //if (!nodeExists(doc.id, this.nodes[id]))
+                  let index = await this.currentNodes.findIndex((node) => { return node.id === doc.id })
+                  if (index>-1){
+                    //this.currentNodes[index]._size *= 1.2;
+                  } else {
+                    this.currentNodes.push({ id: doc.id, name: doc.title[0], expand: 'id:"'+doc.id+'"', root:id, _color:'green'})
+                  }
+                  this.currentLinks.push({ sid: i.value, tid: doc.id, _color:'green' })
+                  //if (!connections[doc.id]) connections[doc.id] = {'title':doc.title[0],'fields':[]}
+                  //connections[doc.id].fields.push({'field':i.field, 'value':i.value})
+                }
               }
-              this.$children[1].openDetailRow(currentrow)
+              //g.endUpdate()
+              this.nodes[id] = this.currentNodes
+              this.links[id] = this.currentLinks
               this.loading = false
-
             },
+
             loadAsyncData () {
                 this.loading = true
                 this.data = []
@@ -317,14 +353,13 @@ function doc2graph(doc,fieldFilter,id){
                 let post = "hl.tag.post=</highlighted>"
                 let hl = `on&hl.fl=content&hl.fragsize=${fragsize}&hl.encoder=html&hl.snippets=100`
                 let q_url = `${this.$solr_server}/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${rows}&sort=${sort}&hl=${hl}`
-                const axios = require('axios')
-                axios.get(q_url)
+                this.$http.get(q_url)
                     .then(({ data }) => {
                         this.data = []
                         let currentTotal = data.response.numFound
                         this.total = currentTotal
                         data.response.docs.forEach((item) => {
-                          //delete(item['content'])
+                          delete(item['content'])
                           Object.keys(item).forEach((k) => {
                             // delete all etl_*
                             if (item[k] === true) delete(item[k])
@@ -352,11 +387,6 @@ function doc2graph(doc,fieldFilter,id){
                         this.total = 0
                         this.loading = false
                     })
-                    .catch(function(error) {
-                      that.loading = false
-                      console.error(error);
-                      that.$snackbar.open('refresh browser, no backend'+error.message)
-                    })
             },
 
             truncate(value, length) {
@@ -378,11 +408,44 @@ function doc2graph(doc,fieldFilter,id){
             }
         },
         mounted() {
-            console.log('mounted search')
             this.loadAsyncData()
         }
     }
 </script>
 <style>
   em {background: #ff0;}
+
+  /* 3D FLIP CARD */
+  .flipper{
+    transition: 0.6s;
+  	transform-style: preserve-3d;
+  	position: relative;
+  }
+  .flipper.flip{
+    transform: rotateY(180deg);
+  }
+
+  .front,
+  .back {
+    margin: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+  	top: 0;
+  	left: 0;
+    backface-visibility: hidden;
+  }
+
+  .front {
+    z-index: 2;
+  	/* for firefox 31 */
+  	transform: rotateY(0deg);
+  }
+  .back {
+    transform: rotateY( 180deg );
+  }
+
+
+
 </style>
