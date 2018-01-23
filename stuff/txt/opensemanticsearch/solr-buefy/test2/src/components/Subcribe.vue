@@ -9,7 +9,6 @@
        </b-taginput>
      </b-field>
         <button class="button is-success is-large"
-          :disabled="stringsList.length === 0"
           @click="uploadSubscriptions(stringsList)">
         Update subcribed strings </button>
     </div>
@@ -40,6 +39,7 @@ import axios from 'axios'
                     try {
                       let fd = res.data
                       that.stringsList = fd.fields.strings.split(',')
+                      if (that.stringsList[0] === "") that.stringsList = []
                     } catch (err) {
                       console.error(err);
                       that.$snackbar.open('contact your admin: subscriptions error '+err.message)

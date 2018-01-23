@@ -1,0 +1,13 @@
+[Unit]
+Description=upload directory monitor
+After=network.target
+
+[Service]
+Type=simple
+Restart=on-failure
+StandardOutput=tty
+ExecStart=/bin/sh -c '/opt/oss-mini/monitor.bash /var/spool/oss-mini/upload/'
+WorkingDirectory=/opt/oss-mini
+
+[Install]
+WantedBy=multi-user.target
