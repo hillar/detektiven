@@ -8,7 +8,9 @@
       </p>
       <p><b-icon icon="magnify"></b-icon> - click to search
       </p>
-      <p><b-icon icon="settings"></b-icon> - click to set some
+      <p><b-icon icon="settings"></b-icon> - click to set some settings
+      </p>
+      <p><b-icon icon="email"></b-icon> - click to subscribe 
       </p>
       <p><b-icon icon="upload"></b-icon> - click to upload files
       </p>

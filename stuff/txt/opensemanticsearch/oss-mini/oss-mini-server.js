@@ -36,6 +36,7 @@ cliParams
   .option('-t, --target [host:port]','api target host and port')
 	.option('-a, --api [path]','api path')
   .option('--upload-directory [path]','upload path')
+  .option('--subscriptions-directory [path]','subscriptions path')
 	.option('--smtp-host [host]','smtp host')
 	.option('--smtp-port [number]','smtp port')
 	.option('--smtp-sender [email]','smtp sender')
@@ -61,6 +62,7 @@ let staticDir = cliParams.static || config.static
 let portTarget = cliParams.target || config.target
 let apiUrl = cliParams.api || config.api
 let uploadDirectory = cliParams.uploadDirectory || config.uploadDirectory
+let subscriptionsDirectory = cliParams.subscriptionsDirectory || config.subscriptionsDirectory
 let smtpfrom = cliParams.smtpSender || config.smtpSender
 let smtphost = cliParams.smtpHost || config.smtpHost
 let smtpport = cliParams.smtpPort || config.smtpPort
@@ -84,7 +86,16 @@ if (!fs.existsSync(uploadDirectory)) {
     process.exit(1);
   }
 }
-//TODO check is uploadDirectory writeable, if not exit
+if (!fs.existsSync(subscriptionsDirectory)) {
+  try {
+    console.log('creating directory for uploads',subscriptionsDirectory)
+    fs.mkdirSync(subscriptionsDirectory)
+  } catch (e) {
+    console.error('can not create upload directory', subscriptionsDirectory)
+    process.exit(1);
+  }
+}
+//TODO check is uploadDirectory && subscriptionsDirectory writeable, if not exit
 
 // authentication
 let users = {} //TODO load users history
@@ -200,6 +211,19 @@ let server = http.createServer(basic, (req, res) => {
         console.log('got user',req.user,'new params',params.join(','),'all',JSON.stringify(users[req.user]))
         mailer.send('kala@kala.na', 'subject', 'body', smtpfrom, smtphost, smtpport)
     } else {
+      if (req.url.startsWith("/subscriptions")){
+        let uploadedby = req.user
+        let subs = ""
+        try {
+          subs = fs.readFileSync(subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json')
+        } catch (e) {
+          console.log('no sobscritions for ',uploadedby)
+          subs = ""
+        }
+        console.dir(subs)
+        res.end(subs)
+
+      } else {
       // static files
       if (req.url.startsWith("/")) {
         const parsedUrl = url.parse(req.url)
@@ -247,6 +271,7 @@ let server = http.createServer(basic, (req, res) => {
           });
           res.end();
       }
+    } // end subsc
     }
   }
 } else {
@@ -294,6 +319,36 @@ let server = http.createServer(basic, (req, res) => {
     });
 
     req.pipe(busboy);
+  }
+  if (req.method === 'POST') {
+      if (req.url.startsWith("/subscriptions")){
+        let fields = {}
+        let busboy = new Busboy({ preservePath: true, headers: req.headers })
+        busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) {
+          fields[fieldname] = val
+          //fields.push(o)
+        });
+        busboy.on('finish', function() {
+          console.log('fields:',JSON.stringify(fields))
+          let uploadedby = req.user
+          let uploadtime = Date.now()
+          // let email = user.email
+          if (!fs.existsSync(subscriptionsDirectory+'/'+uploadedby)) {
+            try {
+              console.log('creating directory for uploads',subscriptionsDirectory+'/'+uploadedby)
+              fs.mkdirSync(subscriptionsDirectory+'/'+uploadedby)
+            } catch (e) {
+              console.error('can not create upload directory', subscriptionsDirectory+'/'+uploadedby)
+              res.end('FAILED');
+            }
+          }
+          // TODO keep old subscriptions history
+          fs.writeFileSync(subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json',JSON.stringify({uploadtime,uploadedby,fields}))
+          res.end('OK');
+          console.log(JSON.stringify({uploadtime,uploadedby,fields}))
+        });
+        req.pipe(busboy);
+      }
   }
 }
 })

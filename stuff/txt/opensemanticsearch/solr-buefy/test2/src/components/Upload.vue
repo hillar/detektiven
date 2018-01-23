@@ -1,6 +1,6 @@
 <template>
     <section>
-    <div class="is-fullwidth" style='background-color:#b5b5b5'>
+    <div class="is-fullwidth" style='background-color:white'>
       <b-field label="Add some tags" class="is-fluid is-expanded">
        <b-taginput
            v-model="tagsList"

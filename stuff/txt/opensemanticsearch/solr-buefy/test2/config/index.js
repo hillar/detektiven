@@ -19,6 +19,10 @@ module.exports = {
       '/files': {
         target: 'http://192.168.11.2:9983',
         changeOrigin: true
+      },
+      '/subscriptions': {
+        target: 'http://192.168.11.2:9983',
+        changeOrigin: true
       }
     },
 

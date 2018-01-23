@@ -31,6 +31,11 @@
             </button>
             &nbsp;
             <button class="button is-primary"
+              @click= "subscribeDialog()">
+              <b-icon icon="email"></b-icon>
+            </button>
+            &nbsp;
+            <button class="button is-primary"
               @click= "helpDialog()">
               <b-icon icon="help"></b-icon>
             </button>
@@ -44,6 +49,7 @@
 
 import Help from '@/components/Help'
 import Upload from '@/components/Upload'
+import Subcribe from '@/components/Subcribe'
 
 export default {
     data() {
@@ -59,6 +65,9 @@ export default {
         },
         uploadDialog(){
           this.$modal.open({parent: this, component: Upload})
+        },
+        subscribeDialog(){
+          this.$modal.open({parent: this, component: Subcribe})
         },
         settingsDialog(){},
         search(){}

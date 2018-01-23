@@ -5,6 +5,7 @@
   "target": "127.0.0.1:8983",
   "api": "/solr/core",
   "uploadDirectory": "/var/spool/oss-mini/upload",
+  "subscriptionsDirectory": "/var/spool/oss-mini/subscriptions",
   "smtpHost": "localhost",
   "smtpPort": 25,
   "smtpSender": "noreplay-oss-mini-server@localhost",
