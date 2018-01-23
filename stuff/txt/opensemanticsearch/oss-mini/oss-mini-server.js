@@ -35,6 +35,7 @@ cliParams
 	.option('-s, --static [path]','static files to serve')
   .option('-t, --target [host:port]','api target host and port')
 	.option('-a, --api [path]','api path')
+  .option('--users-file [file]','users sessions full path file name')
   .option('--upload-directory [path]','upload path')
   .option('--subscriptions-directory [path]','subscriptions path')
 	.option('--smtp-host [host]','smtp host')
@@ -61,6 +62,7 @@ let ipListen = cliParams.host || config.host
 let staticDir = cliParams.static || config.static
 let portTarget = cliParams.target || config.target
 let apiUrl = cliParams.api || config.api
+let usersFile = cliParams.usersFile || config.usersFile
 let uploadDirectory = cliParams.uploadDirectory || config.uploadDirectory
 let subscriptionsDirectory = cliParams.subscriptionsDirectory || config.subscriptionsDirectory
 let smtpfrom = cliParams.smtpSender || config.smtpSender
@@ -98,7 +100,12 @@ if (!fs.existsSync(subscriptionsDirectory)) {
 //TODO check is uploadDirectory && subscriptionsDirectory writeable, if not exit
 
 // authentication
-let users = {} //TODO load users history
+let users = {}
+try {
+  users = fs.readFileSync(usersFile)
+} catch (error) {
+  console.log('fresh start !?, no users sessions history file',usersFile)
+}
 let basic = auth.basic({
 		realm: realm
 	}, async (username, password, callback) => {
@@ -119,6 +126,10 @@ let basic = auth.basic({
 					}
 					users[username]['ipa'] = user
 					users[username]['logintime'] = Date.now()
+          let to = users[username].ipa.mail.join(';')
+          let subject = "welcome"
+          let body = "nice to see You!"
+          mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
 					callback(true);
 				} else {
 					console.error('should not happen, user',username,' does not match system user',user.uid)
@@ -138,9 +149,16 @@ basic.on('success', (result, req) => {
     users[result.user]['lastseen'] = Date.now()
     if (users[result.user]['ip'] && req.socket.remoteAddress != users[result.user]['ip']) {
       console.log('WARNING! user', req.user, 'has new ip',req.socket.remoteAddress,'old',users[req.user]['ip'])
-      //TODO send email to user
-      //mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
+      let to = users[result.user].ipa.mail.join(';')
+      let subject = "new ip"
+      let body = "new login from "+ req.socket.remoteAddress
+      mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
     }
+  }
+  try {
+    fs.writeFileSync(usersFile,JSON.stringify(users))
+  } catch (error) {
+    console.error('failed writing users sessions file',usersFile,error.message)
   }
   let user_online = users[result.user]['lastseen'] - users[result.user]['logintime']
 	console.log(`User ${result.user} authenticated since ${users[result.user]['logintime']} online time ${user_online}`);
@@ -209,7 +227,15 @@ let server = http.createServer(basic, (req, res) => {
         }
         res.end()
         console.log('got user',req.user,'new params',params.join(','),'all',JSON.stringify(users[req.user]))
-        mailer.send('kala@kala.na', 'subject', 'body', smtpfrom, smtphost, smtpport)
+        let to = users[req.user].ipa.mail.join(';')
+        let subject = "new browser"
+        let body = "new browser from "+ req.socket.remoteAddress
+        mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
+        try {
+          fs.writeFileSync(usersFile,JSON.stringify(users))
+        } catch (error) {
+          console.error('failed writing users sessions file',usersFile,error.message)
+        }
     } else {
       if (req.url.startsWith("/subscriptions")){
         let uploadedby = req.user
@@ -218,9 +244,8 @@ let server = http.createServer(basic, (req, res) => {
           subs = fs.readFileSync(subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json')
         } catch (e) {
           console.log('no sobscritions for ',uploadedby)
-          subs = ""
         }
-        console.dir(subs)
+        console.log('sendings subscriptions to',uploadedby)
         res.end(subs)
 
       } else {
@@ -331,21 +356,30 @@ let server = http.createServer(basic, (req, res) => {
         busboy.on('finish', function() {
           console.log('fields:',JSON.stringify(fields))
           let uploadedby = req.user
+          let emails = users[uploadedby].ipa.mail
           let uploadtime = Date.now()
           // let email = user.email
           if (!fs.existsSync(subscriptionsDirectory+'/'+uploadedby)) {
             try {
-              console.log('creating directory for uploads',subscriptionsDirectory+'/'+uploadedby)
+              console.log('creating subscriptions directory for',uploadedby,subscriptionsDirectory+'/'+uploadedby)
               fs.mkdirSync(subscriptionsDirectory+'/'+uploadedby)
             } catch (e) {
-              console.error('can not create upload directory', subscriptionsDirectory+'/'+uploadedby)
+              console.error('can not create subscriptions directory', subscriptionsDirectory+'/'+uploadedby)
               res.end('FAILED');
+              return
             }
           }
           // TODO keep old subscriptions history
-          fs.writeFileSync(subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json',JSON.stringify({uploadtime,uploadedby,fields}))
-          res.end('OK');
-          console.log(JSON.stringify({uploadtime,uploadedby,fields}))
+          let saved = "OK"
+          try {
+              console.log('writing subscriptions', uploadedby,'to',subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json')
+              fs.writeFileSync(subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json',JSON.stringify({uploadtime,uploadedby,fields}))
+          } catch (error) {
+            saved = "Can not write subscriptions"
+            console.error(error.message)
+          }
+        res.end(saved);
+        console.log(JSON.stringify({uploadtime,uploadedby,fields}))
         });
         req.pipe(busboy);
       }

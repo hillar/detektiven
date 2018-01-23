@@ -106,7 +106,7 @@ import axios from 'axios'
                 console.error(error.message)
                 that.$snackbar.open(err.message)
               })
-              .finally(function() {
+              .then(function() {
                 that.tagsList = []
                 that.filesList = []
                 loadingComponent.close()

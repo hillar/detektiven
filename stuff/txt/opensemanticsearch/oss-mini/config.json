@@ -4,6 +4,7 @@
   "static": "../solr-buefy/test2/dist",
   "target": "127.0.0.1:8983",
   "api": "/solr/core",
+  "usersFile": "/var/spool/oss-mini/user-sessions.json",
   "uploadDirectory": "/var/spool/oss-mini/upload",
   "subscriptionsDirectory": "/var/spool/oss-mini/subscriptions",
   "smtpHost": "localhost",
