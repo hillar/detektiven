@@ -71,6 +71,7 @@ npm run build >> /vagrant/provision.log 2>&1
 cd /opt/oss-mini/
 cp -r /tmp/detektiven-master/stuff/txt/opensemanticsearch/solr-buefy/test2/dist .
 node oss-mini-server.js --help
+mkdir  /var/log/oss-mini-server
 cp oss-mini-server.systemd.service /lib/systemd/system/
 systemctl enable oss-mini-server.systemd.service
 systemctl start oss-mini-server.systemd.service

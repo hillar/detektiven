@@ -7,7 +7,7 @@
 SOLR="127.0.0.1:8983"
 ARCHIVEDIR="/tmp/archive"
 SUBSDIR="/var/spool/oss-mini/subscriptions/"
-SENDMAIL="./just-send-mail.bash"
+SENDMAIL="/opt/oss-mini/just-send-mail.bash"
 
 log() { echo "$(date) $0: $*"; }
 error() { echo "$(date) $0: $*" >&2; }

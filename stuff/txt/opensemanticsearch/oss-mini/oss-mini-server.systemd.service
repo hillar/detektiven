@@ -8,7 +8,7 @@ Requires=upload-monitor.systemd.service
 Type=simple
 Restart=on-failure
 StandardOutput=tty
-ExecStart=/bin/sh -c 'node /opt/oss-mini/oss-mini-server.js'
+ExecStart=/bin/sh -c 'node /opt/oss-mini/oss-mini-server.js -c /opt/oss-mini/config.json >> /var/log/oss-mini-server/acces.log 2>> /var/log/oss-mini-server/error.log'
 WorkingDirectory=/opt/oss-mini
 
 [Install]
