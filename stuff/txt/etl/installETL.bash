@@ -59,6 +59,7 @@ cp -r /tmp/detektiven-master/stuff/txt/opensemanticsearch/oss-mini .
 cd oss-mini
 chmod +x monitor.bash
 chmod +x push2solr4put2archive.bash
+chmod +x just-send-mail.bash
 cp upload-monitor.systemd.service /lib/systemd/system/
 systemctl enable upload-monitor.systemd.service
 systemctl start upload-monitor.systemd.service
@@ -69,6 +70,9 @@ npm install >> /vagrant/provision.log 2>&1
 npm run build >> /vagrant/provision.log 2>&1
 cd /opt/oss-mini/
 cp -r /tmp/detektiven-master/stuff/txt/opensemanticsearch/solr-buefy/test2/dist .
-node oss-mini-server.js -h 127.0.0.1
+node oss-mini-server.js --help
+cp oss-mini-server.systemd.service /lib/systemd/system/
+systemctl enable oss-mini-server.systemd.service
+systemctl start oss-mini-server.systemd.service
 sleep 2
 netstat -ntple

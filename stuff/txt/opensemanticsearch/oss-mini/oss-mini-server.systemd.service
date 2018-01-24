@@ -1,0 +1,15 @@
+[Unit]
+Description=oss mini web server
+After=network.target
+# comment out if upload dir is not in this box
+Requires=upload-monitor.systemd.service
+
+[Service]
+Type=simple
+Restart=on-failure
+StandardOutput=tty
+ExecStart=/bin/sh -c 'node /opt/oss-mini/oss-mini-server.js'
+WorkingDirectory=/opt/oss-mini
+
+[Install]
+WantedBy=multi-user.target

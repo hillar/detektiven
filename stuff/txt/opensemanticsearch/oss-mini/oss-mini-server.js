@@ -355,16 +355,16 @@ let server = http.createServer(basic, (req, res) => {
         });
         busboy.on('finish', function() {
           console.log('fields:',JSON.stringify(fields))
-          let uploadedby = req.user
-          let emails = users[uploadedby].ipa.mail
+          let subscribedby = req.user
+          let emails = users[subscribedby].ipa.mail
           let uploadtime = Date.now()
           // let email = user.email
-          if (!fs.existsSync(subscriptionsDirectory+'/'+uploadedby)) {
+          if (!fs.existsSync(subscriptionsDirectory+'/'+subscribedby)) {
             try {
-              console.log('creating subscriptions directory for',uploadedby,subscriptionsDirectory+'/'+uploadedby)
-              fs.mkdirSync(subscriptionsDirectory+'/'+uploadedby)
+              console.log('creating subscriptions directory for',subscribedby,subscriptionsDirectory+'/'+subscribedby)
+              fs.mkdirSync(subscriptionsDirectory+'/'+subscribedby)
             } catch (e) {
-              console.error('can not create subscriptions directory', subscriptionsDirectory+'/'+uploadedby)
+              console.error('can not create subscriptions directory', subscriptionsDirectory+'/'+subscribedby)
               res.end('FAILED');
               return
             }
@@ -372,14 +372,14 @@ let server = http.createServer(basic, (req, res) => {
           // TODO keep old subscriptions history
           let saved = "OK"
           try {
-              console.log('writing subscriptions', uploadedby,'to',subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json')
-              fs.writeFileSync(subscriptionsDirectory+'/'+uploadedby+'/subscriptions.json',JSON.stringify({uploadtime,uploadedby,fields}))
+              console.log('writing subscriptions', subscribedby,'to',subscriptionsDirectory+'/'+subscribedby+'/subscriptions.json')
+              fs.writeFileSync(subscriptionsDirectory+'/'+subscribedby+'/subscriptions.json',JSON.stringify({uploadtime,subscribedby,emails,fields}))
           } catch (error) {
             saved = "Can not write subscriptions"
             console.error(error.message)
           }
         res.end(saved);
-        console.log(JSON.stringify({uploadtime,uploadedby,fields}))
+        console.log(JSON.stringify({uploadtime,subscribedby,emails,fields}))
         });
         req.pipe(busboy);
       }
