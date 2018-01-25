@@ -57,12 +57,12 @@ tar -xzf /vagrant/master.tar.gz
 cd /opt
 cp -r /tmp/detektiven-master/stuff/txt/opensemanticsearch/oss-mini .
 cd oss-mini
-chmod +x monitor.bash
+chmod +x upload-directory-monitor.bash
 chmod +x push2solr4put2archive.bash
 chmod +x just-send-mail.bash
-cp upload-monitor.systemd.service /lib/systemd/system/
-systemctl enable upload-monitor.systemd.service
-systemctl start upload-monitor.systemd.service
+cp upload-directory-monitor.systemd.service /lib/systemd/system/upload-directory-monitor.service
+systemctl enable upload-monitor.service
+
 npm install --unsafe-perm >> /vagrant/provision.log 2>&1
 mkdir -p /var/spool/oss-mini
 cd /tmp/detektiven-master/stuff/txt/opensemanticsearch/solr-buefy/test2
@@ -72,8 +72,10 @@ cd /opt/oss-mini/
 cp -r /tmp/detektiven-master/stuff/txt/opensemanticsearch/solr-buefy/test2/dist .
 node oss-mini-server.js --help
 mkdir  /var/log/oss-mini-server
-cp oss-mini-server.systemd.service /lib/systemd/system/
-systemctl enable oss-mini-server.systemd.service
-systemctl start oss-mini-server.systemd.service
+cp oss-mini-server.systemd.service /lib/systemd/system/oss-mini-server.service
+systemctl enable oss-mini-server.service
+
+systemctl start upload-monitor.service
+systemctl start oss-mini-server.service
 sleep 2
 netstat -ntple

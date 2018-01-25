@@ -15,7 +15,8 @@ subj=$2
 msg=$3
 
 # error handling
-function err_exit { echo -e 1>&2; exit 1; }
+function err_exit { echo -e 1>&2 ; exit 1; }
+log() { echo "$(date) $0: $*"; }
 
 # check if proper arguments are supplied
 if [ $# -ne 3 ]; then
@@ -29,6 +30,7 @@ fi
 
 # create message
 function mail_input {
+  log " sending mail $SERVER $PORT $FROM $to $subj"
   echo "ehlo $SERVER"
   echo "MAIL FROM: <$FROM>"
   echo "RCPT TO: <$to>"

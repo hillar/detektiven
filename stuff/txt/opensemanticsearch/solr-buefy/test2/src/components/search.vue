@@ -42,6 +42,67 @@
           </b-field>
 
         </b-field>
+        <div justify-content: center>
+          <p v-if="data.length === 0">input some search strings and press enter ;)</p>
+          <b-table v-if="data.length > 0"
+              @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
+              @details-open="connected"
+              @add2filter="addtoquery"
+              :data="data"
+              :nodes="currentNodes"
+              :links="currentLinks"
+              :loading="loading"
+              hoverable
+              detailed
+              detail-key="id"
+
+              paginated
+              backend-pagination
+              :total="total"
+              :per-page="perPage"
+              @page-change="onPageChange"
+
+              backend-sorting
+              :default-sort-direction="defaultSortOrder"
+              :default-sort="[sortField, sortOrder]"
+              @sort="onSort">
+
+              <template slot-scope="props">
+                <b-table-column field="score" label="Score" numeric sortable>
+                    {{ props.row.score }}
+                </b-table-column>
+                <b-table-column field="file_modified_dt" label="lastupdate" sortable centered>
+                    {{ props.row.file_modified_dt ? new Date(props.row.file_modified_dt).toLocaleDateString() : '' }}
+                </b-table-column>
+                  <b-table-column field="id" label="Name" sortable>
+                      {{ props.row.name }}
+                  </b-table-column>
+                  <b-table-column label="content">
+                      <p v-innerhtml="props.row.truncated"></p>
+                  </b-table-column>
+              </template>
+
+              <template slot="detail" slot-scope="props" :nodes="nodes" >
+
+                <!--
+                <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
+                -->
+                <div style="height:600px">
+                <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL" :fieldFilter="fieldFilter"></cytoscape>
+
+                <button class="button block" @click="isMeta = !isMeta">Meta</button>
+                <b-message :title="`${props.row.id}`" :active.sync="isMeta">
+                    {{ props.row.json }}
+                </b-message>
+                </div>
+              </template>
+
+              <template slot="bottom-left">
+                          &nbsp;<b>Total found</b>: {{ total }}
+              </template>
+
+          </b-table>
+        </div>
 </section>
 </template>
 

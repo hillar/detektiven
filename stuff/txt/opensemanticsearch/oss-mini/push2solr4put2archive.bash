@@ -36,6 +36,7 @@ ls | grep -v meta.json | while read f; do
   if [ $(cat $existsTMP | jq .response.docs[].id | grep -v "meta.json" | wc -l) -le 1 ]
   then
     etl-file $(pwd) |& while read m; do log $m; done
+    sleep 1
     # check subscriptions
     ## create filter list
     SUBSTMP=$(mktemp)
@@ -51,7 +52,7 @@ ls | grep -v meta.json | while read f; do
         fTMP=$(mktemp)
         json="{query:\"$query\",filter:\"id:*/$md5/*\"}"
         curl -s "http://$SOLR/solr/core1/query?fl=id" -d $json > $fTMP
-        #curl -s "http://$SOLR/solr/core1/select?fl=id&wt=json&q=$md5" > $fTMP
+        [ $last != 0 ] && log "solr error $md5 $query"
         cat $fTMP | jq .response.numFound
         if [ $(cat $fTMP | jq .response.numFound) -gt 0 ]
         then

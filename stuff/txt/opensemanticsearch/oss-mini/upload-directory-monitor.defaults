@@ -1,0 +1,2 @@
+PROCESS="/opt/oss-mini/push2solr4put2archive.bash"
+UPLOADDIRECTORY="/var/spool/oss-mini/upload/"
