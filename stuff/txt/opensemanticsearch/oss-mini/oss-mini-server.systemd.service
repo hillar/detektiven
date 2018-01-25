@@ -2,7 +2,7 @@
 Description=oss mini web server
 After=network.target
 # comment out if upload dir is not in this box
-Requires=upload-monitor.systemd.service
+Requires=upload-directory-monitor.service
 
 [Service]
 Type=simple

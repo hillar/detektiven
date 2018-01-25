@@ -60,12 +60,12 @@ cd oss-mini
 chmod +x upload-directory-monitor.bash
 chmod +x push2solr4put2archive.bash
 chmod +x just-send-mail.bash
-cp upload-directory-monitor.defaults /etc/defaults/upload-directory-monitor
+cp upload-directory-monitor.defaults /etc/default/upload-directory-monitor
 cp upload-directory-monitor.systemd.service /lib/systemd/system/upload-directory-monitor.service
-systemctl enable upload-monitor.service
+systemctl enable upload-directory-monitor.service
 
 npm install --unsafe-perm >> /vagrant/provision.log 2>&1
-mkdir -p /var/spool/oss-mini
+mkdir -p /var/spool/oss-mini/upload
 cd /tmp/detektiven-master/stuff/txt/opensemanticsearch/solr-buefy/test2
 npm install >> /vagrant/provision.log 2>&1
 npm run build >> /vagrant/provision.log 2>&1
@@ -76,7 +76,10 @@ mkdir  /var/log/oss-mini-server
 cp oss-mini-server.systemd.service /lib/systemd/system/oss-mini-server.service
 systemctl enable oss-mini-server.service
 
-systemctl start upload-monitor.service
+systemctl start upload-directory-monitor.service
 systemctl start oss-mini-server.service
 sleep 2
 netstat -ntple
+curl -s 127.0.0.1:9998/? | wc -l
+curl -s 127.0.0.1:8983/solr/core1/select?wt=json | jq .
+curl -s 192.168.11.2:9983
