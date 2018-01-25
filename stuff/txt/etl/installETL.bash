@@ -60,6 +60,7 @@ cd oss-mini
 chmod +x upload-directory-monitor.bash
 chmod +x push2solr4put2archive.bash
 chmod +x just-send-mail.bash
+cp upload-directory-monitor.defaults /etc/defaults/upload-directory-monitor
 cp upload-directory-monitor.systemd.service /lib/systemd/system/upload-directory-monitor.service
 systemctl enable upload-monitor.service
 
