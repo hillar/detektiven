@@ -312,11 +312,13 @@ let server = http.createServer(basic, (req, res) => {
     let uid = guid()
     busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
       let chuncks = []
-      console.log('File [' + fieldname + ']: filename: ' + filename + ', encoding: ' + encoding + ', mimetype: ' + mimetype);
+      //console.log('File [' + fieldname + ']: filename: ' + filename + ', encoding: ' + encoding + ', mimetype: ' + mimetype);
       let savePath = uploadDirectory+'/'+uid
       //TODO
       fs.mkdirSync(savePath)
-      let saveTo = path.join(savePath, path.basename(filename));
+      let fname = Buffer.from(filename).toString('base64')
+      console.log('saving',filename,'as',fname)
+      let saveTo = path.join(savePath, fname);
       file.pipe(fs.createWriteStream(saveTo));
       file.on('data', function(data) {
         chuncks.push(data.length)
@@ -324,7 +326,7 @@ let server = http.createServer(basic, (req, res) => {
       });
       file.on('end', function() {
         files.push({uid,fieldname, filename, encoding, mimetype})
-        console.log('File [' + filename + '] saved to',saveTo,'got chuncks',JSON.stringify(chuncks));
+        console.log('File [' + filename + '] saved to',saveTo,'got chuncks',JSON.stringify(chuncks.length));
         // calc md5, check for previos ...
       });
     });
@@ -335,14 +337,13 @@ let server = http.createServer(basic, (req, res) => {
     busboy.on('finish', function() {
       //console.log('Done parsing form!');
       //res.writeHead(303, { Connection: 'close', Location: '/' });
-      console.log('fields:',JSON.stringify(fields))
-      console.log('files:',JSON.stringify(files))
+      //console.log('fields:',JSON.stringify(fields))
+      //console.log('files:',JSON.stringify(files))
       let uploadedby = req.user
       let uploadtime = Date.now()
       fs.writeFileSync(uploadDirectory+'/'+uid+'/meta.json',JSON.stringify({uploadtime,uploadedby,fields,files}))
       res.end('OK');
     });
-
     req.pipe(busboy);
   }
   if (req.method === 'POST') {

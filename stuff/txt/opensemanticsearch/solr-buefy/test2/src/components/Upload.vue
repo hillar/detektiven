@@ -80,7 +80,8 @@ import axios from 'axios'
                     data.append('lastModified',file.lastModified)
                     data.append('size',file.size)
                     data.append('type',file.type)
-                    data.append('file', file);
+                    data.append('filename',file.name)
+                    data.append('file', file)
                     axios.put("/files",data)
                       .then(function (res) {
                         console.log('uploaded',file.name,file.size)
@@ -104,7 +105,7 @@ import axios from 'axios'
               })
               .catch(function(error) {
                 console.error(error.message)
-                that.$snackbar.open(err.message)
+                that.$snackbar.open(error.message)
               })
               .then(function() {
                 that.tagsList = []

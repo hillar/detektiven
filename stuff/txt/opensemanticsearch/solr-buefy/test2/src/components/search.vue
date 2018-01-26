@@ -153,7 +153,7 @@ export default {
             .then(function (res) {
               if (res.data ) {
                 if (res.data.response){
-                  if (res.data.response.numFound != undefined) {
+                  if (res.data.response.numFound != undefined ) {
                     if (res.data.response.start != undefined){
                       if (res.data.response.docs && res.data.response.docs.length > 0){
                         that.total = res.data.response.numFound
