@@ -117,7 +117,8 @@ export default {
             total: 0,
             page: 1,
             perPage: 10,
-            fragSize: 1024
+            fragSize: 128,
+            snippetsCount: 4
         }
     },
     methods: {
@@ -146,7 +147,7 @@ export default {
             let op = `q.op=${this.isAndOr}`
             let fl = 'fl=id,score,path_basename_s,file_modified_dt'
             //let fl = 'fl=*,score,content:[value v=""]'
-            let hl = `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=100`
+            let hl = `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
             let q_url = `/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${this.perPage}&${sort}&${hl}`
             console.log(q_url)
             axios.get(q_url)
@@ -159,9 +160,9 @@ export default {
                         that.total = res.data.response.numFound
                         res.data.response.docs.forEach((item) => {
                           if (res.data.highlighting && res.data.highlighting[item.id] && res.data.highlighting[item.id].content){
-                            item.highlighting = res.data.highlighting[item.id].content.join('<br>')
+                            item.highlighting = res.data.highlighting[item.id].content.join('<br>...<br>')
                           } else {
-                            item.highlighting = "no highlighting"
+                            item.highlighting = " .. "
                           }
                           that.data.push(item)
                           console.dir(item)
