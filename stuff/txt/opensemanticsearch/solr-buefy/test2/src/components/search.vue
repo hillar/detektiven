@@ -43,14 +43,11 @@
 
         </b-field>
         <div justify-content: center>
-          <p v-if="data.length === 0">input some search strings and press enter ;)</p>
+          <p v-if="message.length > 0">{{ message }}</p>
           <b-table v-if="data.length > 0"
               @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
-              @details-open="connected"
-              @add2filter="addtoquery"
+              @details-open="openDetails"
               :data="data"
-              :nodes="currentNodes"
-              :links="currentLinks"
               :loading="loading"
               hoverable
               detailed
@@ -63,7 +60,7 @@
               @page-change="onPageChange"
 
               backend-sorting
-              :default-sort-direction="defaultSortOrder"
+              :default-sort-direction="sortOrder"
               :default-sort="[sortField, sortOrder]"
               @sort="onSort">
 
@@ -75,10 +72,10 @@
                     {{ props.row.file_modified_dt ? new Date(props.row.file_modified_dt).toLocaleDateString() : '' }}
                 </b-table-column>
                   <b-table-column field="id" label="Name" sortable>
-                      {{ props.row.name }}
+                      {{ props.row.path_basename_s }}
                   </b-table-column>
                   <b-table-column label="content">
-                      <p v-innerhtml="props.row.truncated"></p>
+                      <p v-innerhtml="props.row.highlighting"></p>
                   </b-table-column>
               </template>
 
@@ -88,17 +85,12 @@
                 <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
                 -->
                 <div style="height:600px">
-                <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL" :fieldFilter="fieldFilter"></cytoscape>
-
-                <button class="button block" @click="isMeta = !isMeta">Meta</button>
-                <b-message :title="`${props.row.id}`" :active.sync="isMeta">
-                    {{ props.row.json }}
-                </b-message>
+                  <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL" :fieldFilter="fieldFilter"></cytoscape>
                 </div>
               </template>
 
               <template slot="bottom-left">
-                          &nbsp;<b>Total found</b>: {{ total }}
+                  &nbsp;<b>Total found</b>: {{ total }}
               </template>
 
           </b-table>
@@ -111,13 +103,21 @@
 import Help from '@/components/Help'
 import Upload from '@/components/Upload'
 import Subcribe from '@/components/Subcribe'
+import axios from 'axios'
 
 export default {
     data() {
         return {
+            message: "do some search ..",
             isAndOr: "AND",
             userQuery: "",
-            data: []
+            data: [],
+            sortOrder: "desc",
+            sortField: "score",
+            total: 0,
+            page: 1,
+            perPage: 10,
+            fragSize: 1024
         }
     },
     methods: {
@@ -131,8 +131,79 @@ export default {
           this.$modal.open({parent: this, component: Subcribe})
         },
         settingsDialog(){},
-        search(){}
+        openDetails(){
 
+        },
+        search(){
+          this.message = ""
+          if (this.userQuery.length > 0){
+            let that = this
+            that.loading = true
+            this.data = []
+            this.total = 0
+            let start = (this.page - 1) * this.perPage
+            let sort = `sort=${this.sortField}%20${this.sortOrder}`
+            let op = `q.op=${this.isAndOr}`
+            let fl = 'fl=id,score,path_basename_s,file_modified_dt'
+            //let fl = 'fl=*,score,content:[value v=""]'
+            let hl = `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=100`
+            let q_url = `/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${this.perPage}&${sort}&${hl}`
+            console.log(q_url)
+            axios.get(q_url)
+            .then(function (res) {
+              if (res.data ) {
+                if (res.data.response){
+                  if (res.data.response.numFound != undefined) {
+                    if (res.data.response.start != undefined){
+                      if (res.data.response.docs && res.data.response.docs.length > 0){
+                        that.total = res.data.response.numFound
+                        res.data.response.docs.forEach((item) => {
+                          if (res.data.highlighting && res.data.highlighting[item.id] && res.data.highlighting[item.id].content){
+                            item.highlighting = res.data.highlighting[item.id].content.join('<br>')
+                          } else {
+                            item.highlighting = "no highlighting"
+                          }
+                          that.data.push(item)
+                          console.dir(item)
+                        })
+                      } else {
+                        that.message = that.userQuery +" <- no results ;("
+                      }
+                    }
+                  }
+                }
+              }
+              that.loading = false
+            })
+            .catch(function (err) {
+              console.error(err.message)
+              that.$snackbar.open('contact your admin:'+err.message)
+            })
+            .then(function() {
+              that.loading = false
+            })
+          } else {
+            this.message = "can not search on empty string ;("
+          }
+        }, // end search
+        onPageChange(page) {
+            this.page = page
+            this.loadAsyncData()
+        },
+
+        onSort(field, order) {
+            this.sortField = field
+            this.sortOrder = order
+            this.loadAsyncData()
+        }
+
+    },
+    mounted() {
+        console.log('mounted search')
     }
 }
 </script>
+
+<style>
+  em {background: #ff0;}
+</style>
