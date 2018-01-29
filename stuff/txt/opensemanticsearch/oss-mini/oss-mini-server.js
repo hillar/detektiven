@@ -75,6 +75,7 @@ let binduser = cliParams.ipaUser || config.ipaUser
 let groupName = cliParams.ipaGroup || config.ipaGroup
 let realm = config.realm || 'oss-mini'
 let reauth = config.reauth || 1000 * 60
+let metaFilename = config.metaFilename || '/meta.json'
 
 //done with config
 console.log('starting with:',ipListen,portListen,staticDir,portTarget,apiUrl,uploadDirectory,smtphost,smtpport,smtpfrom)
@@ -308,7 +309,7 @@ let server = http.createServer(basic, (req, res) => {
       return
     }*/
     let files = []
-    let fields = []
+    let fields = {}
     let uid = guid()
     busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
       let chuncks = []
@@ -325,13 +326,14 @@ let server = http.createServer(basic, (req, res) => {
         //console.log('File [' + filename + '] got ' + data.length + ' bytes');
       });
       file.on('end', function() {
-        files.push({uid,fieldname, filename, encoding, mimetype})
+        files.push({uid,filename, encoding, mimetype})
         console.log('File [' + filename + '] saved to',saveTo,'got chuncks',JSON.stringify(chuncks.length));
         // calc md5, check for previos ...
       });
     });
     busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) {
-      fields.push({fieldname,val})
+      //fields.push({fieldname,val})
+      fields['upload_'+fieldname] = val
       //console.log('Field [' + fieldname + ']: value: ' + val);
     });
     busboy.on('finish', function() {
@@ -339,9 +341,9 @@ let server = http.createServer(basic, (req, res) => {
       //res.writeHead(303, { Connection: 'close', Location: '/' });
       //console.log('fields:',JSON.stringify(fields))
       //console.log('files:',JSON.stringify(files))
-      let uploadedby = req.user
-      let uploadtime = Date.now()
-      fs.writeFileSync(uploadDirectory+'/'+uid+'/meta.json',JSON.stringify({uploadtime,uploadedby,fields,files}))
+      fields['upload_by'] = req.user
+      fields['upload_time'] = Date.now()
+      fs.writeFileSync(uploadDirectory+'/'+uid+metaFilename,JSON.stringify(fields))
       res.end('OK');
     });
     req.pipe(busboy);

@@ -49,6 +49,17 @@ systemctl enable tika.service
 [ -f "$ETL" ] || wget -q https://opensemanticsearch.org/download/$ETL
 dpkg -i "$ETL" >> /vagrant/provision.log 2>&1
 
+echo "$(date) adding custom plugins for etl.."
+cat > /etc/opensemanticsearch/etl <<EOF
+config['plugins'].append('enhance_pdf_ocr')
+config['plugins'].append('enhance_regex')
+config['regex_lists'].append('/etc/opensemanticsearch/regex/email.tsv')
+config['meta_json_file'] = 'meta.json'
+config['plugins'].append('enhance_meta_json_file')
+EOF
+cp /vagrant/enhance_meta_json_file.py /usr/lib/python3/dist-packages/opensemanticetl/
+
+
 echo "$(date) installing web ui .."
 #TODO simply
 [ -f master.tar.gz ] || wget -q https://github.com/hillar/detektiven/archive/master.tar.gz
