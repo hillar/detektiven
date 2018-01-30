@@ -17,7 +17,7 @@ data() {
 import cytoscape from 'cytoscape'
 import Weaver from "weaverjs";
 import cxtmenu from 'cytoscape-cxtmenu'
-import 'mdi/css/materialdesignicons.css'
+//import 'mdi/css/materialdesignicons.css'
 import axios from 'axios'
 cxtmenu(cytoscape)
 
@@ -29,10 +29,10 @@ async function getConnectors(doc,fields){
       if (doc[f]) {
         if (Array.isArray(doc[f])) {
           for (let j in doc[f]){
-            connectors.push('"'+doc[f][j]+'"')
+            if (doc[f][j].length > 0) connectors.push('"'+doc[f][j]+'"')
           }
         } else {
-          connectors.push('"'+doc[f]+'"')
+          if (doc[f].length > 0) connectors.push('"'+doc[f]+'"')
         }
       }
     }
@@ -74,9 +74,7 @@ async function addElements(cy,docs,fields){
     for (let i in docs) {
       let doc = docs[i]
       if (cy.getElementById(doc.id).length == 0) {
-          cy.add({data:{id:doc.id,label:doc[label],doc:doc}})  
-      } else {
-        console.log('cy dublicate element',doc.id)
+          if (doc.id.length > 0) cy.add({data:{id:doc.id,label:doc[label],doc:doc}})  
       }
       let connectors = []
       for (let i in fields) {
@@ -84,10 +82,10 @@ async function addElements(cy,docs,fields){
         if (doc[f]) {
           if (Array.isArray(doc[f])) {
             for (let j in doc[f]){
-              connectors.push(doc[f][j])
+              if (doc[f][j].length > 0) connectors.push(doc[f][j])
             }
           } else {
-            connectors.push(doc[f])
+            if (doc[f].length > 0) connectors.push(doc[f])
           }
         }
       }
@@ -233,6 +231,7 @@ export default {
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
     })
+
     this.root = this.thing.id
     if (!this.cy.getElementById(this.thing.id).length){
       this.loadRoot(this.thing)
