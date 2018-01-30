@@ -45,7 +45,7 @@
         <div justify-content: center>
           <p v-if="message.length > 0">{{ message }}</p>
           <b-table v-if="data.length > 0"
-              @dblclick="(row, index) => $modal.open(`${row.id}<hr><pre>${row.highlighted}</pre>`)"
+              @dblclick="(row, index) => preview(row)"
               @details-open="openDetails"
               :data="data"
               :loading="loading"
@@ -132,6 +132,39 @@ export default {
           this.$modal.open({parent: this, component: Subcribe})
         },
         settingsDialog(){},
+        preview(row){
+          if (!row.content){
+            let that = this
+            this.loading = true
+            let q_url = `/solr/core1/select?&wt=json&fl=content&q=id:"${row.id}"`
+            console.log(q_url)
+            axios.get(q_url)
+            .then(function (res) {
+              if (res.data ) {
+                if (res.data.response){
+                  if (res.data.response.numFound != undefined ) {
+                    row.content = res.data.response.docs[0].content.join('\n').replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                    that.$modal.open('<pre>'+row.content+'</pre>')
+                  } else {
+                    console.error('not solr response')
+                    that.$snackbar.open('contact your admin: not solr response')
+                  }
+                }
+              }
+              that.loading = false
+            })
+            .catch(function (err) {
+              console.error(err.message)
+              that.$snackbar.open('contact your admin:'+err.message)
+            })
+            .then(function() {
+              that.loading = false
+            })
+            
+          } else {
+            this.$modal.open('<pre>'+row.content+'</pre>')
+          }
+        },
         openDetails(){
 
         },
@@ -165,7 +198,6 @@ export default {
                             item.highlighting = " .. "
                           }
                           that.data.push(item)
-                          console.dir(item)
                         })
                       } else {
                         that.message = that.userQuery +" <- no results ;("
