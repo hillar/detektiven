@@ -1,10 +1,10 @@
 <!--
-<cytoscape :thing="props.row" :connectors="fieldFilter"></cytoscape>
+<cytoscape :elements="eles" :queryURL="queryURL"></cytoscape>
 
 data() {
           return {
-            ..
-            fieldFilter : ['upload_tags','email_ss'],
+            eles:  this.$demodata,
+            queryURL : queryURL,
             ..
           }
 -->
@@ -18,96 +18,17 @@ import cytoscape from 'cytoscape'
 import Weaver from "weaverjs";
 import cxtmenu from 'cytoscape-cxtmenu'
 import 'mdi/css/materialdesignicons.css'
-import axios from 'axios'
 cxtmenu(cytoscape)
-
-async function getConnectors(doc,fields){
-  return new Promise((resolve, reject) => {
-    let connectors = []
-    for (let i in fields) {
-      let f = fields[i]
-      if (doc[f]) {
-        if (Array.isArray(doc[f])) {
-          for (let j in doc[f]){
-            connectors.push('"'+doc[f][j]+'"')
-          }
-        } else {
-          connectors.push('"'+doc[f]+'"')
-        }
-      }
-    }
-	  resolve(connectors);
-	})
-}
-
-async function findDocs(q,f){
-  return new Promise((resolve, reject) => {
-    let fl = '*,content:[value v=""]'
-    if (Array.isArray(f) && f.length>0) {
-      fl = f.join(',')
-    } 
-    let q_url = `/solr/core1/select?&wt=json&fl=${fl}&q=${q}`
-    console.log('findDocs',q, q_url)
-    axios.get(q_url)
-    .then(function (res) {
-      if (res.data ) {
-        if (res.data.response){
-          if (res.data.response.numFound != undefined ) {
-            resolve(res.data.response.docs)
-          } else {
-            console.error('not solr response')
-          }
-        }
-      }
-    })
-    .catch(function (err) {
-      console.error(err.message)
-      resolve([])
-    })
-  })
-}
-
-async function addElements(cy,docs,fields){
-  console.log('addElements',docs)
-  return new Promise((resolve, reject) => {
-    let label = 'path_basename_s' 
-    for (let i in docs) {
-      let doc = docs[i]
-      if (cy.getElementById(doc.id).length == 0) {
-          cy.add({data:{id:doc.id,label:doc[label],doc:doc}})  
-      } else {
-        console.log('cy dublicate element',doc.id)
-      }
-      let connectors = []
-      for (let i in fields) {
-        let f = fields[i]
-        if (doc[f]) {
-          if (Array.isArray(doc[f])) {
-            for (let j in doc[f]){
-              connectors.push(doc[f][j])
-            }
-          } else {
-            connectors.push(doc[f])
-          }
-        }
-      }
-      for (let i in connectors){
-        let c = connectors[i]
-        if (cy.getElementById(c).length == 0) {
-          cy.add({data:{id:c,label:c}})    
-        }
-        cy.add({data:{source:c,target:doc.id}})
-      }
-    }
-    resolve(true)
-  })
-}
-
 export default {
   name: 'cytoscape',
   props: {
-            thing: {},
-            connectors: []
+            elements: {
+                type: Array,
+                default: () => []
+            },
+            queryURL : '',
+            peekURL : '',
+            fieldFilter: ''
   },
   data () {
     return {
@@ -131,7 +52,6 @@ export default {
         initialTemp: 450,
         coolingFactor: 0.99,
         minTemp: 1.0,
-        root: ''
       },
       style: [
               {
@@ -233,30 +153,31 @@ export default {
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
     })
-    this.root = this.thing.id
-    if (!this.cy.getElementById(this.thing.id).length){
-      this.loadRoot(this.thing)
+    console.dir(this.elements)
+    if (this.elements && this.elements.length > 0) {
+      for (let element of this.elements) {
+        if (element && element.data && (element.data.id||(element.data.source && element.data.target))) {
+          if (this.cy.getElementById(element.data.id).length == 0) {
+              this.cy.add(element)
+          } else {
+            console.log('cy dublicate element',element.data.id)
+          }
+        } else {
+          console.error('not a element')
+          this.$snackbar.open('contact your admin, graph is broken: '+JSON.stringify(element))
+        }
+      }
     } else {
-      let layout = this.cy.makeLayout(this.layout);
-      layout.run();
-      // find root & highlight it
-      this.highlightNode(this.cy.getElementById(this.thing.id))
-      this.loading = false
+      console.log('no elements')
+      this.$toast.open('empty graph')
     }
+    let layout = this.cy.makeLayout(this.layout);
+    layout.run();
+    // find root & highlight it
+    this.highlightNode(this.cy.getElementById('root'))
+    this.loading = false
   },
   methods: {
-    async loadRoot(root){
-      console.log('adding root',root)
-      this.loading = true
-      let docs = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s']))
-      await addElements(this.cy, docs, this.connectors, 'path_basename_s')
-      let qs = await getConnectors(docs[0],this.connectors)
-      docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
-      await addElements(this.cy, docs, this.connectors, 'path_basename_s')
-      let layout = this.cy.makeLayout(this.layout);
-      layout.run();
-      this.loading = false
-    },
     settings () {
       this.$dialog.prompt({
                     message: `settings`,
@@ -290,21 +211,98 @@ export default {
       }, this);
       this.cy.remove(node);
     },
-    async expandNode(node) {
-      this.loading = true
+    expandNode(node) {
+      console.log('expandNode')
+      let filter = `"${node.data('label')}"`
+      let fieldFilter = this.fieldFilter
+      let that = this
       let doc = node.data('doc')
-      let docs = []
-      if (doc && doc.id){
-        let qs = await getConnectors(doc,this.connectors)
-        docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
-      } else {
-        docs = await findDocs([node.data('label')], this.connectors.concat(['id','path_basename_s']))
+      if (doc && doc.id) {
+        let fields = []
+        for (let key of Object.keys(doc)){
+
+          if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
+            console.log(key,fieldFilter)
+            for (let value of doc[key]) {
+                fields.push(`"${value}"`)
+            }
+          }
+        }
+        if (fields.length > 0) {
+          if (fields.length < 64) {
+            filter = fields.join(' AND ')
+          } else {
+            this.$toast.open(filter+' will explode, not doing ', + fields.length)
+            return
+          }
+        } else {
+          this.$toast.open(filter+' nothing to expand on ;(')
+          return
+        }
       }
-      await addElements(this.cy,docs,this.connectors)
-      let layout = this.cy.makeLayout(this.layout);
-      layout.run();
-      this.highlightNode(node)
-      this.loading = false
+      console.log('expandNode',filter)
+      this.$toast.open('expanding: '+node.data('label'))
+      const axios = require('axios')
+      let q_url = `${this.queryURL}${filter}`
+      this.loading = true
+      console.log('expanding node',node.data('label'),q_url)
+      axios.get(q_url)
+      .then(function(response){
+        if (response.status == 200) {
+        console.log('found',response.data.response.numFound)
+        console.log('got',response.data.responseHeader.params.rows)
+        if (response.data.responseHeader.params.rows && response.data.response.numFound > response.data.responseHeader.params.rows){
+          let notshowing = response.data.response.numFound - response.data.responseHeader.params.rows
+          console.log('not showing',notshowing)
+          that.$toast.open('to many results, not showing '+notshowing)
+        }
+        let currentID = node.data('id')
+        let addedNodes = 0
+        let addedEdges = 0
+        // TODO make response.data.response.docs param
+        for (let doc of response.data.response.docs) {
+          if (that.cy.getElementById(doc.id).length == 0) {
+            // TODO make doc.id & doc.title.join param
+            addedNodes ++
+            that.cy.add({data:{id:doc.id,label:doc.title.join(','),doc:doc}})
+          }
+          if (doc.id != currentID) { // do not link self
+            that.cy.add({data:{source:currentID,target:doc.id}})
+            addedEdges ++
+          }
+          for (let key of Object.keys(doc)){
+            if (Array.isArray(doc[key]) === true && key.indexOf(fieldFilter)>0) {
+              for (let value of doc[key]) {
+                if (that.cy.getElementById(value).length == 0) {
+                  // TODO fix exlosion ;(
+                  //that.cy.add({data:{id:value,label:value}})
+                  // that.cy.add({data:{source:doc.id,target:value}})
+                  addedNodes ++
+                  addedEdges ++
+                } else {
+                that.cy.add({data:{source:doc.id,target:value}})
+                addedEdges ++
+                }
+              }
+            }
+          }
+        }
+        console.log('new nodes',addedNodes,'edges',addedEdges)
+        //let layoutstart = Date.now()
+        let layout = that.cy.makeLayout(that.layout);
+        layout.run();
+        //console.log('layout took', Date.now() - layoutstart)
+        that.highlightNode(node)
+      } else {
+        that.$snackbar.open('contact your admin:'+response.status)
+      }
+        that.loading = false
+      })
+      .catch(function(error) {
+        that.loading = false
+        console.error(error);
+        that.$snackbar.open('contact your admin:'+error.message)
+      })
     },
     searchbarNode (node) {
     console.log('searchbarNode')
@@ -319,19 +317,34 @@ export default {
       this.$modal.open(`${filename}<hr><pre>${filecontent}</pre>`)
       //this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
     },
-    peekNodeContent: async function(node) {
+    peekNodeContent:function(node) {
       //console.log('peekNodeContent')
       let doc = node.data('doc')
       if (doc && doc.id) {
-        if (!doc.content){
-          this.loading = true
-          let docs = await findDocs(`id:"${doc.id}"`, ['id','content'])
-          doc.content = docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
-          this.loading = false
-          this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)        
-        } else {
-          this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)
-        }
+        this.loading = false
+        let that = this
+        let q_url = `${this.peekURL}"${doc.id}"`
+        console.log('peek',q_url)
+        const axios = require('axios')
+        this.loading = true
+        axios.get(q_url)
+        .then(function(response){
+          let currentID = node.data('id')
+          // TODO make response.data.response.docs param
+          for (let doc of response.data.response.docs) {
+                    //.replace(/\n\n\n\n/g, "")
+                    let content = doc.content.join('\n') //
+                    content = content.replace(/\n\n/g, "\n")
+                    that.loading = false
+                    that.$modal.open(`${doc.id}<hr><pre>${content}</pre>`)
+          }
+        })
+        .catch(function(error) {
+          that.loading = false
+          console.error(error);
+          that.$snackbar.open('contact your admin:'+error.message)
+        })
+
       } else {
       this.$toast.open(`no doc ${node.data('id')}`)
       }
@@ -350,9 +363,9 @@ export default {
     },
     // context menu items for core
     centerOnGraph: function() {
-      this.cy.center(this.cy.getElementById(this.root));
+      this.cy.center(this.cy.getElementById('root'));
       this.cy.zoom(this.initialZoom);
-      this.highlightNode(this.cy.getElementById(this.root))
+      this.highlightNode(this.cy.getElementById('root'))
     },
     reDrawGraph: function() {
       let layout = this.cy.makeLayout(this.layout);

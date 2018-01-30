@@ -45,8 +45,7 @@
         <div justify-content: center>
           <p v-if="message.length > 0">{{ message }}</p>
           <b-table v-if="data.length > 0"
-              @dblclick="(row, index) => preview(row)"
-              @details-open="openDetails"
+              @dblclick="(row) => preview(row)"
               :data="data"
               :loading="loading"
               hoverable
@@ -79,13 +78,9 @@
                   </b-table-column>
               </template>
 
-              <template slot="detail" slot-scope="props" :nodes="nodes" >
-
-                <!--
-                <d3-network :net-nodes="currentNodes" :net-links="currentLinks" :options="options" @node-click="nodeClick"> </d3-network>
-                -->
+              <template slot="detail" slot-scope="props" >
                 <div style="height:600px">
-                  <cytoscape :elements="currentEles" :queryURL="queryURL" :peekURL="peekURL" :fieldFilter="fieldFilter"></cytoscape>
+                  <cytoscape :thing="props.row" :connectors="fieldFilter"></cytoscape>
                 </div>
               </template>
 
@@ -118,7 +113,8 @@ export default {
             page: 1,
             perPage: 10,
             fragSize: 128,
-            snippetsCount: 4
+            snippetsCount: 4,
+            fieldFilter: ["upload_tags","email_ss"]
         }
     },
     methods: {
@@ -143,7 +139,7 @@ export default {
               if (res.data ) {
                 if (res.data.response){
                   if (res.data.response.numFound != undefined ) {
-                    row.content = res.data.response.docs[0].content.join('\n').replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                    row.content = res.data.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
                     that.$modal.open('<pre>'+row.content+'</pre>')
                   } else {
                     console.error('not solr response')
@@ -165,9 +161,7 @@ export default {
             this.$modal.open('<pre>'+row.content+'</pre>')
           }
         },
-        openDetails(){
 
-        },
         search(){
           this.message = ""
           if (this.userQuery.length > 0){
