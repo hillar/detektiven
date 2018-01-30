@@ -35,7 +35,7 @@ ls | grep -v meta.json | while read f; do
   [ $last != 0 ] && die "solr error $md5 $f $1"
   if [ $(cat $existsTMP | jq .response.docs[].id | grep -v "meta.json" | wc -l) -le 1 ]
   then
-    etl-file $(pwd) |& while read m; do log $m; done
+    etl-file "$tmp/$md5/$f" |& while read m; do log $m; done
     sleep 1
     # check subscriptions
     ## create filter list
