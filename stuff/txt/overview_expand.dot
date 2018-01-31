@@ -1,0 +1,23 @@
+digraph oss_mini {
+
+size="4,4"
+ui -> webserver -> {subscriptions filespool} [color="red"]
+webserver -> freeipa -> webserver
+index -> webserver -> ui -> webserver -> index [color="green"]
+filespool -> monitor -> pusher
+{subscriptions filespool} -> pusher -> {etl xz mailer} [color="blue"]
+pusher -> index -> pusher [color="blue"]
+xz -> archive  [color="blue"]
+etl -> extractor -> etl -> index [color="blue"]
+{rank=same; subscriptions filespool}
+{rank=same; monitor pusher etl}
+{rank=max; archive index}
+{rank=same; archive index}
+{rank=same; webserver freeipa}
+any_shell_script [color="yellow"]
+any_shell_script -> filespool [style="dotted" color="red"]
+any_rest_script [color="yellow"]
+any_rest_script -> webserver [style="dotted" color="red"]
+{rank=same; any_shell_script any_rest_script}
+
+}
