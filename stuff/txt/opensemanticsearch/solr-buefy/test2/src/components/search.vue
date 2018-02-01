@@ -1,236 +1,275 @@
 <template>
     <section>
-        <b-field grouped class="container is-fullwidth">
-          <b-field class="is-fluid is-expanded">
-            <button class="is-disabled">Archive</button>
-            <b-input class="is-expanded is-focused"
-              placeholder="Search .. "
-              v-model="userQuery"
-              @keyup.native.enter = "search()">
-            </b-input>
-            <b-select v-model="isAndOr">
-                {{ isAndOr }}
-                <option>AND</option>
-                <option>OR</option>
-            </b-select>
-            <button class="button is-success"
-              @click= "search()">
-              <b-icon icon="magnify"></b-icon>
-            </button>
-          </b-field>
-
-          <b-field grouped>
-            <button class="button is-primary"
-              @click= "settingsDialog()">
-              <b-icon icon="settings"></b-icon>
-            </button>
-            &nbsp;
-            <button class="button is-primary"
-              @click= "uploadDialog()">
-              <b-icon icon="upload"></b-icon>
-            </button>
-            &nbsp;
-            <button class="button is-primary"
-              @click= "subscribeDialog()">
-              <b-icon icon="email"></b-icon>
-            </button>
-            &nbsp;
-            <button class="button is-primary"
-              @click= "helpDialog()">
-              <b-icon icon="help"></b-icon>
-            </button>
-          </b-field>
-
+      <b-field grouped class="container is-fullwidth">
+        <b-field class="is-fluid is-expanded">
+          <button class="is-disabled">Archive</button>
+          <b-input class="is-expanded is-focused"
+            placeholder="Search .. "
+            v-model="userQuery"
+            @keyup.native.enter = "search()">
+          </b-input>
+          <b-select v-model="isAndOr">
+              {{ isAndOr }}
+              <option>AND</option>
+              <option>OR</option>
+          </b-select>
+          <button class="button is-success"
+            @click= "search()">
+            <b-icon icon="magnify"></b-icon>
+          </button>
         </b-field>
+
+        <b-field grouped>
+          <button class="button is-primary"
+            @click= "settingsDialog()">
+            <b-icon icon="settings"></b-icon>
+          </button>
+          &nbsp;
+          <button class="button is-primary"
+            @click= "uploadDialog()">
+            <b-icon icon="upload"></b-icon>
+          </button>
+          &nbsp;
+          <button class="button is-primary"
+            @click= "subscribeDialog()">
+            <b-icon icon="email"></b-icon>
+          </button>
+          &nbsp;
+          <button class="button is-primary"
+            @click= "helpDialog()">
+            <b-icon icon="help"></b-icon>
+          </button>
+        </b-field>
+
+      </b-field>
+        <div v-if="settings" >
+          <h3>
+              SETTINGS
+          </h3>
+          <b-field label="results per page">
+            <b-input v-model="perPage"
+              type="number"
+              min="1"
+              max="100"
+            ></b-input>
+          </b-field>
+          <hr>
+          <h1> search results columns</h1>
+          <b-field  grouped group-multiline>
+              <div v-for="(column, index) in columns" :key="index" class="control">
+                  <b-checkbox v-model="column.visible">
+                      {{ column.title }}
+                  </b-checkbox>
+              </div>
+
+          </b-field>
+          <hr>
+        </div>
         <div justify-content: center>
           <p v-if="message.length > 0">{{ message }}</p>
           <b-table v-if="data.length > 0"
-              @dblclick="(row) => preview(row)"
-              :data="data"
-              :loading="loading"
-              hoverable
-              detailed
-              detail-key="id"
-
-              paginated
-              backend-pagination
-              :total="total"
-              :per-page="perPage"
-              @page-change="onPageChange"
-
-              backend-sorting
-              :default-sort-direction="sortOrder"
-              :default-sort="[sortField, sortOrder]"
-              @sort="onSort">
-
-              <template slot-scope="props">
-                <b-table-column field="score" label="Score" numeric sortable>
-                    {{ props.row.score }}
+            @dblclick="(row) => preview(row)"
+            :data="data"
+            :loading="loading"
+            paginated
+            backend-pagination
+            :total="total"
+            :per-page="perPage"
+            @page-change="onPageChange"
+            detailed
+            detail-key="id"
+            backend-sorting
+            :default-sort-direction="defaultSortOrder"
+            :default-sort="[sortField, sortOrder]"
+            @sort="onSort">
+            <template slot-scope="props">
+                <b-table-column v-for="(column, index) in columns"
+                    :key="index"
+                    :label="column.title"
+                    :visible="column.visible">
+                    <p v-if="column.field === 'highlighting' "v-innerhtml="props.row.highlighting"></p>
+                    <p v-else>{{ props.row[column.field] }}</p>
                 </b-table-column>
-                <b-table-column field="file_modified_dt" label="lastupdate" sortable centered>
-                    {{ props.row.file_modified_dt ? new Date(props.row.file_modified_dt).toLocaleDateString() : '' }}
-                </b-table-column>
-                  <b-table-column field="id" label="Name" sortable>
-                      {{ props.row.path_basename_s }}
-                  </b-table-column>
-                  <b-table-column label="content">
-                      <p v-innerhtml="props.row.highlighting"></p>
-                  </b-table-column>
-              </template>
-
-              <template slot="detail" slot-scope="props" >
-                <div style="height:600px">
-                  <cytoscape :thing="props.row" :connectors="fieldFilter"></cytoscape>
-                </div>
-              </template>
-
-              <template slot="bottom-left">
-                  &nbsp;<b>Total found</b>: {{ total }}
-              </template>
-
-          </b-table>
-        </div>
-</section>
+            </template>
+            <template slot="detail" slot-scope="props" >
+              <div style="height:600px">
+                <cytoscape :thing="props.row" :connectors="connectorFields"></cytoscape>
+              </div>
+            </template>
+            <template slot="bottom-left">
+                &nbsp;<b>Total found</b>: {{ total }} on page {{ page }}
+            </template>
+        </b-table>
+      </div>
+    </section>
 </template>
 
 <script>
 
-import Help from '@/components/Help'
-import Upload from '@/components/Upload'
-import Subcribe from '@/components/Subcribe'
-import axios from 'axios'
+    import axios from 'axios'
+    import Help from '@/components/Help'
+    import Upload from '@/components/Upload'
+    import Subcribe from '@/components/Subcribe'
 
-export default {
-    data() {
-        return {
-            message: "do some search ..",
-            isAndOr: "AND",
-            userQuery: "",
-            data: [],
-            sortOrder: "desc",
-            sortField: "score",
-            total: 0,
-            page: 1,
-            perPage: 10,
-            fragSize: 128,
-            snippetsCount: 4,
-            fieldFilter: ["upload_tags","email_ss"]
-        }
-    },
-    methods: {
-        helpDialog(){
-          this.$modal.open({parent: this, component: Help})
-        },
-        uploadDialog(){
-          this.$modal.open({parent: this, component: Upload})
-        },
-        subscribeDialog(){
-          this.$modal.open({parent: this, component: Subcribe})
-        },
-        settingsDialog(){},
-        preview(row){
-          if (!row.content){
-            let that = this
-            this.loading = true
-            let q_url = `/solr/core1/select?&wt=json&fl=content&q=id:"${row.id}"`
-            console.log(q_url)
-            axios.get(q_url)
-            .then(function (res) {
-              if (res.data ) {
-                if (res.data.response){
-                  if (res.data.response.numFound != undefined ) {
-                    row.content = res.data.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
-                    that.$modal.open('<pre>'+row.content+'</pre>')
-                  } else {
-                    console.error('not solr response')
-                    that.$snackbar.open('contact your admin: not solr response')
-                  }
+    async function askSolr(params){
+      return new Promise((resolve, reject) => {
+        const url = `/solr/core1/select?${params}`
+        console.log('findDocs', url)
+        axios.get(url)
+        .then(function (res) {
+          if (res.data ) {
+            if (params.indexOf('wt=json') !== -1) {
+              if (res.data.response){
+                if (res.data.response.numFound != undefined ) {
+                  resolve(res.data)
+                } else {
+                  console.error('not solr response, missing numFound', url)
+                  console.dir(res.data)
                 }
+              } else {
+                console.error('not solr response, missing response', url)
+                console.dir(res.data)
               }
-              that.loading = false
-            })
-            .catch(function (err) {
-              console.error(err.message)
-              that.$snackbar.open('contact your admin:'+err.message)
-            })
-            .then(function() {
-              that.loading = false
-            })
-            
-          } else {
-            this.$modal.open('<pre>'+row.content+'</pre>')
+            } else {
+              resolve(res.data)
+            }
+          }  else {
+            console.error('not solr response, missing data', url)
+            console.dir(res)
           }
-        },
-
-        search(){
-          this.message = ""
-          if (this.userQuery.length > 0){
-            let that = this
-            that.loading = true
-            this.data = []
-            this.total = 0
-            let start = (this.page - 1) * this.perPage
-            let sort = `sort=${this.sortField}%20${this.sortOrder}`
-            let op = `q.op=${this.isAndOr}`
-            let fl = 'fl=id,score,path_basename_s,file_modified_dt'
-            //let fl = 'fl=*,score,content:[value v=""]'
-            let hl = `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
-            let q_url = `/solr/core1/select?${fl}&q=${this.userQuery}&${op}&wt=json&start=${start}&rows=${this.perPage}&${sort}&${hl}`
-            console.log(q_url)
-            axios.get(q_url)
-            .then(function (res) {
-              if (res.data ) {
-                if (res.data.response){
-                  if (res.data.response.numFound != undefined ) {
-                    if (res.data.response.start != undefined){
-                      if (res.data.response.docs && res.data.response.docs.length > 0){
-                        that.total = res.data.response.numFound
-                        res.data.response.docs.forEach((item) => {
-                          if (res.data.highlighting && res.data.highlighting[item.id] && res.data.highlighting[item.id].content){
-                            item.highlighting = res.data.highlighting[item.id].content.join('<br>...<br>')
-                          } else {
-                            item.highlighting = " .. "
-                          }
-                          that.data.push(item)
-                        })
-                      } else {
-                        that.message = that.userQuery +" <- no results ;("
-                      }
-                    }
-                  }
-                }
-              }
-              that.loading = false
-            })
-            .catch(function (err) {
-              console.error(err.message)
-              that.$snackbar.open('contact your admin:'+err.message)
-            })
-            .then(function() {
-              that.loading = false
-            })
-          } else {
-            this.message = "can not search on empty string ;("
-          }
-        }, // end search
-        onPageChange(page) {
-            this.page = page
-            this.loadAsyncData()
-        },
-
-        onSort(field, order) {
-            this.sortField = field
-            this.sortOrder = order
-            this.loadAsyncData()
-        }
-
-    },
-    mounted() {
-        console.log('mounted search')
+        })
+        .catch(function (err) {
+          console.error(err.message)
+          resolve({response:{numFound:0,start:0,docs:[]}})
+        })
+      })
     }
-}
-</script>
 
+    export default {
+        data() {
+            let columns = [
+                { title: 'ID', field: 'id', visible: false },
+                { title: 'Score', field: 'score', visible: true },
+                { title: 'Name', field: 'upload_filename', visible: true },
+                { title: 'Highlights', field: 'highlighting', visible: true }
+            ]
+            let connectorFields = [
+              "email_ss",
+              "upload_tags"
+            ]
+            return {
+                data: [],
+                columns,
+                connectorFields,
+                total: 0,
+                loading: false,
+                sortField: 'score',
+                sortOrder: 'desc',
+                defaultSortOrder: 'desc',
+                page: 1,
+                perPage: 10,
+                message: 'do some search ..',
+                settings: false,
+                isAndOr: 'AND',
+                userQuery: '',
+                fragSize: 128,
+                snippetsCount: 4,
+                separator: '; '
+            }
+        },
+        methods: {
+            helpDialog(){
+              this.$modal.open({parent: this, component: Help})
+            },
+            uploadDialog(){
+              this.$modal.open({parent: this, component: Upload})
+            },
+            subscribeDialog(){
+              this.$modal.open({parent: this, component: Subcribe})
+            },
+            settingsDialog(){
+              this.settings = !this.settings
+              if (!this.settings) this.search()
+            },
+            async preview(row){
+              if (!row.content){
+                this.loading = true
+                let q = `&wt=json&fl=content&q=id:"${row.id}"`
+                let answer = await askSolr(q)
+                if (answer.response.numFound != undefined ) {
+                    row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                    this.$modal.open('<pre>'+row.content+'</pre>')
+                }
+                this.loading = false
+              } else {
+                this.$modal.open('<pre>'+row.content+'</pre>')
+              }
+            },
+            async loadFields() {
+              this.loading = true
+              // q=*:*&wt=csv&rows=0&facet
+              let answer = await askSolr('q=*:*&wt=csv&rows=0&facet')
+              let fields = answer.split(',')
+              for (let i in fields){
+                  if (fields[i].indexOf('_b') < fields[i].length-2) {
+                    for (let i in this.columns) if (this.columns[i].field == fields[i]) break
+                    this.columns.push({ title: fields[i], field: fields[i], visible: false })
+                  }
+              }
+              console.dir(fields)
+              this.loading = false
+            },
+
+            async search() {
+              this.loading = true
+              this.message = ""
+              this.data = []
+              this.total = 0
+              let fields = []
+              for (let i in this.columns) if (this.columns[i].visible) fields.push(this.columns[i].field)
+              const params = [
+                  'wt=json',
+                  `fl=id,${fields.join(',')}`,
+                  `start=${(this.page - 1) * this.perPage}`,
+                  `rows=${this.perPage}`,
+                  `sort=${this.sortField}%20${this.sortOrder}`,
+                  `q.op=${this.isAndOr}`,
+                  `q=${this.userQuery}`,
+                  `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
+                  ].join('&')
+              let answer = await askSolr(params)
+              console.dir(answer)
+              if (answer.response.numFound > 0) {
+                this.total = answer.response.numFound
+                answer.response.docs.forEach((item) => {
+                  for (let i in item) if (Array.isArray(item[i])) item[i] = item[i].join(this.separator)
+                  if (answer.highlighting && answer.highlighting[item.id] && answer.highlighting[item.id].content){
+                    item.highlighting = answer.highlighting[item.id].content.join('<br>...<br>')
+                  } else {
+                    item.highlighting = " .. "
+                  }
+                  this.data.push(item)
+                })
+              } else { this.message = this.userQuery +" <- no results ;(" }
+              this.loading = false
+            },
+
+            onPageChange(page) {
+                this.page = page
+                this.search()
+            },
+
+            onSort(field, order) {
+                this.sortField = field
+                this.sortOrder = order
+                this.search()
+            }
+        },
+        mounted() {
+            this.loadFields()
+        }
+    }
+</script>
 <style>
   em {background: #ff0;}
 </style>
