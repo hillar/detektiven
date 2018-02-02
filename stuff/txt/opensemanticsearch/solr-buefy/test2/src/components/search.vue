@@ -52,6 +52,9 @@
             <b-field label="matched fragments count">
                <b-input v-model="snippetsCount" type="number" min="1" max="128"></b-input>
             </b-field>
+            <b-field label="array join separator">
+               <b-input v-model="separator"></b-input>
+            </b-field>
          </div>
          <div class="column">
             <h3> search results columns</h3>
@@ -111,7 +114,7 @@
     import Upload from '@/components/Upload'
     import Subcribe from '@/components/Subcribe'
 
-    async function askSolr(params){
+    async function askSolr(params,errors){
       return new Promise((resolve, reject) => {
         const url = `/solr/core1/select?${params}`
         console.log('findDocs', url)
@@ -123,28 +126,35 @@
                 if (res.data.response.numFound != undefined ) {
                   resolve(res.data)
                 } else {
-                  console.error('not solr response, missing numFound', url)
+                  errors.push(askSolr.caller,'not solr response, missing numFound', url)
                   console.dir(res.data)
                 }
               } else {
-                console.error('not solr response, missing response', url)
+                errors.push(askSolr.caller,'not solr response, missing response', url)
                 console.dir(res.data)
               }
             } else {
               resolve(res.data)
             }
           }  else {
-            console.error('not solr response, missing data', url)
+            errors.push([askSolr.caller,'not solr response, missing data', url])
             console.dir(res)
           }
         })
         .catch(function (err) {
-          console.error(err.message)
+          errors.push([askSolr.caller,err.message,err])
           resolve({response:{numFound:0,start:0,docs:[]}})
         })
       })
     }
-
+    function sendErrors(errors){
+      if (errors.length === 0) return
+      let sending = errors.slice()
+      errors = []
+      console.dir(sending)
+      return
+    }
+    let errors = []
     export default {
         data() {
             let columns = [
@@ -178,37 +188,10 @@
             }
         },
         methods: {
-            helpDialog(){
-              this.$modal.open({parent: this, component: Help})
-            },
-            uploadDialog(){
-              this.$modal.open({parent: this, component: Upload})
-            },
-            subscribeDialog(){
-              this.$modal.open({parent: this, component: Subcribe})
-            },
-            settingsDialog(){
-              this.settings = !this.settings
-              if (!this.settings) this.search()
-            },
-            async preview(row){
-              if (!row.content){
-                this.loading = true
-                let q = `&wt=json&fl=content&q=id:"${row.id}"`
-                let answer = await askSolr(q)
-                if (answer.response.numFound != undefined ) {
-                    row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
-                    this.$modal.open('<pre>'+row.content+'</pre>')
-                }
-                this.loading = false
-              } else {
-                this.$modal.open('<pre>'+row.content+'</pre>')
-              }
-            },
+
             async loadFields() {
               this.loading = true
-              // q=*:*&wt=csv&rows=0&facet
-              let answer = await askSolr('q=*:*&wt=csv&rows=0&facet')
+              let answer = await askSolr('q=*:*&wt=csv&rows=0&facet',errors)
               let fields = answer.trim().split(',')
               for (let i in fields){
                   if ((fields[i].indexOf('_b') - fields[i].length)!=-2) {
@@ -216,12 +199,12 @@
                     this.columns.push({ title: fields[i], field: fields[i], visible: false })
                   }
               }
-              console.dir(fields)
               this.loading = false
             },
 
             async search() {
               this.loading = true
+              sendErrors(errors)
               this.message = ""
               this.data = []
               this.total = 0
@@ -237,8 +220,7 @@
                   `q=${this.userQuery}`,
                   `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
                   ].join('&')
-              let answer = await askSolr(params)
-              console.dir(answer)
+              let answer = await askSolr(params,errors)
               if (answer.response.numFound > 0) {
                 this.total = answer.response.numFound
                 answer.response.docs.forEach((item) => {
@@ -254,15 +236,42 @@
               this.loading = false
             },
 
+            async preview(row){
+              if (!row.content){
+                this.loading = true
+                let q = `&wt=json&fl=content&q=id:"${row.id}"`
+                let answer = await askSolr(q,errors)
+                if (answer.response.numFound != undefined ) {
+                    row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                    this.$modal.open('<pre>'+row.content+'</pre>')
+                }
+                this.loading = false
+              } else {
+                this.$modal.open('<pre>'+row.content+'</pre>')
+              }
+            },
+
             onPageChange(page) {
                 this.page = page
                 this.search()
             },
-
             onSort(field, order) {
                 this.sortField = field
                 this.sortOrder = order
                 this.search()
+            },
+            helpDialog(){
+              this.$modal.open({parent: this, component: Help})
+            },
+            uploadDialog(){
+              this.$modal.open({parent: this, component: Upload})
+            },
+            subscribeDialog(){
+              this.$modal.open({parent: this, component: Subcribe})
+            },
+            settingsDialog(){
+              this.settings = !this.settings
+              if (!this.settings) this.search() // reload if settings closed
             }
         },
         mounted() {
