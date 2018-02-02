@@ -1,107 +1,107 @@
 <template>
-    <section>
+   <section>
       <b-field grouped class="container is-fullwidth">
-        <b-field class="is-fluid is-expanded">
-          <button class="is-disabled">Archive</button>
-          <b-input class="is-expanded is-focused"
-            placeholder="Search .. "
-            v-model="userQuery"
-            @keyup.native.enter = "search()">
-          </b-input>
-          <b-select v-model="isAndOr">
-              {{ isAndOr }}
-              <option>AND</option>
-              <option>OR</option>
-          </b-select>
-          <button class="button is-success"
-            @click= "search()">
-            <b-icon icon="magnify"></b-icon>
-          </button>
-        </b-field>
-
-        <b-field grouped>
-          <button class="button is-primary"
-            @click= "settingsDialog()">
-            <b-icon icon="settings"></b-icon>
-          </button>
-          &nbsp;
-          <button class="button is-primary"
-            @click= "uploadDialog()">
-            <b-icon icon="upload"></b-icon>
-          </button>
-          &nbsp;
-          <button class="button is-primary"
-            @click= "subscribeDialog()">
-            <b-icon icon="email"></b-icon>
-          </button>
-          &nbsp;
-          <button class="button is-primary"
-            @click= "helpDialog()">
-            <b-icon icon="help"></b-icon>
-          </button>
-        </b-field>
-
+         <b-field class="is-fluid is-expanded">
+            <button class="is-disabled">Archive</button>
+            <b-input class="is-expanded is-focused"
+               placeholder="Search .. "
+               v-model="userQuery"
+               @keyup.native.enter = "search()">
+            </b-input>
+            <b-select v-model="isAndOr">
+               {{ isAndOr }}
+               <option>AND</option>
+               <option>OR</option>
+            </b-select>
+            <button class="button is-success"
+               @click= "search()">
+               <b-icon icon="magnify"></b-icon>
+            </button>
+         </b-field>
+         <b-field grouped>
+            <button class="button is-primary"
+               @click= "settingsDialog()">
+               <b-icon icon="settings"></b-icon>
+            </button>
+            &nbsp;
+            <button class="button is-primary"
+               @click= "uploadDialog()">
+               <b-icon icon="upload"></b-icon>
+            </button>
+            &nbsp;
+            <button class="button is-primary"
+               @click= "subscribeDialog()">
+               <b-icon icon="email"></b-icon>
+            </button>
+            &nbsp;
+            <button class="button is-primary"
+               @click= "helpDialog()">
+               <b-icon icon="help"></b-icon>
+            </button>
+         </b-field>
       </b-field>
-        <div v-if="settings" >
-          <h3>
-              SETTINGS
-          </h3>
-          <b-field label="results per page">
-            <b-input v-model="perPage"
-              type="number"
-              min="1"
-              max="100"
-            ></b-input>
-          </b-field>
-          <hr>
-          <h1> search results columns</h1>
-          <b-field  grouped group-multiline>
-              <div v-for="(column, index) in columns" :key="index" class="control">
+      <div v-if="settings" class="columns is-multiline is-mobile">
+         <div class="column is-one-quarter">
+            <h3>SETTINGS</h3>
+            <b-field label="results per page">
+               <b-input v-model="perPage" type="number" min="1" max="100"></b-input>
+            </b-field>
+            <b-field label="matched fragment size">
+               <b-input v-model="fragSize" type="number" min="32" max="256"></b-input>
+            </b-field>
+            <b-field label="matched fragments count">
+               <b-input v-model="snippetsCount" type="number" min="1" max="128"></b-input>
+            </b-field>
+         </div>
+         <div class="column">
+            <h3> search results columns</h3>
+            <b-field  grouped group-multiline>
+               <div v-for="(column, index) in columns" :key="index" class="control">
                   <b-checkbox v-model="column.visible">
-                      {{ column.title }}
+                     {{ column.title }}
                   </b-checkbox>
-              </div>
-
-          </b-field>
-          <hr>
-        </div>
-        <div justify-content: center>
-          <p v-if="message.length > 0">{{ message }}</p>
-          <b-table v-if="data.length > 0"
-            @dblclick="(row) => preview(row)"
-            :data="data"
-            :loading="loading"
-            paginated
-            backend-pagination
-            :total="total"
-            :per-page="perPage"
-            @page-change="onPageChange"
-            detailed
-            detail-key="id"
-            backend-sorting
-            :default-sort-direction="defaultSortOrder"
-            :default-sort="[sortField, sortOrder]"
-            @sort="onSort">
-            <template slot-scope="props">
-                <b-table-column v-for="(column, index) in columns"
-                    :key="index"
-                    :label="column.title"
-                    :visible="column.visible">
-                    <p v-if="column.field === 'highlighting' "v-innerhtml="props.row.highlighting"></p>
-                    <p v-else>{{ props.row[column.field] }}</p>
-                </b-table-column>
-            </template>
-            <template slot="detail" slot-scope="props" >
-              <div style="height:600px">
-                <cytoscape :thing="props.row" :connectors="connectorFields"></cytoscape>
-              </div>
-            </template>
-            <template slot="bottom-left">
-                &nbsp;<b>Total found</b>: {{ total }} on page {{ page }}
-            </template>
-        </b-table>
+               </div>
+            </b-field>
+            <hr>
+         </div>
       </div>
-    </section>
+      <div justify-content: center>
+         <p v-if="message.length > 0">{{ message }}</p>
+         <b-table v-if="data.length > 0"
+         @dblclick="(row) => preview(row)"
+         :data="data"
+         :loading="loading"
+         paginated
+         backend-pagination
+         :total="total"
+         :per-page="perPage"
+         @page-change="onPageChange"
+         detailed
+         detail-key="id"
+         backend-sorting
+         :default-sort-direction="defaultSortOrder"
+         :default-sort="[sortField, sortOrder]"
+         @sort="onSort">
+         <template slot-scope="props">
+            <b-table-column v-for="(column, index) in columns"
+               :key="index"
+               :label="column.title"
+               :visible="column.visible">
+               <p v-if="column.field === 'highlighting' "v-innerhtml="props.row.highlighting"></p>
+               <p v-else>{{ props.row[column.field] }}</p>
+            </b-table-column>
+         </template>
+         <template slot="detail" slot-scope="props">
+            <div style="height:600px">
+               <cytoscape :thing="props.row" :connectors="connectorFields"></cytoscape>
+            </div>
+         </template>
+         <template slot="bottom-left">
+            &nbsp;<b>Total found</b>: {{ total }} on page {{ page }}
+         </template>
+         </b-table>
+      </div>
+   </section>
 </template>
 
 <script>
@@ -209,9 +209,9 @@
               this.loading = true
               // q=*:*&wt=csv&rows=0&facet
               let answer = await askSolr('q=*:*&wt=csv&rows=0&facet')
-              let fields = answer.split(',')
+              let fields = answer.trim().split(',')
               for (let i in fields){
-                  if (fields[i].indexOf('_b') < fields[i].length-2) {
+                  if ((fields[i].indexOf('_b') - fields[i].length)!=-2) {
                     for (let i in this.columns) if (this.columns[i].field == fields[i]) break
                     this.columns.push({ title: fields[i], field: fields[i], visible: false })
                   }
