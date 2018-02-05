@@ -182,6 +182,8 @@ proxy.on('proxyRes', function (proxyRes, req, res) {
 		// TODO find where headers are sent before this and set content to undefined
 		proxyRes.statusCode = 418
 		console.error('proxy',proxyRes.statusMessage,req.socket.remoteAddress,req.user,req.url)
+    //hack solr is sending answer but status is not 200 ;(
+    if (req.url == '/solr/core1/select?q=*:*&wt=csv&rows=0&facet') proxyRes.statusCode = 200
 	}
 });
 proxy.on('error', function (err, req, res) {
