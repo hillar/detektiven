@@ -351,6 +351,15 @@ let server = http.createServer(basic, (req, res) => {
     req.pipe(busboy);
   }
   if (req.method === 'POST') {
+      if (req.url.startsWith("/errors")){
+        let errors = [];
+        request.on('data', (chunk) => {
+          errors.push(chunk);
+        }).on('end', () => {
+          errors = Buffer.concat(errors).toString();
+          console.log('browser side errors from ',req.user,errors)
+        });
+      }
       if (req.url.startsWith("/subscriptions")){
         let fields = {}
         let busboy = new Busboy({ preservePath: true, headers: req.headers })

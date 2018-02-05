@@ -57,7 +57,7 @@
             </b-field>
          </div>
          <div class="column">
-            <h3> search results columns</h3>
+            <h3>search results columns</h3>
             <b-field  grouped group-multiline>
                <div v-for="(column, index) in columns" :key="index" class="control">
                   <b-checkbox v-model="column.visible">
@@ -114,11 +114,34 @@
     import Upload from '@/components/Upload'
     import Subcribe from '@/components/Subcribe'
 
-    async function askSolr(params,errors){
+    async function axiosGet(u) {
+      return new Promise((resolve, reject) => {
+        axios.get(u)
+        .then(function (res) {
+          resolve(res)
+        })
+        .catch(function (err) {
+          resolve(false)
+        })
+      })
+    }
+    async function axiosPost(u,d){
+      return new Promise((resolve, reject) => {
+        axios.post(u,d)
+          .then(function (res) {
+            resolve(res)
+          })
+          .catch(function (err) {
+            resolve(false)
+          })
+      })
+    }
+
+    async function askSolr(params){
       return new Promise((resolve, reject) => {
         const url = `/solr/core1/select?${params}`
-        console.log('findDocs', url)
-        axios.get(url)
+        const defaultResult = {response:{numFound:0,start:0,docs:[]}}
+        axiosGet(url)
         .then(function (res) {
           if (res.data ) {
             if (params.indexOf('wt=json') !== -1) {
@@ -126,35 +149,44 @@
                 if (res.data.response.numFound != undefined ) {
                   resolve(res.data)
                 } else {
-                  errors.push(askSolr.caller,'not solr response, missing numFound', url)
+                  errorsPush('not solr response, missing numFound', url)
                   console.dir(res.data)
+                  resolve(defaultResult)
                 }
               } else {
-                errors.push(askSolr.caller,'not solr response, missing response', url)
+                errorsPush('not solr response, missing response', url)
                 console.dir(res.data)
+                resolve(defaultResult)
               }
             } else {
               resolve(res.data)
             }
           }  else {
-            errors.push([askSolr.caller,'not solr response, missing data', url])
+            errorsPush('not solr response, missing data', url)
             console.dir(res)
+            resolve(false)
           }
-        })
-        .catch(function (err) {
-          errors.push([askSolr.caller,err.message,err])
-          resolve({response:{numFound:0,start:0,docs:[]}})
-        })
+          })
       })
     }
-    function sendErrors(errors){
+    
+    async function sendErrors(){
       if (errors.length === 0) return
       let sending = errors.slice()
       errors = []
-      console.dir(sending)
+      let es = await axiosPost('/errors',JSON.stringify(sending))
+      if (es === false) {
+        errors = errors.concat(sending)
+      } 
       return
     }
+    
+    function errorsPush(...args){
+      errors.push({time:Date.now(),...args})
+    }
+    
     let errors = []
+    
     export default {
         data() {
             let columns = [
@@ -191,21 +223,43 @@
 
             async loadFields() {
               this.loading = true
-              let answer = await askSolr('q=*:*&wt=csv&rows=0&facet',errors)
-              let fields = answer.trim().split(',')
-              for (let i in fields){
+              const loadingComponent = this.$loading.open()
+              let old = this.message
+              this.message = "wait, loading fields from solr"
+              let fields = []
+              let answer = await askSolr('q=*:*&wt=csv&rows=0&facet')
+              if ((answer === false)) { 
+                this.$snackbar.open('notify your admin, field list ins not loading')
+              } else {
+                fields = answer.trim().split(',')
+                for (let i in fields){
                   if ((fields[i].indexOf('_b') - fields[i].length)!=-2) {
-                    for (let i in this.columns) if (this.columns[i].field == fields[i]) break
-                    this.columns.push({ title: fields[i], field: fields[i], visible: false })
+                    let found = false
+                    for (let j in this.columns) {
+                      console.log(this.columns[j].field,fields[i])
+                      if (this.columns[j].field === fields[i]) {
+                        found = true
+                        console.log(this.columns[j].field,fields[i])
+                        break
+                      }
+                    }
+                    
+                    if (!found) this.columns.push({ title: fields[i], field: fields[i], visible: false })
                   }
+                }
               }
+              this.message = old
+              loadingComponent.close()
               this.loading = false
             },
 
             async search() {
               this.loading = true
-              sendErrors(errors)
-              this.message = ""
+              const loadingComponent = this.$loading.open()
+              let old = this.message
+              this.message = "wait, searching .."
+              sendErrors()
+
               this.data = []
               this.total = 0
               let fields = []
@@ -220,19 +274,28 @@
                   `q=${this.userQuery}`,
                   `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
                   ].join('&')
-              let answer = await askSolr(params,errors)
-              if (answer.response.numFound > 0) {
-                this.total = answer.response.numFound
-                answer.response.docs.forEach((item) => {
-                  for (let i in item) if (Array.isArray(item[i])) item[i] = item[i].join(this.separator)
-                  if (answer.highlighting && answer.highlighting[item.id] && answer.highlighting[item.id].content){
-                    item.highlighting = answer.highlighting[item.id].content.join('<br>...<br>')
-                  } else {
-                    item.highlighting = " .. "
-                  }
-                  this.data.push(item)
-                })
-              } else { this.message = this.userQuery +" <- no results ;(" }
+              let answer = await askSolr(params)
+              if (answer === false ) {
+                  this.message = old
+                  this.$snackbar.open('notify your admin, solr did not returned any answers')
+              } else {
+                this.message = ""
+                if (answer.response.numFound > 0) {
+                  this.total = answer.response.numFound
+                  answer.response.docs.forEach((item) => {
+                    for (let i in item) if (Array.isArray(item[i])) item[i] = item[i].join(this.separator)
+                    if (answer.highlighting && answer.highlighting[item.id] && answer.highlighting[item.id].content){
+                      item.highlighting = answer.highlighting[item.id].content.join('<br>...<br>')
+                    } else {
+                      item.highlighting = " .. "
+                    }
+                    this.data.push(item)
+                  })
+                } else { 
+                  this.message = this.userQuery +" <- no results ;(" 
+                }
+              }
+              loadingComponent.close()
               this.loading = false
             },
 
@@ -240,7 +303,7 @@
               if (!row.content){
                 this.loading = true
                 let q = `&wt=json&fl=content&q=id:"${row.id}"`
-                let answer = await askSolr(q,errors)
+                let answer = await askSolr(q)
                 if (answer.response.numFound != undefined ) {
                     row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
                     this.$modal.open('<pre>'+row.content+'</pre>')
@@ -269,13 +332,16 @@
             subscribeDialog(){
               this.$modal.open({parent: this, component: Subcribe})
             },
-            settingsDialog(){
+            async settingsDialog(){
+              if (!this.settings) {
+                await this.loadFields() //reload fields from solr
+              }
               this.settings = !this.settings
-              if (!this.settings) this.search() // reload if settings closed
+              if (!this.settings) await this.search() // reload search if settings closed
             }
         },
         mounted() {
-            this.loadFields()
+            //this.loadFields()
         }
     }
 </script>
