@@ -307,9 +307,12 @@
                 if (answer === false) {
                    this.$snackbar.open('contact your admin, backend returned no data')
                 } else {
-                  if (answer.response.numFound != undefined ) {
+                  if (answer.response.numFound != undefined && answer.response.docs && answer.response.docs[0] && answer.response.docs[0].content) {
                       row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
                       this.$modal.open('<pre>'+row.content+'</pre>')
+                  } else {
+                    if (!answer.response.docs) errorsPush('solr returned no docs',answer.response)
+                    if (!answer.response.docs[0]) errorsPush('solr returned empty docs',answer.response)
                   }
                 }
                 this.loading = false

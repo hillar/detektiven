@@ -17,7 +17,7 @@ data() {
 import cytoscape from 'cytoscape'
 import Weaver from "weaverjs";
 import cxtmenu from 'cytoscape-cxtmenu'
-//import 'mdi/css/materialdesignicons.css'
+import 'mdi/css/materialdesignicons.css'
 import axios from 'axios'
 cxtmenu(cytoscape)
 
@@ -45,7 +45,7 @@ async function findDocs(q,f){
     let fl = '*,content:[value v=""]'
     if (Array.isArray(f) && f.length>0) {
       fl = f.join(',')
-    } 
+    }
     let q_url = `/solr/core1/select?&wt=json&fl=${fl}&q=${q}`
     console.log('findDocs',q, q_url)
     axios.get(q_url)
@@ -70,11 +70,11 @@ async function findDocs(q,f){
 async function addElements(cy,docs,fields){
   console.log('addElements',docs)
   return new Promise((resolve, reject) => {
-    let label = 'path_basename_s' 
+    let label = 'path_basename_s'
     for (let i in docs) {
       let doc = docs[i]
       if (cy.getElementById(doc.id).length == 0) {
-          if (doc.id.length > 0) cy.add({data:{id:doc.id,label:doc[label],doc:doc}})  
+          if (doc.id.length > 0) cy.add({data:{id:doc.id,label:doc[label],doc:doc}})
       }
       let connectors = []
       for (let i in fields) {
@@ -92,7 +92,7 @@ async function addElements(cy,docs,fields){
       for (let i in connectors){
         let c = connectors[i]
         if (cy.getElementById(c).length == 0) {
-          cy.add({data:{id:c,label:c}})    
+          cy.add({data:{id:c,label:c}})
         }
         cy.add({data:{source:c,target:doc.id}})
       }
@@ -327,7 +327,7 @@ export default {
           let docs = await findDocs(`id:"${doc.id}"`, ['id','content'])
           doc.content = docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
           this.loading = false
-          this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)        
+          this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)
         } else {
           this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)
         }
