@@ -152,7 +152,10 @@ basic.on('success', (result, req) => {
     users[result.user]['lastseen'] = Date.now()
     if (users[result.user]['ip'] && req.socket.remoteAddress != users[result.user]['ip']) {
       console.log('WARNING! user', req.user, 'has new ip',req.socket.remoteAddress,'old',users[req.user]['ip'])
-      let to = users[result.user].ipa.mail.join(';')
+      let username = result.user
+      let to = ''
+      if (Array.isArray(users[username].ipa.mail)) to = users[username].ipa.mail.join(';')
+      else to = users[username].ipa.mail
       let subject = "new ip"
       let body = "new login from "+ req.socket.remoteAddress
       mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
@@ -232,7 +235,10 @@ let server = http.createServer(basic, (req, res) => {
         }
         res.end()
         console.log('got user',req.user,'new params',params.join(','),'all',JSON.stringify(users[req.user]))
-        let to = users[req.user].ipa.mail.join(';')
+        let username = req.user
+        let to = ''
+        if (Array.isArray(users[username].ipa.mail)) to = users[username].ipa.mail.join(';')
+        else to = users[username].ipa.mail
         let subject = "new browser"
         let body = "new browser from "+ req.socket.remoteAddress
         mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
