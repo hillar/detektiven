@@ -169,7 +169,7 @@
           })
       })
     }
-    
+
     async function sendErrors(){
       if (errors.length === 0) return
       let sending = errors.slice()
@@ -177,16 +177,16 @@
       let es = await axiosPost('/errors',JSON.stringify(sending))
       if (es === false) {
         errors = errors.concat(sending)
-      } 
+      }
       return
     }
-    
+
     function errorsPush(...args){
       errors.push({time:Date.now(),...args})
     }
-    
+
     let errors = []
-    
+
     export default {
         data() {
             let columns = [
@@ -228,7 +228,7 @@
               this.message = "wait, loading fields from solr"
               let fields = []
               let answer = await askSolr('q=*:*&wt=csv&rows=0&facet')
-              if ((answer === false)) { 
+              if ((answer === false)) {
                 this.$snackbar.open('notify your admin, field list ins not loading')
               } else {
                 fields = answer.trim().split(',')
@@ -243,7 +243,7 @@
                         break
                       }
                     }
-                    
+
                     if (!found) this.columns.push({ title: fields[i], field: fields[i], visible: false })
                   }
                 }
@@ -291,8 +291,8 @@
                     }
                     this.data.push(item)
                   })
-                } else { 
-                  this.message = this.userQuery +" <- no results ;(" 
+                } else {
+                  this.message = this.userQuery +" <- no results ;("
                 }
               }
               loadingComponent.close()
@@ -304,9 +304,13 @@
                 this.loading = true
                 let q = `&wt=json&fl=content&q=id:"${row.id}"`
                 let answer = await askSolr(q)
-                if (answer.response.numFound != undefined ) {
-                    row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
-                    this.$modal.open('<pre>'+row.content+'</pre>')
+                if (answer === false) {
+                   this.$snackbar.open('contact your admin, backend returned no data')
+                } else {
+                  if (answer.response.numFound != undefined ) {
+                      row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                      this.$modal.open('<pre>'+row.content+'</pre>')
+                  }
                 }
                 this.loading = false
               } else {
