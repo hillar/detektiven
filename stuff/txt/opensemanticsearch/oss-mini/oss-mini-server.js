@@ -11,6 +11,7 @@ const path = require('path')
 const mailer = require('./mailer')
 const cliParams = require('commander');
 const freeipa = require('./freeipa');
+const base64url = require('base64url');
 
 //TODO move hlpers to separate file
 // helpers
@@ -327,7 +328,7 @@ let server = http.createServer(basic, (req, res) => {
       let savePath = uploadDirectory+'/'+uid
       //TODO
       fs.mkdirSync(savePath)
-      let fname = Buffer.from(filename).toString('base64')
+      let fname = base64url(filename)
       console.log('saving',filename,'as',fname)
       let saveTo = path.join(savePath, fname);
       file.pipe(fs.createWriteStream(saveTo));
@@ -361,7 +362,7 @@ let server = http.createServer(basic, (req, res) => {
   if (req.method === 'POST') {
       if (req.url.startsWith("/errors")){
         let errors = [];
-        request.on('data', (chunk) => {
+        req.on('data', (chunk) => {
           errors.push(chunk);
         }).on('end', () => {
           errors = Buffer.concat(errors).toString();
