@@ -1,8 +1,9 @@
 [Unit]
 Description=upload directory monitor
 After=network.target
-# comment out if tika or solr are on another box
-Requires=tika.service solr.service
+# comment out tika or solr when those are on another box
+# as etl-file is called do not comment out opensemanticsearch.service
+Requires=tika.service solr.service opensemanticsearch.service
 
 [Service]
 Type=simple
