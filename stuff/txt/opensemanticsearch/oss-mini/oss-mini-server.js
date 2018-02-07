@@ -127,7 +127,9 @@ let basic = auth.basic({
 					}
 					users[username]['ipa'] = user
 					users[username]['logintime'] = Date.now()
-          let to = users[username].ipa.mail.join(';')
+          let to = ''
+          if (Array.isArray(users[username].ipa.mail)) to = users[username].ipa.mail.join(';')
+          else to = users[username].ipa.mail
           let subject = "welcome"
           let body = "nice to see You!"
           mailer.send(to, subject, body, smtpfrom, smtphost, smtpport)
