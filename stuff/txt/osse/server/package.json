@@ -1,0 +1,26 @@
+{
+  "name": "osse",
+  "version": "0.0.0",
+  "description": "search solr and elasticsearch",
+  "main": "osse-server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/hillar/detektiven"
+  },
+  "keywords": [
+    "solr",
+    "elasticsearch",
+    "opensemanticsearch"
+  ],
+  "author": "Hillar Aarelaid",
+  "license": "MIT",
+  "dependencies": {
+    "base64url": "^2.0.0",
+    "busboy": "^0.2.14",
+    "commander": "^2.14.1",
+    "http-auth": "^3.2.3"
+  }
+}

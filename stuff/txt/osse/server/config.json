@@ -1,0 +1,20 @@
+{
+  "port": 9983,
+  "host": "192.168.11.2",
+  "usersFile": "/var/spool/oss-mini/user-sessions.json",
+  "uploadDirectory": "/var/spool/oss-mini/upload",
+  "subscriptionsDirectory": "/var/spool/oss-mini/subscriptions",
+  "smtpHost": "localhost",
+  "smtpPort": 25,
+  "smtpSender": "noreplay-oss-mini-server@localhost",
+  "ipaServer": "192.168.10.2",
+  "ipaBase": "cn=accounts,dc=example,dc=org",
+  "ipaPass": "kalakala",
+  "ipaUser": "webeid",
+
+  "servers":[
+    {"HR":"OpenSemanticSearch","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"testindex","rotationperiod":"none"},
+    {"HR":"ClosedSemanticSearch","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"testindex","rotationperiod":"monthly"},
+    {"HR":"NOTSemanticSearch","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"index2testing","rotationperiod":"yearly"}
+  ]
+}
