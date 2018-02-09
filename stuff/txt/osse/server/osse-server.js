@@ -10,7 +10,7 @@ const Busboy = require('busboy')
 const base64url = require('base64url')
 const mailer = require('./mailer')
 const freeipa = require('./freeipa')
-const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, getIpUser } = require('./utils')
+const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, createSearchPromise, getIpUser } = require('./utils')
 
 async function main() {
 cliParams
@@ -51,6 +51,7 @@ cliParams
   config.usersFile = cliParams.usersFile || configFile.usersFile || '/tmp/osse/users.json'
   config.uploadDirectory = cliParams.uploadDirectory || configFile.uploadDirectory || '/tmp/osse/uploads'
   config.subscriptionsDirectory = cliParams.subscriptionsDirectory || configFile.subscriptionsDirectory || '/tmp/osse/subscriptions'
+  config.staticDirectory = cliParams.static || config.staticDirectory || '/tmp/osse/dist'
   config.smtpfrom = cliParams.smtpSender || configFile.smtpSender || 'noreply-osse@localhost'
   config.smtphost = cliParams.smtpHost || configFile.smtpHost || '127.0.0.1'
   config.smtpport = cliParams.smtpPort || configFile.smtpPort || 25
@@ -94,15 +95,21 @@ cliParams
 
   let server = http.createServer( async (req, res) => {
     let bittes = req.url.split('?')
-    let leftpath = bittes[0] || '/'
+    let urlPath = bittes[0]
+    let leftpath = '/'+bittes[0].split('/')[1] || '/'
     bittes.shift()
-    let params = bittes.join('?').split('&')
-    // build 1 level nested struct
-    // see https://lucene.apache.org/solr/guide/6_6/highlighting.html
+    let params = bittes.join('?').trim().split('&').filter(String)
     args = {}
     for (let i in params){
         let tmp = params[i].split('=')
         if (!tmp[1]) { tmp[1] = true }
+        // handle sort
+        // see https://lucene.apache.org/solr/guide/6_6/common-query-parameters.html#CommonQueryParameters-ThesortParameter
+        if (tmp[0] === 'sort') {
+          // split fields and then order
+        }
+        // build 1 level nested struct
+        // see https://lucene.apache.org/solr/guide/6_6/highlighting.html
         let nested = tmp[0].split('.')
         if (nested[1]) {
           if (!args[nested[0]]) args[nested[0]] = {}
@@ -112,10 +119,50 @@ cliParams
     }
     const route = req.method + leftpath
     const { ip, username } = getIpUser(req)
-    logNotice({ip,username,route,args})
+    logNotice({ip,username,route,urlPath,args})
     switch (route) {
+      // ----------------------------------------------------------------
       case 'GET/search':
-        res.end('FOUND!\n')
+        const func = 'search'
+        if (!args.q)  {
+          logError({func,'msg':'no q in args'})
+          res.end('')
+          break
+        }
+        //TODO check max
+        if (!args.rows) args.rows = 1024
+        if (!args.start) args.start = 0
+        if (!args.fl) args.fl = 'id'
+        if (args.hl) {
+          args.hl.encoder = 'html'
+          if (!args.hl.snippets) args.hl.snippets = 8
+          if (!args.hl.fragsize) args.hl.fragsize = 64
+        }
+        let httpgets = []
+        for (let i in config.servers){
+          let server = config.servers[i]
+          httpgets.push(createSearchPromise(server,args))
+        }
+        Promise.all(httpgets).then(function(results){
+          for (let i in results){
+            let result = results[i]
+            if (!result.server) throw new Error('no server')
+            if (result.error) {
+                let msg = result.error.message
+                logWarning({func,'server':result.server,msg})
+            } else {
+                if (result.result) {
+                  console.dir(result.result)
+                }
+            }
+          }
+          res.end('gut')
+        })
+        .catch(function(err) {
+          let critical = 'This Should Never Happen :: ' + err.message
+          logError({func,critical,err})
+          res.end('')
+        })
         break;
       case 'POST/errors':
         let errors = [];
@@ -130,55 +177,54 @@ cliParams
       case 'PUT/files':
       case 'POST/files':
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
-        try {
-          let busboy = new Busboy({ preservePath: true, headers: req.headers })
-          let files = []
-          let fields = {}
-          let uid = guid()
-          busboy.on('error', function(error){
+          try {
+            let busboy = new Busboy({ preservePath: true, headers: req.headers })
+            let files = []
+            let fields = {}
+            let uid = guid()
+            busboy.on('error', function(error){
+              let msg = error.message
+              logWarning({ip,username,route,msg})
+            })
+            busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) {
+              fields['upload_'+fieldname] = val
+            })
+            busboy.on('file', async function(fieldname, file, filename, encoding, mimetype) {
+              let chuncks = []
+              let savePath = path.join(config.uploadDirectory,uid)
+              let sDir = await ensureDirectory(savePath)
+              if (sDir) {
+                let safename = base64url(filename)
+                logNotice({ip,username,filename,safename})
+                let saveTo = path.join(savePath, safename);
+                file.pipe(fs.createWriteStream(saveTo));
+                file.on('data', function(data) {
+                  chuncks.push(data.length)
+                });
+                file.on('end', function() {
+                  files.push({uid,filename, safename, encoding, mimetype})
+                  logNotice({ip,username,filename,safename, saveTo})
+                });
+              }
+            })
+            busboy.on('finish', async function() {
+              fields['upload_by'] = username
+              fields['upload_time'] = now()
+              let saveTo = path.join(config.uploadDirectory,uid)
+              let fDir = await ensureDirectory(saveTo)
+              if (fDir) {
+                let fSave = await writeFile(path.join(saveTo,config.metaFilename),JSON.stringify(fields))
+                if (!fSave) res.end('try again')
+                else res.end('thanks for files')
+              }
+            });
+            req.pipe(busboy);
+          } catch (error){
+            res.end('try again')
             let msg = error.message
             logWarning({ip,username,route,msg})
-          })
-          busboy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) {
-            fields['upload_'+fieldname] = val
-          })
-          busboy.on('file', async function(fieldname, file, filename, encoding, mimetype) {
-            let chuncks = []
-            let savePath = path.join(config.uploadDirectory,uid)
-            let sDir = await ensureDirectory(savePath)
-            if (sDir) {
-              let fname = base64url(filename)
-              logNotice({ip,username,filename,fname})
-              let saveTo = path.join(savePath, fname);
-              file.pipe(fs.createWriteStream(saveTo));
-              file.on('data', function(data) {
-                chuncks.push(data.length)
-              });
-              file.on('end', function() {
-                files.push({uid,filename, fname, encoding, mimetype})
-                logNotice({ip,username,filename,fname, saveTo})
-              });
-            }
-          })
-          busboy.on('finish', async function() {
-            fields['upload_by'] = username
-            fields['upload_time'] = now()
-            let saveTo = path.join(config.uploadDirectory,uid)
-            let fDir = await ensureDirectory(saveTo)
-            if (fDir) {
-              let fSave = await writeFile(path.join(saveTo,config.metaFilename),JSON.stringify(fields))
-              if (!fSave) res.end('try again')
-              else res.end('thanks for files')
-            }
-          });
-          req.pipe(busboy);
-        } catch (error){
-          res.end('try again')
-          let msg = error.message
-          logWarning({ip,username,route,msg})
-
-        }
-      } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
+          }
+        } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
         break;
       case 'GET/subscriptions':
         let subscriptions  = await readFile(path.join(config.subscriptionsDirectory,username,'subscriptions.json'))
@@ -188,39 +234,72 @@ cliParams
         break;
       case 'POST/subscriptions':
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
-        let subsFields = {}
-        try {
-          let subsBusBoy = new Busboy({ preservePath: true, headers: req.headers })
-          busboy.on('error', function(error){
+          let subsFields = {}
+          try {
+            let subsBusBoy = new Busboy({ preservePath: true, headers: req.headers })
+            busboy.on('error', function(error){
+              let msg = error.message
+              logWarning({ip,username,route,msg})
+            });
+            subsBusBoy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) {
+              subsFields[fieldname] = val
+            })
+            subsBusBoy.on('finish', async function() {
+              let uploadtime = now()
+              let emails = '' // TODO
+              let subsFile = false
+              let subscriptionsDirectory = await ensureDirectory(path.join(config.subscriptionsDirectory,username))
+              if (subscriptionsDirectory) {
+                subsFile = await writeFile(path.join(config.subscriptionsDirectory,username,'subscriptions.json'),JSON.stringify({uploadtime,username,emails,subsFields}))
+              }
+              if (!subsFile) {
+                res.end('try again')
+                let msg = 'writing subscriptions failed'
+                logError({ip,username,msg})
+              } else res.end('thanks for subscriptions')
+            })
+            req.pipe(subsBusBoy);
+          } catch (error){
+            res.end('try again')
             let msg = error.message
             logWarning({ip,username,route,msg})
-          });
-          subsBusBoy.on('field', function(fieldname, val, fieldnameTruncated, valTruncated, encoding, mimetype) {
-            subsFields[fieldname] = val
-          })
-          subsBusBoy.on('finish', async function() {
-            let uploadtime = now()
-            let emails = '' // TODO
-            let subsFile = false
-            let subscriptionsDirectory = await ensureDirectory(path.join(config.subscriptionsDirectory,username))
-            if (subscriptionsDirectory) {
-              subsFile = await writeFile(path.join(config.subscriptionsDirectory,username,'subscriptions.json'),JSON.stringify({uploadtime,username,emails,subsFields}))
-            }
-            if (!subsFile) {
-              res.end('try again')
-              let msg = 'writing subscriptions failed'
-              logError({ip,username,msg})
-            } else res.end('thanks for subscriptions')
-          })
-          req.pipe(subsBusBoy);
-        } catch (error){
-          res.end('try again')
-          let msg = error.message
-          logWarning({ip,username,route,msg})
 
-        }
+          }
         } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
-        break;
+        break
+      case 'GET/static':
+        let staticFilename = path.join(config.staticDirectory,urlPath)
+        let staticFile = await readFile(staticFilename)
+        if (staticFile === false){
+          logError({ip,username,'msg':'file does not exist',staticFilename,urlPath})
+          res.end()
+        } else {
+          const mimeType = {
+                          '.ico': 'image/x-icon',
+                          '.html': 'text/html',
+                          '.js': 'text/javascript',
+                          '.json': 'application/json',
+                          '.css': 'text/css',
+                          '.png': 'image/png'}
+          const ext = path.parse(staticFilename).ext
+          res.setHeader('Content-type', mimeType[ext] || 'text/plain' )
+          res.end(staticFile)
+        }
+        break
+      case 'GET/index.html':
+        let indexFile = await readFile(path.join(config.staticDirectory,'index.html'))
+        if (indexFile === false) {
+          logError({'msg':'missing index.html'})
+          res.end('')
+        } else {
+          res.setHeader('Content-type','text/plain')
+          res.end(indexFile)
+        }
+        break
+      case 'GET/':
+          res.writeHead(301, {'Location' : '/index.html'});
+          res.end();
+          break
       default:
         let msg = 'missing route'
         logWarning({ip,username,msg,route})

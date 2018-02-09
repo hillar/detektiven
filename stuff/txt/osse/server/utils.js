@@ -1,5 +1,7 @@
 const fs = require('fs')
 const path = require('path')
+const http = require('http');
+const https = require('https');
 
 function guid() {
   function s4() {
@@ -18,6 +20,11 @@ function now(){
 function logError(error){
   const time = now()
   console.error(JSON.stringify({time, error}))
+}
+
+function logInfo(info){
+  const time = now()
+  console.log(JSON.stringify({time, info}))
 }
 
 function logNotice(notice){
@@ -92,6 +99,89 @@ function getIpUser(req){
   return {ip, username}
 }
 
+async function httpGet(url){
+  return new Promise((resolve, reject) => {
+    try {
+    (url.indexOf('https://')>-1 ? https : http).get(url, (resp) => {
+      logInfo({url,'status':'started'})
+      let data = '';
+      resp.on('data', (chunk) => {
+        data += chunk;
+      });
+      resp.on('end', () => {
+        resolve(data)
+      });
+    }).on("error", (error) => {
+      const func = 'httpGet'
+      const msg = error.message
+      //logWarning({func,url,msg})
+      reject(error)
+    });
+  } catch (err) {
+    logError({err})
+    reject(error)
+  }
+  })
+}
+function createSearchPromise(server,args){
+  return new Promise((resolve, reject) => {
+    //{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"}
+    if (!server.type) reject(new Error('no server type'))
+    //TODO check proto host port
+    let query = server.proto+'://'+server.host+':'+server.port
+    switch (server.type) {
+      case 'solr':
+        query += '/solr/'+server.collection+'/select?'
+        if (!args.wt) args.wt = 'json'
+        query += 'wt='+args.wt+'&q=' + args.q + '&'
+        if (args.q.op && args.q.op === 'AND') query += 'q.op=AND&'
+        query += 'rows='+args.rows+'&start='+args.start+'&'
+        query += 'fl='+args.fl+'&'
+        if (args.hl) {
+           for (let hl in args.hl) {
+             query += 'hl.'+hl+'='+args.hl[hl]+'&'
+           }
+        }
+        httpGet(query)
+        .then(function(res){
+          let result = res
+          resolve({server,result})
+        })
+        .catch(function(error){
+          resolve({server,error})
+        })
+        break
+      case 'elastic':
+      case 'elasticsearch':
+
+        if (!args.hl) {
+          // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
+          query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
+          query += 'size='+args.rows+'&from='+args.start+'&'
+          //_source_include
+          //sort=_score
+          logInfo({query})
+          httpGet(query)
+          .then(function(res){
+            let result = res
+            resolve({server,result})
+          })
+          .catch(function(error){
+            resolve({server,error})
+          })
+        } else {
+          //TODO https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
+          resolve({server})
+        }
+        break
+      default:
+        logError({'msg':'not supported ' + server.type,server})
+        resolve({server})
+    }
+    //reject('error in createSearchPromise')
+  })
+}
+
 module.exports = {
   guid: guid,
   now: now,
@@ -101,6 +191,7 @@ module.exports = {
   readFile: readFile,
   writeFile: writeFile,
   ensureDirectory: ensureDirectory,
+  createSearchPromise: createSearchPromise,
   getIpUser: getIpUser,
   readJSON: async function(filename){
     let data = await readFile(filename)
