@@ -101,17 +101,20 @@ function getIpUser(req){
 
 async function httpGet(url){
   return new Promise((resolve, reject) => {
+    logInfo({'status':'started',url})
     try {
     (url.indexOf('https://')>-1 ? https : http).get(url, (resp) => {
-      logInfo({url,'status':'started'})
+
       let data = '';
       resp.on('data', (chunk) => {
         data += chunk;
       });
       resp.on('end', () => {
+        logInfo({'status':'end',url})
         resolve(data)
       });
     }).on("error", (error) => {
+      logInfo({'status':'error',url})
       const func = 'httpGet'
       const msg = error.message
       //logWarning({func,url,msg})
@@ -160,7 +163,6 @@ function createSearchPromise(server,args){
           query += 'size='+args.rows+'&from='+args.start+'&'
           //_source_include
           //sort=_score
-          logInfo({query})
           httpGet(query)
           .then(function(res){
             let result = res

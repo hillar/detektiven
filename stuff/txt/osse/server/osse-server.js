@@ -149,7 +149,7 @@ cliParams
             if (!result.server) throw new Error('no server')
             if (result.error) {
                 let msg = result.error.message
-                logWarning({func,'server':result.server,msg})
+                logWarning({func,msg,'server':result.server})
             } else {
                 if (result.result) {
                   console.dir(result.result)
