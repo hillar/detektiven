@@ -18,21 +18,21 @@ cliParams
   .usage('[options]')
   .option('-c, --config [file]', 'config file','./config.json')
   .option('-g, --generate-config ', 'generate sample config file')
-	.option('-p, --port [number]','port to listen')
-	.option('-h, --host [number]','host to listen')
-	.option('-s, --static [path]','static files to serve')
-  .option('-t, --test','test config')
+  .option('-t, --test','test connections')
+  .option('--port [number]','port to listen')
+  .option('--ip [ip address]','ip to bind')
+  .option('--static [path]','static files to serve')
   .option('--users-file [file]','users sessions full path file name')
   .option('--upload-directory [path]','upload path')
   .option('--subscriptions-directory [path]','subscriptions path')
-	.option('--smtp-host [host]','smtp host')
-	.option('--smtp-port [number]','smtp port')
-	.option('--smtp-sender [email]','smtp sender')
-	.option('--ipa-server [host]','freeipa server (or any other ldap)')
-	.option('--ipa-base [string]','ldap base')
-	.option('--ipa-user [string]','ldap bind user')
-	.option('--ipa-pass [string]','ldap bind password')
-	.option('--ipa-group [string]','ldap search group')
+  .option('--smtp-host [host]','smtp host')
+  .option('--smtp-port [number]','smtp port')
+  .option('--smtp-sender [email]','smtp sender')
+  .option('--ipa-server [host]','freeipa server (or any other ldap)')
+  .option('--ipa-base [string]','ldap base')
+  .option('--ipa-binduser [string]','ldap bind user')
+  .option('--ipa-bindpass [string]','ldap bind password')
+  .option('--ipa-usergroup [string]','user group')
   .parse(process.argv);
 
   // load config file
@@ -57,12 +57,13 @@ cliParams
   config.smtpport = cliParams.smtpPort || configFile.smtpPort || 25
   config.IPASERVER = cliParams.ipaServer || configFile.ipaServer || '127.0.0.1'
   config.BASE = cliParams.ipaBase || configFile.ipaBase || 'cn=accounts,dc=example,dc=org'
-  config.bindpass = cliParams.ipaPass || configFile.ipaPass || 'password'
-  config.binduser = cliParams.ipaUser || configFile.ipaUser || 'username'
-  config.groupName = cliParams.ipaGroup || configFile.ipaGroup || 'osse'
-  config.realm = configFile.realm || 'oss-mini'
+  config.ipaBindpass = cliParams.ipaBindpass || configFile.ipaBindpass || 'password'
+  config.ipaBinduser = cliParams.ipaBinduser || configFile.ipaBinduser || 'username'
+  config.ipaUsergroup = cliParams.ipaUsergroup || configFile.ipaUsergroup || 'osse'
+  config.realm = configFile.realm || 'osse'
   config.reauth = configFile.reauth || 1000 * 60
   config.metaFilename = configFile.metaFilename || 'meta.json'
+  config.subscriptionsFilename = configFile.subscriptionsFilename || 'subscriptions.json'
   config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
   // generate sample configFile
   if (cliParams.generateConfig) {
@@ -70,7 +71,8 @@ cliParams
     process.exit(0);
   }
   //start with notice
-  logNotice({'msg':'starting',config})
+  if (process.stdout.isTTY) console.log(JSON.stringify({'msg':'starting',config}, null, 4))
+  else   logNotice({'msg':'starting',config})
   // test paths
   let usersFileDir = await ensureDirectory(path.dirname(config.usersFile))
   if (!usersFileDir) process.exit(1)

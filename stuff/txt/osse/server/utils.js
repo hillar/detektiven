@@ -24,7 +24,7 @@ function logError(error){
 
 function logInfo(info){
   const time = now()
-  console.log(JSON.stringify({time, info}))
+  if (process.stdout.isTTY) console.log(JSON.stringify({time, info}))
 }
 
 function logNotice(notice){
