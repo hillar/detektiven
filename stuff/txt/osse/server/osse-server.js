@@ -55,8 +55,8 @@ cliParams
   config.smtpfrom = cliParams.smtpSender || configFile.smtpSender || 'noreply-osse@localhost'
   config.smtphost = cliParams.smtpHost || configFile.smtpHost || '127.0.0.1'
   config.smtpport = cliParams.smtpPort || configFile.smtpPort || 25
-  config.IPASERVER = cliParams.ipaServer || configFile.ipaServer || '127.0.0.1'
-  config.BASE = cliParams.ipaBase || configFile.ipaBase || 'cn=accounts,dc=example,dc=org'
+  config.ipaServer = cliParams.ipaServer || configFile.ipaServer || '127.0.0.1'
+  config.ipaBase = cliParams.ipaBase || configFile.ipaBase || 'cn=accounts,dc=example,dc=org'
   config.ipaBindpass = cliParams.ipaBindpass || configFile.ipaBindpass || 'password'
   config.ipaBinduser = cliParams.ipaBinduser || configFile.ipaBinduser || 'username'
   config.ipaUsergroup = cliParams.ipaUsergroup || configFile.ipaUsergroup || 'osse'
