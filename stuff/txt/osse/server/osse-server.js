@@ -10,7 +10,7 @@ const Busboy = require('busboy')
 const base64url = require('base64url')
 const mailer = require('./mailer')
 const freeipa = require('./freeipa')
-const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer,createSearchPromise, getIpUser } = require('./utils')
+const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, createSearchPromise, getIpUser } = require('./utils')
 
 async function main() {
 cliParams
@@ -84,7 +84,7 @@ cliParams
   // test connection to ipa and servers
   if (cliParams.test) {
     await pingServer('ipa',config.ipaServer,389)
-    await pingServer('smtp',config.smtphost,config.smtpport)
+    if (await pingServer('smtp',config.smtphost,config.smtpport)) sendMail(config.smtpfrom, 'test','1234', config.smtpfrom, config.smtphost, config.smtpport)
     for (let i in config.servers){
       let server = config.servers[i]
       await pingServer(server.HR,server.host,server.port)

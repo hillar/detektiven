@@ -21,6 +21,7 @@
     "base64url": "^2.0.0",
     "busboy": "^0.2.14",
     "commander": "^2.14.1",
-    "http-auth": "^3.2.3"
+    "http-auth": "^3.2.3",
+    "nodemailer": "^4.4.2"
   }
 }

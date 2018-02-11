@@ -1,8 +1,9 @@
 const fs = require('fs')
 const path = require('path')
 const net = require('net')
-const http = require('http');
-const https = require('https');
+const http = require('http')
+const https = require('https')
+const nodemailer = require('nodemailer')
 
 function guid() {
   function s4() {
@@ -144,6 +145,24 @@ async function httpGet(url){
   }
   })
 }
+
+function sendMail(to, subject, body, from, host, port) {
+  return new Promise((resolve, reject) => {
+    const func = 'sendMail'
+    const transport = nodemailer.createTransport({host:host, port:port})
+    transport.sendMail({from:from, to:to, subject:subject, text:body },(err, info) => {
+        if (err) {
+          const error = err.message
+          logWarning({func,'status':'mail not sent',error})
+          resolve(false)
+        } else {
+          logInfo({func,'status':'mail sent',info})
+          resolve(true)  
+        }
+      })
+  })
+}
+
 function createSearchPromise(server,args){
   return new Promise((resolve, reject) => {
     //{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"}
@@ -211,6 +230,7 @@ module.exports = {
   readFile: readFile,
   writeFile: writeFile,
   ensureDirectory: ensureDirectory,
+  sendMail, sendMail,
   createSearchPromise: createSearchPromise,
   getIpUser: getIpUser,
   readJSON: async function(filename){
