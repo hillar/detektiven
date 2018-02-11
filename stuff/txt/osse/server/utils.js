@@ -1,13 +1,12 @@
 const fs = require('fs')
 const path = require('path')
+const net = require('net')
 const http = require('http');
 const https = require('https');
 
 function guid() {
   function s4() {
-    return Math.floor((1 + Math.random()) * 0x10000)
-      .toString(16)
-      .substring(1);
+    return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
   }
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
@@ -91,6 +90,25 @@ async function writeFile(filename,data){
       resolve(false)
     }
   })
+}
+
+function checkHostPortConnection(host, port, timeout) {
+    return new Promise(function(resolve, reject) {
+        timeout = timeout || 1000    
+        var timer = setTimeout(function() {
+            socket.end()
+            reject(new Error('timeout '+timeout))
+        }, timeout)
+        var socket = net.createConnection(port, host, function() {
+            clearTimeout(timer)
+            socket.end()
+            resolve(true)
+        })
+        socket.on('error', function(err) {
+            clearTimeout(timer)
+            reject (err)
+        })
+    })
 }
 
 function getIpUser(req){
@@ -210,5 +228,17 @@ module.exports = {
           return false
         }
     }
+  },
+  pingServer: async function(service,host,port){
+    await checkHostPortConnection(host,port)
+    .then(function(){
+      logInfo({'ping':'OK',service,host,port})
+      return true
+    })
+    .catch(function(err){
+      let error = err.message
+      logInfo({'ping':'FAILED',service,host,port,error})
+      return false
+    })
   }
 }
