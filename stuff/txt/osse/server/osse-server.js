@@ -86,6 +86,7 @@ cliParams
     if (await pingServer('smtp',config.smtphost,config.smtpport)) await sendMail(config.smtpfrom, 'test','1234', config.smtpfrom, config.smtphost, config.smtpport)
     for (let i in config.servers){
       let server = config.servers[i]
+      //if (!server.type) reject(new Error('no server type'))
       await pingServer(server.HR,server.host,server.port)
     }
     process.exit(0);
@@ -151,9 +152,6 @@ cliParams
         for (let i in config.servers){
           let server = config.servers[i]
           httpgets.push(new Promise((resolve, reject) => {
-            //{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"}
-            if (!server.type) reject(new Error('no server type'))
-            //TODO check proto host port
             let query = server.proto+'://'+server.host+':'+server.port
             switch (server.type) {
               case 'solr':
@@ -184,16 +182,10 @@ cliParams
                       } else resolve({server,'result':resJson.response})
                     }
                   } catch (e) {
-                    if (args.wt === 'csv') {
-                      logInfo({args})
-                      resolve({server,result})
-                    } else {
                       let error = e
                       logError({e})
-                      resolve({server,error})
-                    }
+                      resolve({server})
                   }
-
                 })
                 .catch(function(error){
                   resolve({server,error})
@@ -201,7 +193,6 @@ cliParams
                 break
               case 'elastic':
               case 'elasticsearch':
-
                 if (!args.hl) {
                   // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
                   query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
@@ -253,7 +244,7 @@ cliParams
           }))
         }
         Promise.all(httpgets).then(function(results){
-          let resEnd = {numFound:0,found:[],docs:[]}
+          let resEnd = {numFound:0,'start':args.start,found:[],docs:[]}
           for (let i in results){
             if (!results[i].server) throw new Error('no server')
             if (results[i].error) {
@@ -264,8 +255,7 @@ cliParams
                   if (typeof(results[i].result) === 'object') {
                     logNotice({username,ip,'server':results[i].server.HR,'numFound':results[i].result.numFound,'docs':results[i].result.docs.length,args})
                     resEnd.numFound += results[i].result.numFound
-                    resEnd.found.push({'server':results[i].server.HR,'numFound':results[i].result.numFound,'docs':results[i].result.docs.length,'start':args.start})
-                    console.dir(results[i].result.highlighting)
+                    resEnd.found.push({'server':results[i].server.HR,'numFound':results[i].result.numFound,'docs':results[i].result.docs.length})
                     while (results[i].result.docs.length > 0) {
                       let doc = results[i].result.docs.pop()
                       doc['_server_'] = results[i].server.HR
@@ -305,6 +295,7 @@ cliParams
                       resolve({server,fields})
                   })
                   .catch(function(error){
+                    logWarning({error,query,server})
                     resolve({server})
                   })
                   break
