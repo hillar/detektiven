@@ -8,9 +8,8 @@ const http = require('http')
 const auth = require('http-auth')
 const Busboy = require('busboy')
 const base64url = require('base64url')
-const mailer = require('./mailer')
 const freeipa = require('./freeipa')
-const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, createSearchPromise, getIpUser } = require('./utils')
+const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, httpGet, getIpUser } = require('./utils')
 
 async function main() {
 cliParams
@@ -84,7 +83,7 @@ cliParams
   // test connection to ipa and servers
   if (cliParams.test) {
     await pingServer('ipa',config.ipaServer,389)
-    if (await pingServer('smtp',config.smtphost,config.smtpport)) sendMail(config.smtpfrom, 'test','1234', config.smtpfrom, config.smtphost, config.smtpport)
+    if (await pingServer('smtp',config.smtphost,config.smtpport)) await sendMail(config.smtpfrom, 'test','1234', config.smtpfrom, config.smtphost, config.smtpport)
     for (let i in config.servers){
       let server = config.servers[i]
       await pingServer(server.HR,server.host,server.port)
@@ -115,12 +114,15 @@ cliParams
         }
         // build 1 level nested struct
         // see https://lucene.apache.org/solr/guide/6_6/highlighting.html
+        if (tmp[0] === 'hl' && tmp[1] == 'on') {if (!args.hl) args.hl = {}}
         let nested = tmp[0].split('.')
         if (nested[1]) {
           if (!args[nested[0]]) args[nested[0]] = {}
           args[nested[0]][nested[1]]= tmp[1]
         }
-        else args[tmp[0]] = tmp[1]
+        else {
+          if (args[tmp[0]] === undefined) args[tmp[0]] = tmp[1]
+        }
     }
     const route = req.method + leftpath
     const { ip, username } = getIpUser(req)
@@ -135,37 +137,222 @@ cliParams
           break
         }
         //TODO check max
-        if (!args.rows) args.rows = 1024
+        if (!args.rows) args.rows = 1
         if (!args.start) args.start = 0
+        //q=*:*&wt=csv&rows=0&facet
         if (!args.fl) args.fl = 'id'
         if (args.hl) {
           args.hl.encoder = 'html'
           if (!args.hl.snippets) args.hl.snippets = 8
           if (!args.hl.fragsize) args.hl.fragsize = 64
+          if (!args.hl.fl) args.hl.fl = 'content'
         }
         let httpgets = []
         for (let i in config.servers){
           let server = config.servers[i]
-          httpgets.push(createSearchPromise(server,args))
+          httpgets.push(new Promise((resolve, reject) => {
+            //{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"}
+            if (!server.type) reject(new Error('no server type'))
+            //TODO check proto host port
+            let query = server.proto+'://'+server.host+':'+server.port
+            switch (server.type) {
+              case 'solr':
+                query += '/solr/'+server.collection+'/select?'
+                if (!args.wt) args.wt = 'json'
+                query += 'wt='+args.wt+'&q=' + args.q + '&'
+                if (args.q.op && args.q.op === 'AND') query += 'q.op=AND&'
+                query += 'rows='+args.rows+'&start='+args.start+'&'
+                if (args.fl) query += 'fl='+args.fl+'&'
+                if (args.hl) {
+                   query += 'hl=on&'
+                   for (let hl in args.hl) {
+                     query += 'hl.'+hl+'='+args.hl[hl]+'&'
+                   }
+                }
+                httpGet(query)
+                .then(function(result){
+                  try {
+                    let resJson = JSON.parse(result)
+                    if (resJson.error) {
+                      let responseHeader = resJson.responseHeader
+                      logError({responseHeader})
+                      let error = new Error(resJson.error.msg)
+                      resolve({server,error})
+                    } else {
+                      if (resJson.highlighting){
+                        resolve({server,'result':resJson.response,'highlighting':resJson.highlighting})
+                      } else resolve({server,'result':resJson.response})
+                    }
+                  } catch (e) {
+                    if (args.wt === 'csv') {
+                      logInfo({args})
+                      resolve({server,result})
+                    } else {
+                      let error = e
+                      logError({e})
+                      resolve({server,error})
+                    }
+                  }
+
+                })
+                .catch(function(error){
+                  resolve({server,error})
+                })
+                break
+              case 'elastic':
+              case 'elasticsearch':
+
+                if (!args.hl) {
+                  // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
+                  query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
+                  query += 'size='+args.rows+'&from='+args.start+'&'
+                  query += '_source_include='+args.fl+'&'
+                  //_source_include
+                  //sort=_score
+                  httpGet(query)
+                  .then(function(res){
+                    try {
+                      let resElastic = JSON.parse(res)
+                      if (resElastic.error){
+                          logWarning({'error':resElastic.error,query,server})
+                          resolve({server})
+                      } else {
+                        if (resElastic.hits) {
+                          let docs = []
+                          while (resElastic.hits.hits.length>0) {
+                            let tmp = resElastic.hits.hits.pop()
+                            let doc = tmp._source
+                            doc.id = tmp._id
+                            doc.score = tmp._score
+                            docs.push(doc)
+                          }
+                          resolve({server,'result':{'numFound':resElastic.hits.total,'docs':docs}})
+                        } else {
+                          logError({'error':'no hits and no error',query,server})
+                          resolve({server})}
+                      }
+                    } catch (e) {
+                      let error = e.message
+                      logError({error,query,server})
+                      resolve({server})
+                    }
+                  })
+                  .catch(function(error){
+                    resolve({server,error})
+                  })
+                } else {
+                  //TODO https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
+                  resolve({server})
+                }
+                break
+              default:
+                logError({'msg':'not supported ' + server.type,server})
+                resolve({server})
+            }
+            //reject('error in createSearchPromise')
+          }))
         }
         Promise.all(httpgets).then(function(results){
+          let resEnd = {numFound:0,found:[],docs:[]}
           for (let i in results){
-            let result = results[i]
-            if (!result.server) throw new Error('no server')
-            if (result.error) {
-                let msg = result.error.message
-                logWarning({func,msg,'server':result.server})
+            if (!results[i].server) throw new Error('no server')
+            if (results[i].error) {
+                let msg = results[i].error.message
+                logWarning({func,msg,'server':results[i].server})
             } else {
-                if (result.result) {
-                  console.dir(result.result)
+                if (results[i].result) {
+                  if (typeof(results[i].result) === 'object') {
+                    logNotice({username,ip,'server':results[i].server.HR,'numFound':results[i].result.numFound,'docs':results[i].result.docs.length,args})
+                    resEnd.numFound += results[i].result.numFound
+                    resEnd.found.push({'server':results[i].server.HR,'numFound':results[i].result.numFound,'docs':results[i].result.docs.length,'start':args.start})
+                    console.dir(results[i].result.highlighting)
+                    while (results[i].result.docs.length > 0) {
+                      let doc = results[i].result.docs.pop()
+                      doc['_server_'] = results[i].server.HR
+                      if (results[i].highlighting) {
+                        if (results[i].highlighting[doc['id']]) {
+                          doc['_highlighting_'] = results[i].highlighting[doc['id']]
+                          delete(results[i].highlighting[doc['id']])
+                        }
+                      }
+                      resEnd.docs.push(doc)
+                    }
+                  }
                 }
             }
           }
-          res.end('gut')
+          res.end(JSON.stringify(resEnd))
         })
         .catch(function(err) {
+          console.dir(err)
           let critical = 'This Should Never Happen :: ' + err.message
-          logError({func,critical,err})
+          logError({'route':'GET/search',critical})
+          res.end('')
+        })
+        break;
+      case 'GET/fields': // --------------------------------------------------
+        let getFields = []
+        for (let i in config.servers){
+          let server = config.servers[i]
+          getFields.push(new Promise((resolve, reject) => {
+              let query = server.proto+'://'+server.host+':'+server.port
+              switch (server.type) {
+                case 'solr':
+                  query += '/solr/'+server.collection+'/select?q=*:*&wt=csv&rows=0&facet&'
+                  httpGet(query)
+                  .then(function(result){
+                      let fields = result.split(',')
+                      resolve({server,fields})
+                  })
+                  .catch(function(error){
+                    resolve({server})
+                  })
+                  break
+                case 'elastic':
+                case 'elasticsearch':
+                    // https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-get-mapping.html
+                    query += '/'+server.collection+'/_mapping/'
+                    httpGet(query)
+                    .then(function(result){
+                        fields = []
+                        try {
+                          let tmp = JSON.parse(result)
+                          if (tmp.error) logWarning({'error':tmp.error,query,server})
+                          else for (let field in tmp[server.collection].mappings.document.properties) fields.push(field)
+                        } catch (e) {
+                          let error = e.message
+                          logError({error,query,server})
+                        }
+                        resolve({server,fields})
+                    })
+                    .catch(function(error){
+                      logWarning({error,query,server})
+                      resolve({server})
+                    })
+                  break
+                default:
+                  logError({'msg':'not supported ' + server.type,server})
+                  resolve({server})
+              }
+            })
+          )
+        }
+        Promise.all(getFields).then(function(results){
+          let fields = ['id','score','_server_','_highlighting_']
+          for (let i in results){
+            if (results[i].fields) {
+              while (results[i].fields.length > 0) {
+                let field = results[i].fields.pop()
+                if (fields.indexOf(field) === -1 ) fields.push(field)
+              }
+            }
+          }
+          res.end(JSON.stringify(fields.sort()))
+        })
+        .catch(function(err) {
+          console.dir(err)
+          let critical = 'This Should Never Happen :: ' + err.message
+          logError({'route':'GET/fields',critical,err})
           res.end('')
         })
         break;

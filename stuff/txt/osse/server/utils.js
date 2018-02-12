@@ -95,7 +95,7 @@ async function writeFile(filename,data){
 
 function checkHostPortConnection(host, port, timeout) {
     return new Promise(function(resolve, reject) {
-        timeout = timeout || 1000    
+        timeout = timeout || 1000
         var timer = setTimeout(function() {
             socket.end()
             reject(new Error('timeout '+timeout))
@@ -120,7 +120,8 @@ function getIpUser(req){
 
 async function httpGet(url){
   return new Promise((resolve, reject) => {
-    logInfo({'status':'started',url})
+    logInfo({'httpGet':'started',url})
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
     try {
     (url.indexOf('https://')>-1 ? https : http).get(url, (resp) => {
 
@@ -129,14 +130,11 @@ async function httpGet(url){
         data += chunk;
       });
       resp.on('end', () => {
-        logInfo({'status':'end',url})
+        logInfo({'httpGet':'end',url})
         resolve(data)
       });
     }).on("error", (error) => {
-      logInfo({'status':'error',url})
-      const func = 'httpGet'
-      const msg = error.message
-      //logWarning({func,url,msg})
+      logInfo({'httpGet':'error',url, 'error':error.message})
       reject(error)
     });
   } catch (err) {
@@ -157,67 +155,9 @@ function sendMail(to, subject, body, from, host, port) {
           resolve(false)
         } else {
           logInfo({func,'status':'mail sent',info})
-          resolve(true)  
+          resolve(true)
         }
       })
-  })
-}
-
-function createSearchPromise(server,args){
-  return new Promise((resolve, reject) => {
-    //{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"}
-    if (!server.type) reject(new Error('no server type'))
-    //TODO check proto host port
-    let query = server.proto+'://'+server.host+':'+server.port
-    switch (server.type) {
-      case 'solr':
-        query += '/solr/'+server.collection+'/select?'
-        if (!args.wt) args.wt = 'json'
-        query += 'wt='+args.wt+'&q=' + args.q + '&'
-        if (args.q.op && args.q.op === 'AND') query += 'q.op=AND&'
-        query += 'rows='+args.rows+'&start='+args.start+'&'
-        query += 'fl='+args.fl+'&'
-        if (args.hl) {
-           for (let hl in args.hl) {
-             query += 'hl.'+hl+'='+args.hl[hl]+'&'
-           }
-        }
-        httpGet(query)
-        .then(function(res){
-          let result = res
-          resolve({server,result})
-        })
-        .catch(function(error){
-          resolve({server,error})
-        })
-        break
-      case 'elastic':
-      case 'elasticsearch':
-
-        if (!args.hl) {
-          // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
-          query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
-          query += 'size='+args.rows+'&from='+args.start+'&'
-          //_source_include
-          //sort=_score
-          httpGet(query)
-          .then(function(res){
-            let result = res
-            resolve({server,result})
-          })
-          .catch(function(error){
-            resolve({server,error})
-          })
-        } else {
-          //TODO https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
-          resolve({server})
-        }
-        break
-      default:
-        logError({'msg':'not supported ' + server.type,server})
-        resolve({server})
-    }
-    //reject('error in createSearchPromise')
   })
 }
 
@@ -231,7 +171,7 @@ module.exports = {
   writeFile: writeFile,
   ensureDirectory: ensureDirectory,
   sendMail, sendMail,
-  createSearchPromise: createSearchPromise,
+  httpGet: httpGet,
   getIpUser: getIpUser,
   readJSON: async function(filename){
     let data = await readFile(filename)
