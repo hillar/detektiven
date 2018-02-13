@@ -101,10 +101,14 @@ cliParams
     if (process.stdout.isTTY) console.log('fresh start !?, no users sessions history file',config.usersFile)
   }
 
-  let server = http.createServer( async (req, res) => {
+  let osse = http.createServer( async (req, res) => {
     let bittes = req.url.split('?')
     let urlPath = bittes[0]
     let leftpath = '/'+bittes[0].split('/')[1] || '/'
+    let rightpath
+    if (bittes[0].split('/')[2]) rightpath = bittes[0].split('/')[2]
+    let singleServer
+    if (rightpath && config.servers.find(function(s){return s.HR === rightpath})) singleServer = rightpath
     bittes.shift()
     let params = bittes.join('?').trim().split('&').filter(String)
     args = {}
@@ -155,12 +159,13 @@ cliParams
         let httpgets = []
         for (let i in config.servers){
           let server = config.servers[i]
-          httpgets.push(new Promise((resolve, reject) => {
+          if (!singleServer || singleServer === server.HR) httpgets.push(new Promise((resolve, reject) => {
             let query = ''
             switch (server.type) {
               case 'solr':
                 query += '/solr/'+server.collection+'/select?'
-                if (!args.wt) args.wt = 'json'
+                //if (!args.wt)
+                args.wt = 'json'
                 query += 'wt='+args.wt+'&q=' + args.q + '&'
                 if (args.q.op && args.q.op === 'AND') query += 'q.op=AND&'
                 query += 'rows='+args.rows+'&start='+args.start+'&'
@@ -506,7 +511,7 @@ cliParams
     });
   })
 
-  server.listen(config.portListen, config.ipListen);
+  osse.listen(config.portListen, config.ipListen);
 
 }
 
