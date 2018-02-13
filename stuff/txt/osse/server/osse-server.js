@@ -7,6 +7,7 @@ const http = require('http')
 const auth = require('http-auth')
 const Busboy = require('busboy')
 const base64url = require('base64url')
+const querystring = require('querystring')
 const freeipa = require('./freeipa')
 const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, httpGet, getIpUser } = require('./utils')
 
@@ -138,12 +139,13 @@ cliParams
           res.end()
           break
         }
+        if (args.q.indexOf('%') === -1) args.q = querystring.escape(args.q)
         //TODO check max
         if (!args.rows) args.rows = 1
         args.rows = Math.min(args.rows,Math.floor(MAXRESULTS/config.servers.length))
         if (!args.start) args.start = 0
-        if (!args.fl) args.fl = 'id'
-        else args.fl = 'id,'+args.fl
+        if (!args.fl) args.fl = 'id,score'
+        else args.fl = 'id,score,'+args.fl
         if (args.hl) {
           args.hl.encoder = 'html'
           if (!args.hl.snippets) args.hl.snippets = 8
@@ -196,6 +198,8 @@ cliParams
               case 'elastic':
               case 'elasticsearch':
                   // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
+                  // https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-id-field.html
+                  if (args.q.indexOf('id%3A') !== -1) args.q = args.q.replace('id%3A','_id%3A')
                   query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
                   query += 'size='+args.rows+'&from='+args.start+'&'
                   query += '_source_include='+args.fl+'&'
