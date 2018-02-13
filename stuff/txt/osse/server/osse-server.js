@@ -283,7 +283,7 @@ cliParams
           res.end(JSON.stringify(resEnd))
         })
         .catch(function(err) {
-          console.dir(err)
+          if (process.stdout.isTTY) console.dir(err)
           let critical = 'This Should Never Happen :: ' + err.message
           logError({'route':'GET/search',critical})
           res.end('')
@@ -354,7 +354,7 @@ cliParams
           res.end(JSON.stringify(fields.sort()))
         })
         .catch(function(err) {
-          console.dir(err)
+          if (process.stdout.isTTY) console.dir(err)
           let critical = 'This Should Never Happen :: ' + err.message
           logError({'route':'GET/fields',critical,err})
           res.end('')
@@ -423,17 +423,16 @@ cliParams
         } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
         break;
       case 'GET/subscriptions':
-        let subscriptions  = await readFile(path.join(config.subscriptionsDirectory,username,'subscriptions.json'))
-        console.dir(subscriptions)
-        if (subscriptions == false) res.end('')
-        else res.end(subscriptions)
+        let subscriptions  = await readJSON(path.join(config.subscriptionsDirectory,username,'subscriptions.json'))
+        if (subscriptions == false || !subscriptions.fields ) res.end('')
+        else res.end(JSON.stringify({'fields':subscriptions.fields}))
         break;
       case 'POST/subscriptions':
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
           let subsFields = {}
           try {
             let subsBusBoy = new Busboy({ preservePath: true, headers: req.headers })
-            busboy.on('error', function(error){
+            subsBusBoy.on('error', function(error){
               let msg = error.message
               logWarning({ip,username,route,msg})
             });
@@ -446,7 +445,7 @@ cliParams
               let subsFile = false
               let subscriptionsDirectory = await ensureDirectory(path.join(config.subscriptionsDirectory,username))
               if (subscriptionsDirectory) {
-                subsFile = await writeFile(path.join(config.subscriptionsDirectory,username,'subscriptions.json'),JSON.stringify({uploadtime,username,emails,subsFields}))
+                subsFile = await writeFile(path.join(config.subscriptionsDirectory,username,'subscriptions.json'),JSON.stringify({uploadtime,username,emails,'fields':subsFields}))
               }
               if (!subsFile) {
                 res.end('try again')
@@ -488,7 +487,7 @@ cliParams
           logError({'msg':'missing index.html'})
           res.end('')
         } else {
-          res.setHeader('Content-type','text/plain')
+          res.setHeader('Content-type','text/html')
           res.end(indexFile)
         }
         break
@@ -500,7 +499,7 @@ cliParams
         let msg = 'missing route'
         logWarning({ip,username,msg,route})
         res.statusCode = 418
-        res.end('NOOP')
+        res.end()
     }
   })
 
