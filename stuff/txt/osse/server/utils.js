@@ -118,29 +118,50 @@ function getIpUser(req){
   return {ip, username}
 }
 
-async function httpGet(url){
+async function httpGet(proto, host, port, path, body){
   return new Promise((resolve, reject) => {
-    logInfo({'httpGet':'started',url})
+    if (!host) reject(new Error('httpGet no host'))
+    if (!port) reject(new Error('httpGet no port'))
+    if (!path) reject(new Error('httpGet no path'))
+    const start = Date.now()
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    logInfo({'httpGet':'start',proto, host, port, path, body})
     try {
-    (url.indexOf('https://')>-1 ? https : http).get(url, (resp) => {
-
-      let data = '';
-      resp.on('data', (chunk) => {
-        data += chunk;
+      const contentlength = ( (body) ? Buffer.byteLength(body) : 0 )
+      const options = {
+        hostname: host,
+        port: port,
+        path: path,
+        method: 'GET',
+        headers: {
+          'content-type' : 'application/json; charset=UTF-8',
+          'content-length' : contentlength
+        }
+      };
+      const req = (proto === 'https' ? https : http).request(options, (res) => {
+        res.setEncoding('utf8');
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          logInfo({'httpGet':'end', 'took':Date.now() - start, proto, host, port, path, body})
+          resolve(data)
+        });
+        res.on('error', (error) => {
+          logWarning({'httpGet':'res error', error})
+          reject(error)
+        })
       });
-      resp.on('end', () => {
-        logInfo({'httpGet':'end',url})
-        resolve(data)
+      req.on('error', (error) => {
+        reject(error)
       });
-    }).on("error", (error) => {
-      logInfo({'httpGet':'error',url, 'error':error.message})
+      if (body) req.write(body);
+      req.end();
+    } catch (error) {
+      logError({'httpGet':'try error', error})
       reject(error)
-    });
-  } catch (err) {
-    logError({err})
-    reject(error)
-  }
+    }
   })
 }
 

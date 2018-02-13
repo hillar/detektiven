@@ -131,17 +131,16 @@ cliParams
     switch (route) {
       // ----------------------------------------------------------------
       case 'GET/search':
-        const func = 'search'
         if (!args.q)  {
-          logError({func,'msg':'no q in args'})
+          logError({route,'msg':'no q in args'})
           res.end('')
           break
         }
         //TODO check max
         if (!args.rows) args.rows = 1
         if (!args.start) args.start = 0
-        //q=*:*&wt=csv&rows=0&facet
         if (!args.fl) args.fl = 'id'
+        else args.fl = 'id,'+args.fl
         if (args.hl) {
           args.hl.encoder = 'html'
           if (!args.hl.snippets) args.hl.snippets = 8
@@ -152,7 +151,7 @@ cliParams
         for (let i in config.servers){
           let server = config.servers[i]
           httpgets.push(new Promise((resolve, reject) => {
-            let query = server.proto+'://'+server.host+':'+server.port
+            let query = ''
             switch (server.type) {
               case 'solr':
                 query += '/solr/'+server.collection+'/select?'
@@ -167,7 +166,7 @@ cliParams
                      query += 'hl.'+hl+'='+args.hl[hl]+'&'
                    }
                 }
-                httpGet(query)
+                httpGet(server.proto,server.host,server.port,query)
                 .then(function(result){
                   try {
                     let resJson = JSON.parse(result)
@@ -193,14 +192,16 @@ cliParams
                 break
               case 'elastic':
               case 'elasticsearch':
-                if (!args.hl) {
                   // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
                   query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
                   query += 'size='+args.rows+'&from='+args.start+'&'
                   query += '_source_include='+args.fl+'&'
-                  //_source_include
-                  //sort=_score
-                  httpGet(query)
+                  let body
+                  if (args.hl) {
+                    // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
+                    body = `{"highlight":{"fields":{"${args.hl.fl}":{"fragment_size":${args.hl.fragsize},"number_of_fragments":${args.hl.snippets}}}}}}`
+                  }
+                  httpGet(server.proto,server.host,server.port,query,body)
                   .then(function(res){
                     try {
                       let resElastic = JSON.parse(res)
@@ -215,6 +216,7 @@ cliParams
                             let doc = tmp._source
                             doc.id = tmp._id
                             doc.score = tmp._score
+                            if (tmp.highlight && tmp.highlight.content) doc['_highlighting_'] = tmp.highlight.content
                             docs.push(doc)
                           }
                           resolve({server,'result':{'numFound':resElastic.hits.total,'docs':docs}})
@@ -231,16 +233,11 @@ cliParams
                   .catch(function(error){
                     resolve({server,error})
                   })
-                } else {
-                  //TODO https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
-                  resolve({server})
-                }
-                break
+              break
               default:
                 logError({'msg':'not supported ' + server.type,server})
                 resolve({server})
             }
-            //reject('error in createSearchPromise')
           }))
         }
         Promise.all(httpgets).then(function(results){
@@ -249,7 +246,7 @@ cliParams
             if (!results[i].server) throw new Error('no server')
             if (results[i].error) {
                 let msg = results[i].error.message
-                logWarning({func,msg,'server':results[i].server})
+                logWarning({route,msg,'server':results[i].server})
             } else {
                 if (results[i].result) {
                   if (typeof(results[i].result) === 'object') {
@@ -260,8 +257,8 @@ cliParams
                       let doc = results[i].result.docs.pop()
                       doc['_server_'] = results[i].server.HR
                       if (results[i].highlighting) {
-                        if (results[i].highlighting[doc['id']]) {
-                          doc['_highlighting_'] = results[i].highlighting[doc['id']]
+                        if (results[i].highlighting[doc['id']] && results[i].highlighting[doc['id']].content) {
+                          doc['_highlighting_'] = results[i].highlighting[doc['id']].content
                           delete(results[i].highlighting[doc['id']])
                         }
                       }
@@ -285,11 +282,12 @@ cliParams
         for (let i in config.servers){
           let server = config.servers[i]
           getFields.push(new Promise((resolve, reject) => {
-              let query = server.proto+'://'+server.host+':'+server.port
+              let query = ''
               switch (server.type) {
                 case 'solr':
-                  query += '/solr/'+server.collection+'/select?q=*:*&wt=csv&rows=0&facet&'
-                  httpGet(query)
+                  // https://stackoverflow.com/questions/3211139/solr-retrieve-field-names-from-a-solr-index
+                  query += '/solr/'+server.collection+'/select?q=*:*&wt=csv&rows=0&facet'
+                  httpGet(server.proto, server.host, server.port, query)
                   .then(function(result){
                       let fields = result.split(',')
                       resolve({server,fields})
@@ -303,13 +301,16 @@ cliParams
                 case 'elasticsearch':
                     // https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-get-mapping.html
                     query += '/'+server.collection+'/_mapping/'
-                    httpGet(query)
+                    httpGet(server.proto, server.host, server.port, query)
                     .then(function(result){
                         fields = []
                         try {
                           let tmp = JSON.parse(result)
                           if (tmp.error) logWarning({'error':tmp.error,query,server})
-                          else for (let field in tmp[server.collection].mappings.document.properties) fields.push(field)
+                          else {
+                            if (tmp[server.collection].mappings.document.properties) for (let field in tmp[server.collection].mappings.document.properties) fields.push(field)
+                            else logError({'error':'no mappings.document.properties',query,server})
+                          }
                         } catch (e) {
                           let error = e.message
                           logError({error,query,server})
