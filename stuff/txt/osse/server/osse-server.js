@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-const os = require('os')
+
 const fs = require('fs')
 const path = require('path')
-const url = require('url')
 const cliParams = require('commander')
 const http = require('http')
 const auth = require('http-auth')
@@ -12,6 +11,9 @@ const freeipa = require('./freeipa')
 const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, httpGet, getIpUser } = require('./utils')
 
 async function main() {
+
+const MAXRESULTS = 1024
+
 cliParams
   .version('0.0.1')
   .usage('[options]')
@@ -39,7 +41,7 @@ cliParams
   if (!cliParams.generateConfig){
     configFile = await readJSON(cliParams.config)
     if (configFile === false ) {
-      if (process.stdout.isTTY) console.log('failded to load config file, try -g to generate sample config')
+      if (process.stdout.isTTY) console.log('failed to load config file, try -g to generate sample config')
       process.exit(1);
     }
   }
@@ -133,11 +135,12 @@ cliParams
       case 'GET/search':
         if (!args.q)  {
           logError({route,'msg':'no q in args'})
-          res.end('')
+          res.end()
           break
         }
         //TODO check max
         if (!args.rows) args.rows = 1
+        args.rows = Math.min(args.rows,Math.floor(MAXRESULTS/config.servers.length))
         if (!args.start) args.start = 0
         if (!args.fl) args.fl = 'id'
         else args.fl = 'id,'+args.fl
