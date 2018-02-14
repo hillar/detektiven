@@ -102,6 +102,7 @@ cliParams
   }
 
   let osse = http.createServer( async (req, res) => {
+    console.dir(req.url)
     let bittes = req.url.split('?')
     let urlPath = bittes[0]
     let leftpath = '/'+bittes[0].split('/')[1] || '/'
@@ -281,7 +282,7 @@ cliParams
                 }
             }
           }
-          res.end(JSON.stringify(resEnd))
+          res.end(JSON.stringify({'response':resEnd}))
         })
         .catch(function(err) {
           if (process.stdout.isTTY) console.dir(err)
