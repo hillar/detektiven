@@ -102,7 +102,8 @@ cliParams
   }
 
   let osse = http.createServer( async (req, res) => {
-    if (req.url === '/search?q=*:*&wt=csv&rows=0&facet') req.url = '/fields'
+
+    if (req.url === '/solr/core1/select?q=*:*&wt=csv&rows=0&facet') req.url = '/fields'
     let bittes = req.url.split('?')
     let urlPath = bittes[0]
     let leftpath = '/'+bittes[0].split('/')[1] || '/'
@@ -231,6 +232,7 @@ cliParams
                             let doc = tmp._source
                             doc.id = tmp._id
                             doc.score = tmp._score
+                            if (doc.content) doc.content = [doc.content]
                             if (tmp.highlight && tmp.highlight.content) doc['_highlighting_'] = tmp.highlight.content
                             docs.push(doc)
                           }
@@ -283,7 +285,7 @@ cliParams
                 }
             }
           }
-          res.end(JSON.stringify({'respnse':resEnd}))
+          res.end(JSON.stringify({'response':resEnd}))
         })
         .catch(function(err) {
           if (process.stdout.isTTY) console.dir(err)
