@@ -123,7 +123,7 @@ cliParams
         // build 1 level nested struct
         // see https://lucene.apache.org/solr/guide/6_6/highlighting.html
         if (tmp[0] === 'hl' && tmp[1] == 'on') {if (!args.hl) args.hl = {}}
-        if (tmp[0] === 'q.on') tmp[0] = 'q_on'
+        if (tmp[0] === 'q.op') tmp[0] = 'q_op'
         let nested = tmp[0].split('.')
         if (nested[1]) {
           if (!args[nested[0]]) args[nested[0]] = {}
@@ -168,7 +168,7 @@ cliParams
                 //if (!args.wt)
                 args.wt = 'json'
                 query += 'wt='+args.wt+'&q=' + args.q + '&'
-                if (args.q.op && args.q.op === 'AND') query += 'q.op=AND&'
+                if (args.q_op && args.q_op === 'AND') query += 'q.op=AND&'
                 query += 'rows='+args.rows+'&start='+args.start+'&'
                 if (args.fl) query += 'fl='+args.fl+'&'
                 if (args.hl) {
