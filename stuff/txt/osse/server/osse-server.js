@@ -123,6 +123,7 @@ cliParams
         // build 1 level nested struct
         // see https://lucene.apache.org/solr/guide/6_6/highlighting.html
         if (tmp[0] === 'hl' && tmp[1] == 'on') {if (!args.hl) args.hl = {}}
+        if (tmp[0] === 'q.on') tmp[0] = 'q_on'
         let nested = tmp[0].split('.')
         if (nested[1]) {
           if (!args[nested[0]]) args[nested[0]] = {}

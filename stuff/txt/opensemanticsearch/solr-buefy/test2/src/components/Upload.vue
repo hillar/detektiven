@@ -93,19 +93,18 @@ import axios from 'axios'
                       .catch(function (err) {
                         console.error(err.message)
                         that.$snackbar.open('contact your admin:'+err.message)
-                        reject()
+                        reject(err)
                       });
                   })
                 )
               }
-              Promise.all(uploadz).then(function(filenames){
-                //console.log('uploaded',JSON.stringify(filenames))
+              Promise.all(uploadz)
+              .then(function(filenames){
                 console.log('end uploadFiles')
                 that.$toast.open('uploaded '+files.length+' files<br>'+filenames.join('<br>'))
               })
               .catch(function(error) {
-                console.error(error.message)
-                that.$snackbar.open(error.message)
+                if (error) that.$snackbar.open(error.message)
               })
               .then(function() {
                 that.tagsList = []
