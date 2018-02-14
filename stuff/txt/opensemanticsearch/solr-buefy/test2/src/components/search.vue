@@ -173,7 +173,6 @@
 
     async function errorsSend(){
       if (errors.length === 0) return
-      console.dir(errors)
       let sending = errors.slice()
       errors = []
       let es = await axiosPost('/errors',JSON.stringify(sending))
@@ -201,7 +200,7 @@
             let columns = [
                 { title: 'ID', field: 'id', visible: false },
                 { title: 'Score', field: 'score', visible: true },
-                { title: 'Server', field: '_server_', visible: true },
+                { title: 'Server', field: '_server_', visible: false },
                 { title: 'Name', field: 'upload_filename', visible: true },
                 { title: 'Highlights', field: '_highlighting_', visible: true }
             ]
@@ -240,7 +239,6 @@
               let q = 'q=*:*&wt=csv&rows=0&facet'
               let answer = await askSolr(q)
               if (answer === false || typeof(answer) !== 'string') {
-                console.dir(answer)
                 errorsPush('noFields',q)
                 this.$snackbar.open('notify your admin, field list is not loading')
               } else {
@@ -295,7 +293,6 @@
                 if (answer.response.numFound > 0) {
                   this.total = answer.response.numFound
                   answer.response.docs.forEach((item) => {
-                    console.dir(item)
                     for (let i in item) if (Array.isArray(item[i])) item[i] = item[i].join(this.separator)
                     if (!item._highlighting_){
                       if (answer.highlighting && answer.highlighting[item.id] && answer.highlighting[item.id].content){

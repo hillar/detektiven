@@ -352,7 +352,9 @@ cliParams
             if (results[i].fields) {
               while (results[i].fields.length > 0) {
                 let field = results[i].fields.pop()
-                if (fields.indexOf(field) === -1 ) fields.push(field)
+                if (field !== 'content' && field.indexOf('column_') === -1 && field.indexOf('_error_') === -1 && field.indexOf('_txt_') === -1 && field.endsWith('_b') === false) {
+                  if (fields.indexOf(field) === -1 ) fields.push(field)
+                }
               }
             }
           }
