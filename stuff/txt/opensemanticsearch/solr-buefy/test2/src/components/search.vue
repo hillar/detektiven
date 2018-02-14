@@ -139,7 +139,8 @@
 
     async function askSolr(params){
       return new Promise((resolve, reject) => {
-        const url = `/solr/core1/select?${params}`
+        //const url = `/solr/core1/select?${params}`
+        const url = `/search?${params}`
         const defaultResult = {response:{numFound:0,start:0,docs:[]}}
         axiosGet(url)
         .then(function (res) {
@@ -271,7 +272,7 @@
                   `rows=${this.perPage}`,
                   `sort=${this.sortField}%20${this.sortOrder}`,
                   `q.op=${this.isAndOr}`,
-                  `q=${this.userQuery}`,
+                  `q=${encodeURIComponent(this.userQuery)}`,
                   `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
                   ].join('&')
               let answer = await askSolr(params)
@@ -302,8 +303,9 @@
             async preview(row){
               if (!row.content){
                 this.loading = true
-                let q = `&wt=json&fl=content&q=id:"${row.id}"`
-                let answer = await askSolr(q)
+                let q = encodeURIComponent(`id:"${row.id}"`)
+                let u = `&wt=json&fl=content&q=${q}`
+                let answer = await askSolr(u)
                 if (answer === false) {
                    this.$snackbar.open('contact your admin, backend returned no data')
                 } else {
@@ -311,6 +313,7 @@
                       row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
                       this.$modal.open('<pre>'+row.content+'</pre>')
                   } else {
+                    this.$toast.open('no content, sorry ;(')
                     if (!answer.response.docs) errorsPush('solr returned no docs',answer.response)
                     if (!answer.response.docs[0]) errorsPush('solr returned empty docs',answer.response)
                   }
