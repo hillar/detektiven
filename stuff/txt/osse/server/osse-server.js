@@ -102,7 +102,7 @@ cliParams
   }
 
   let osse = http.createServer( async (req, res) => {
-    console.dir(req.url)
+    if (req.url === '/search?q=*:*&wt=csv&rows=0&facet') req.url = '/fields'
     let bittes = req.url.split('?')
     let urlPath = bittes[0]
     let leftpath = '/'+bittes[0].split('/')[1] || '/'
@@ -140,8 +140,9 @@ cliParams
     switch (route) {
       // ----------------------------------------------------------------
       case 'GET/search':
-        if (!args.q)  {
-          logError({route,'msg':'no q in args'})
+      case 'GET/solr':
+        if (!args.q || typeof(args.q) != 'string')  {
+          logError({ip,username,route,'msg':'no q in args'})
           res.end()
           break
         }
@@ -282,7 +283,7 @@ cliParams
                 }
             }
           }
-          res.end(JSON.stringify({'response':resEnd}))
+          res.end(JSON.stringify({'respnse':resEnd}))
         })
         .catch(function(err) {
           if (process.stdout.isTTY) console.dir(err)
@@ -353,7 +354,7 @@ cliParams
               }
             }
           }
-          res.end(JSON.stringify(fields.sort()))
+          res.end(fields.sort().join(','))
         })
         .catch(function(err) {
           if (process.stdout.isTTY) console.dir(err)
@@ -368,7 +369,12 @@ cliParams
           errors.push(chunk);
         }).on('end', () => {
           errors = Buffer.concat(errors).toString();
-          logWarning({ip,username,errors})
+          try {
+            errors = JSON.parse(errors)
+            for (let i in errors) logWarning({ip,username,'browser':errors[i]})
+          } catch (e) {
+            logWarning({ip,username,'browser':errors})
+          }
         })
         res.end('thanks for errors')
         break;

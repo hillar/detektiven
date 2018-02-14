@@ -139,8 +139,8 @@
 
     async function askSolr(params){
       return new Promise((resolve, reject) => {
-        //const url = `/solr/core1/select?${params}`
-        const url = `/search?${params}`
+        const url = `/solr/core1/select?${params}`
+        //const url = `/search?${params}`
         const defaultResult = {response:{numFound:0,start:0,docs:[]}}
         axiosGet(url)
         .then(function (res) {
@@ -150,12 +150,12 @@
                 if (res.data.response.numFound != undefined ) {
                   resolve(res.data)
                 } else {
-                  errorsPush('not solr response, missing numFound', url)
+                  errorsPush('nonumFound', url)
                   console.dir(res.data)
                   resolve(defaultResult)
                 }
               } else {
-                errorsPush('not solr response, missing response', url)
+                errorsPush('noResponse', url)
                 console.dir(res.data)
                 resolve(defaultResult)
               }
@@ -163,7 +163,7 @@
               resolve(res.data)
             }
           }  else {
-            errorsPush('not solr response, missing data', url)
+            errorsPush('noData', url)
             console.dir(res)
             resolve(false)
           }
@@ -171,8 +171,9 @@
       })
     }
 
-    async function sendErrors(){
+    async function errorsSend(){
       if (errors.length === 0) return
+      console.dir(errors)
       let sending = errors.slice()
       errors = []
       let es = await axiosPost('/errors',JSON.stringify(sending))
@@ -183,7 +184,14 @@
     }
 
     function errorsPush(...args){
-      errors.push({time:Date.now(),...args})
+      let msg = {}
+      let now = new Date()
+      msg['time'] = now.toJSON()
+      let type = args[0]
+      args.shift()
+      msg[type] = args
+      errors.push(msg)
+      console.log(msg)
     }
 
     let errors = []
@@ -228,8 +236,10 @@
               let old = this.message
               this.message = "wait, loading fields from solr"
               let fields = []
-              let answer = await askSolr('q=*:*&wt=csv&rows=0&facet')
-              if ((answer === false)) {
+              let q = 'q=*:*&wt=csv&rows=0&facet'
+              let answer = await askSolr(q)
+              if (answer === false || typeof(answer) !== 'string') {
+                errorsPush('noFields',u)
                 this.$snackbar.open('notify your admin, field list ins not loading')
               } else {
                 fields = answer.trim().split(',')
@@ -237,10 +247,10 @@
                   if ((fields[i].indexOf('_b') - fields[i].length)!=-2) {
                     let found = false
                     for (let j in this.columns) {
-                      console.log(this.columns[j].field,fields[i])
+                      //console.log(this.columns[j].field,fields[i])
                       if (this.columns[j].field === fields[i]) {
                         found = true
-                        console.log(this.columns[j].field,fields[i])
+                        //console.log(this.columns[j].field,fields[i])
                         break
                       }
                     }
@@ -255,12 +265,10 @@
             },
 
             async search() {
-              this.loading = true
+              errorsSend()
               const loadingComponent = this.$loading.open()
               let old = this.message
               this.message = "wait, searching .."
-              sendErrors()
-
               this.data = []
               this.total = 0
               let fields = []
@@ -278,6 +286,7 @@
               let answer = await askSolr(params)
               if (answer === false ) {
                   this.message = old
+                  errorsPush('noResponse',params)
                   this.$snackbar.open('notify your admin, solr did not returned any answers')
               } else {
                 this.message = ""
@@ -297,7 +306,6 @@
                 }
               }
               loadingComponent.close()
-              this.loading = false
             },
 
             async preview(row){
@@ -307,6 +315,7 @@
                 let u = `&wt=json&fl=content&q=${q}`
                 let answer = await askSolr(u)
                 if (answer === false) {
+                   errorsPush('noPreview',u)
                    this.$snackbar.open('contact your admin, backend returned no data')
                 } else {
                   if (answer.response.numFound != undefined && answer.response.docs && answer.response.docs[0] && answer.response.docs[0].content) {
@@ -314,8 +323,8 @@
                       this.$modal.open('<pre>'+row.content+'</pre>')
                   } else {
                     this.$toast.open('no content, sorry ;(')
-                    if (!answer.response.docs) errorsPush('solr returned no docs',answer.response)
-                    if (!answer.response.docs[0]) errorsPush('solr returned empty docs',answer.response)
+                    if (!answer.response.docs) errorsPush('noDocs',answer.response)
+                    if (!answer.response.docs[0]) errorsPush('emptyDoc',answer.response)
                   }
                 }
                 this.loading = false
