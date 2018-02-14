@@ -90,7 +90,7 @@
                :key="index"
                :label="column.title"
                :visible="column.visible">
-               <p v-if="column.field === 'highlighting' "v-innerhtml="props.row.highlighting"></p>
+               <p v-if="column.field === '_highlighting_' "v-innerhtml="props.row._highlighting_"></p>
                <p v-else>{{ props.row[column.field] }}</p>
             </b-table-column>
          </template>
@@ -201,8 +201,9 @@
             let columns = [
                 { title: 'ID', field: 'id', visible: false },
                 { title: 'Score', field: 'score', visible: true },
+                { title: 'Server', field: '_server_', visible: true },
                 { title: 'Name', field: 'upload_filename', visible: true },
-                { title: 'Highlights', field: 'highlighting', visible: true }
+                { title: 'Highlights', field: '_highlighting_', visible: true }
             ]
             let connectorFields = [
               "email_ss",
@@ -239,8 +240,9 @@
               let q = 'q=*:*&wt=csv&rows=0&facet'
               let answer = await askSolr(q)
               if (answer === false || typeof(answer) !== 'string') {
-                errorsPush('noFields',u)
-                this.$snackbar.open('notify your admin, field list ins not loading')
+                console.dir(answer)
+                errorsPush('noFields',q)
+                this.$snackbar.open('notify your admin, field list is not loading')
               } else {
                 fields = answer.trim().split(',')
                 for (let i in fields){
@@ -293,11 +295,14 @@
                 if (answer.response.numFound > 0) {
                   this.total = answer.response.numFound
                   answer.response.docs.forEach((item) => {
+                    console.dir(item)
                     for (let i in item) if (Array.isArray(item[i])) item[i] = item[i].join(this.separator)
-                    if (answer.highlighting && answer.highlighting[item.id] && answer.highlighting[item.id].content){
-                      item.highlighting = answer.highlighting[item.id].content.join('<br>...<br>')
-                    } else {
-                      item.highlighting = " .. "
+                    if (!item._highlighting_){
+                      if (answer.highlighting && answer.highlighting[item.id] && answer.highlighting[item.id].content){
+                        item._highlighting_ = answer.highlighting[item.id].content.join('<br>...<br>')
+                      } else {
+                        item._highlighting_ = " .. "
+                      }
                     }
                     this.data.push(item)
                   })
