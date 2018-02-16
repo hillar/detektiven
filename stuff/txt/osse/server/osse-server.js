@@ -274,8 +274,9 @@ cliParams
                       let doc = results[i].result.docs.pop()
                       doc['_server_'] = results[i].server.HR
                       if (results[i].highlighting) {
-                        if (results[i].highlighting[doc['id']] && results[i].highlighting[doc['id']].content) {
-                          doc['_highlighting_'] = results[i].highlighting[doc['id']].content
+                        //TODO if args.hl.fl == array
+                        if (results[i].highlighting[doc['id']] && results[i].highlighting[doc['id']][args.hl.fl]) {
+                          doc['_highlighting_'] = results[i].highlighting[doc['id']][args.hl.fl]
                           delete(results[i].highlighting[doc['id']])
                         }
                       }
