@@ -43,6 +43,9 @@
       <div v-if="settings" class="columns is-multiline is-mobile">
          <div class="column is-one-quarter">
             <h3>SETTINGS</h3>
+            <b-field label="content field name">
+               <b-input v-model="contentField"></b-input>
+            </b-field>
             <b-field label="results per page">
                <b-input v-model="perPage" type="number" min="1" max="100"></b-input>
             </b-field>
@@ -93,7 +96,7 @@
                :visible="column.visible">
                 <div
                     v-if="column.renderHtml"
-                    v-html="props.row[column.field]" 
+                    v-html="props.row[column.field]"
                 />
                 <template v-else>
                     {{ props.row[column.field] }}
@@ -106,7 +109,7 @@
             </div>
          </template>
          <template slot="bottom-left">
-            &nbsp;<b>Total found</b>: {{ total }} on page {{ page }}
+            &nbsp;<b>Total found</b>: {{ total }} on page {{ page }} {{ datalength }}
          </template>
          </b-table>
       </div>
@@ -214,14 +217,14 @@
               "email_ss",
               "upload_tags"
             ]
-            let contentField = 'features'
+
             return {
                 data: [],
                 columns,
                 connectorFields,
-                contentField,
                 total: 0,
                 loading: false,
+                contentField:  'content',
                 sortField: 'score',
                 sortOrder: 'desc',
                 defaultSortOrder: 'desc',
@@ -241,6 +244,9 @@
             let ret = []
             for (let i in this.columns) if (this.columns[i].visible) ret.push(this.columns[i])
             return ret
+          },
+          datalength(){
+            return this.data.length
           }
         },
         methods: {
@@ -304,6 +310,7 @@
                   errorsPush('noResponse',params)
                   this.$snackbar.open('notify your admin, solr did not returned any answers')
               } else {
+
                 this.message = ""
                 if (answer.response.numFound > 0) {
                   this.total = answer.response.numFound
@@ -318,6 +325,7 @@
                     }
                     this.data.push(item)
                   })
+                  console.dir(this.data)
                 } else {
                   this.message = this.userQuery +" <- no results ;("
                 }

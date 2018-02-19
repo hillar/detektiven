@@ -151,7 +151,9 @@ cliParams
         //TODO check max
         if (!args.rows) args.rows = 1
         args.rows = Math.min(args.rows,Math.floor(MAXRESULTS/config.servers.length))
+        args.rows = Math.max(1,Math.ceil(args.rows/config.servers.length))
         if (!args.start) args.start = 0
+        if (args.start > 0) args.start = Math.max(1,Math.ceil(args.start/config.servers.length))
         if (!args.fl) args.fl = 'id,score'
         else args.fl = 'id,score,'+args.fl
         if (args.hl) {
