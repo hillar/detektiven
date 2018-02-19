@@ -82,16 +82,22 @@
          detailed
          detail-key="id"
          backend-sorting
+         :current-page="page"
          :default-sort-direction="defaultSortOrder"
          :default-sort="[sortField, sortOrder]"
          @sort="onSort">
          <template slot-scope="props">
-            <b-table-column v-for="(column, index) in columns"
+            <b-table-column v-for="(column, index) in tablecolumns"
                :key="index"
                :label="column.title"
                :visible="column.visible">
-               <p v-if="column.field === '_highlighting_' "v-innerhtml="props.row._highlighting_"></p>
-               <p v-else>{{ props.row[column.field] }}</p>
+                <div
+                    v-if="column.renderHtml"
+                    v-html="props.row[column.field]" 
+                />
+                <template v-else>
+                    {{ props.row[column.field] }}
+                </template>
             </b-table-column>
          </template>
          <template slot="detail" slot-scope="props">
@@ -202,16 +208,18 @@
                 { title: 'Score', field: 'score', visible: true },
                 { title: 'Server', field: '_server_', visible: false },
                 { title: 'Name', field: 'upload_filename', visible: true },
-                { title: 'Highlights', field: '_highlighting_', visible: true }
+                { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true }
             ]
             let connectorFields = [
               "email_ss",
               "upload_tags"
             ]
+            let contentField = 'features'
             return {
                 data: [],
                 columns,
                 connectorFields,
+                contentField,
                 total: 0,
                 loading: false,
                 sortField: 'score',
@@ -227,6 +235,13 @@
                 snippetsCount: 4,
                 separator: '; '
             }
+        },
+        computed: {
+          tablecolumns(){
+            let ret = []
+            for (let i in this.columns) if (this.columns[i].visible) ret.push(this.columns[i])
+            return ret
+          }
         },
         methods: {
 
@@ -281,7 +296,7 @@
                   `sort=${this.sortField}%20${this.sortOrder}`,
                   `q.op=${this.isAndOr}`,
                   `q=${encodeURIComponent(this.userQuery)}`,
-                  `hl=on&hl.fl=content&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
+                  `hl=on&hl.fl=${this.contentField}&hl.fragsize=${this.fragSize}&hl.encoder=html&hl.snippets=${this.snippetsCount}`
                   ].join('&')
               let answer = await askSolr(params)
               if (answer === false ) {
@@ -314,14 +329,14 @@
               if (!row.content){
                 this.loading = true
                 let q = encodeURIComponent(`id:"${row.id}"`)
-                let u = `&wt=json&fl=content&q=${q}`
+                let u = `&wt=json&fl=${this.contentField}&q=${q}`
                 let answer = await askSolr(u)
                 if (answer === false) {
                    errorsPush('noPreview',u)
                    this.$snackbar.open('contact your admin, backend returned no data')
                 } else {
-                  if (answer.response.numFound != undefined && answer.response.docs && answer.response.docs[0] && answer.response.docs[0].content) {
-                      row.content = answer.response.docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                  if (answer.response.numFound != undefined && answer.response.docs && answer.response.docs[0] && answer.response.docs[0][this.contentField]) {
+                      row.content = answer.response.docs[0][this.contentField].join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
                       this.$modal.open('<pre>'+row.content+'</pre>')
                   } else {
                     this.$toast.open('no content, sorry ;(')
