@@ -46,7 +46,7 @@ async function findDocs(q,f){
     if (Array.isArray(f) && f.length>0) {
       fl = f.join(',')
     }
-    let q_url = `/solr/core1/select?&wt=json&fl=${fl}&q=${q}`
+    let q_url = `/solr/core1/select?&wt=json&fl=${fl}&q=${encodeURIComponent(q)}`
     console.log('findDocs',q, q_url)
     axios.get(q_url)
     .then(function (res) {
