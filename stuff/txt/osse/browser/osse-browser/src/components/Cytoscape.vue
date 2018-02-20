@@ -90,7 +90,7 @@ async function addElements(cy,docs,fields){
 export default {
   name: 'cytoscape',
   props: {
-            thing: {},
+            thing: {type: Object, default: {}},
             connectors: Array
   },
   data () {

@@ -2,6 +2,7 @@
    <section>
       <b-field grouped class="container is-fullwidth">
          <b-field class="is-fluid is-expanded">
+           <!--<div>{{ total }}</div> -->
             <button class="is-disabled">Archive</button>
             <b-input class="is-expanded is-focused"
                placeholder="Search .. "
@@ -109,7 +110,7 @@
             </div>
          </template>
          <template slot="bottom-left">
-            &nbsp;<b>Total found</b>: {{ total }} on page {{ page }} {{ datalength }}
+            &nbsp;<b>Total found</b>: {{ total }}
          </template>
          </b-table>
       </div>
