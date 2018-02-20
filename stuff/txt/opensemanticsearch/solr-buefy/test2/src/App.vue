@@ -5,6 +5,8 @@
 </template>
 
 <script>
+import 'buefy/lib/buefy.css'
+import 'mdi/css/materialdesignicons.css'
 export default {
   name: 'app'
 }

@@ -17,7 +17,6 @@ data() {
 import cytoscape from 'cytoscape'
 import Weaver from "weaverjs";
 import cxtmenu from 'cytoscape-cxtmenu'
-import 'mdi/css/materialdesignicons.css'
 import axios from 'axios'
 cxtmenu(cytoscape)
 
