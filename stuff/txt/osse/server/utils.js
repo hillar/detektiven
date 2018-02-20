@@ -111,6 +111,20 @@ function checkHostPortConnection(host, port, timeout) {
         })
     })
 }
+async function pingServer(service,host,port){
+  return new Promise(function(resolve, reject) {
+    checkHostPortConnection(host,port)
+    .then(function(){
+      logInfo({'ping':'OK',service,host,port})
+      resolve(true)
+    })
+    .catch(function(err){
+      let error = err.message
+      logInfo({'ping':'FAILED',service,host,port,error})
+      resolve(false)
+    })
+  })
+}
 
 function getIpUser(req){
   let username = req.user || 'anonymous'
@@ -168,7 +182,7 @@ async function httpGet(proto, host, port, path, body){
 function sendMail(to, subject, body, from, host, port) {
   return new Promise((resolve, reject) => {
     const func = 'sendMail'
-    const transport = nodemailer.createTransport({host:host, port:port})
+    const transport = nodemailer.createTransport({host:host, port:port,tls: {rejectUnauthorized: false}})
     transport.sendMail({from:from, to:to, subject:subject, text:body },(err, info) => {
         if (err) {
           const error = err.message
@@ -191,6 +205,7 @@ module.exports = {
   readFile: readFile,
   writeFile: writeFile,
   ensureDirectory: ensureDirectory,
+  pingServer: pingServer,
   sendMail, sendMail,
   httpGet: httpGet,
   getIpUser: getIpUser,
@@ -209,17 +224,5 @@ module.exports = {
           return false
         }
     }
-  },
-  pingServer: async function(service,host,port){
-    await checkHostPortConnection(host,port)
-    .then(function(){
-      logInfo({'ping':'OK',service,host,port})
-      return true
-    })
-    .catch(function(err){
-      let error = err.message
-      logInfo({'ping':'FAILED',service,host,port,error})
-      return false
-    })
   }
 }
