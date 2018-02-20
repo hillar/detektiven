@@ -9,7 +9,7 @@ const Busboy = require('busboy')
 const base64url = require('base64url')
 const querystring = require('querystring')
 const freeipa = require('./freeipa')
-const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, httpGet, getIpUser } = require('./utils')
+const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, getIpUser } = require('./utils')
 
 async function main() {
 
@@ -62,6 +62,7 @@ cliParams
   config.ipaBindpass = cliParams.ipaBindpass || configFile.ipaBindpass || 'password'
   config.ipaBinduser = cliParams.ipaBinduser || configFile.ipaBinduser || 'username'
   config.ipaUsergroup = cliParams.ipaUsergroup || configFile.ipaUsergroup || 'osse'
+  config.ipaUserField = cliParams.ipaUserField || configFile.ipaUserField || 'uid'
   config.realm = configFile.realm || 'osse'
   config.reauth = configFile.reauth || 1000 * 60
   config.metaFilename = configFile.metaFilename || 'meta.json'
@@ -85,7 +86,10 @@ cliParams
 
   // test connection to ipa and servers
   if (cliParams.test) {
-    await pingServer('ipa',config.ipaServer,389)
+    if (await pingServer('ipa',config.ipaServer,389)) {
+      let u = await getUser(config.ipaServer,config.ipaBase,config.ipaBinduser,config.ipaBindpass,config.ipaUserField,config.ipaBinduser,config.ipaBindpass,config.ipaUsergroup)
+      if (u) logNotice({u})
+    }
     if (await pingServer('smtp',config.smtphost,config.smtpport)) await sendMail(config.smtpfrom, 'test','1234', config.smtpfrom, config.smtphost, config.smtpport)
     for (let i in config.servers){
       let server = config.servers[i]
