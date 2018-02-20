@@ -1,20 +1,40 @@
 {
-  "port": 9983,
-  "host": "192.168.11.2",
-  "usersFile": "/var/spool/oss-mini/user-sessions.json",
-  "uploadDirectory": "/var/spool/oss-mini/upload",
-  "subscriptionsDirectory": "/var/spool/oss-mini/subscriptions",
-  "smtpHost": "localhost",
-  "smtpPort": 25,
-  "smtpSender": "noreplay-oss-mini-server@localhost",
-  "ipaServer": "192.168.10.2",
+  "portListen": "9983",
+  "ipListen": "127.0.0.1",
+  "usersFile": "/tmp/osse/users.json",
+  "uploadDirectory": "/tmp/osse/uploads",
+  "subscriptionsDirectory": "/tmp/osse/subscriptions",
+  "staticDirectory": "/tmp/osse/dist",
+  "smtpfrom": "noreply-osse@localhost",
+  "smtphost": "127.0.0.1",
+  "smtpport": 25,
+  "ipaServer": "127.0.0.1",
   "ipaBase": "cn=accounts,dc=example,dc=org",
-  "ipaPass": "kalakala",
-  "ipaUser": "webeid",
-
-  "servers":[
-    {"HR":"OpenSemanticSearch","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"testindex","rotationperiod":"none"},
-    {"HR":"ClosedSemanticSearch","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"testindex","rotationperiod":"monthly"},
-    {"HR":"NOTSemanticSearch","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"index2testing","rotationperiod":"yearly"}
+  "ipaBindpass": "password",
+  "ipaBinduser": "username",
+  "ipaUsergroup": "osse",
+  "realm": "osse",
+  "reauth": 60000,
+  "metaFilename": "meta.json",
+  "subscriptionsFilename": "subscriptions.json",
+  "servers": [
+    {
+      "HR": "hardCodedDefault",
+      "type": "solr",
+      "proto": "https",
+      "host": "solr.c3-lab",
+      "port": 443,
+      "collection": "core1",
+      "rotationperiod": "none"
+    },
+    {
+      "HR": "hardCodedDefaultElastic",
+      "type": "elastic",
+      "proto": "http",
+      "host": "172.16.3.3",
+      "port": 9200,
+      "collection": "oss-mini",
+      "rotationperiod": "yearly"
+    }
   ]
 }
