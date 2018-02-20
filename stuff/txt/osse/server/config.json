@@ -13,6 +13,7 @@
   "ipaBindpass": "password",
   "ipaBinduser": "username",
   "ipaUsergroup": "osse",
+  "ipaUserField": "uid",
   "realm": "osse",
   "reauth": 60000,
   "metaFilename": "meta.json",
@@ -21,19 +22,19 @@
     {
       "HR": "hardCodedDefault",
       "type": "solr",
-      "proto": "https",
-      "host": "solr.c3-lab",
-      "port": 443,
-      "collection": "core1",
+      "proto": "http",
+      "host": "localhost",
+      "port": 8983,
+      "collection": "default",
       "rotationperiod": "none"
     },
     {
       "HR": "hardCodedDefaultElastic",
       "type": "elastic",
       "proto": "http",
-      "host": "172.16.3.3",
+      "host": "localhost",
       "port": 9200,
-      "collection": "oss-mini",
+      "collection": "osse",
       "rotationperiod": "yearly"
     }
   ]
