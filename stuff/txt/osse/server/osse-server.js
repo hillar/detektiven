@@ -107,7 +107,7 @@ cliParams
 
   let osse = http.createServer( async (req, res) => {
 
-    if (req.url === '/solr/core1/select?q=*:*&wt=csv&rows=0&facet') req.url = '/fields'
+    if (req.url.indexOf('/select?q=*:*&wt=csv&rows=0&facet') > -1 ) req.url = '/fields'
     let bittes = req.url.split('?')
     let urlPath = bittes[0]
     let leftpath = '/'+bittes[0].split('/')[1] || '/'
