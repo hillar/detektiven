@@ -8,7 +8,6 @@ const auth = require('http-auth')
 const Busboy = require('busboy')
 const base64url = require('base64url')
 const querystring = require('querystring')
-const freeipa = require('./freeipa')
 const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, getIpUser } = require('./utils')
 
 async function main() {
