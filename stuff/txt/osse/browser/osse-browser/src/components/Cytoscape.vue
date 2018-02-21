@@ -28,13 +28,16 @@ async function getConnectors(doc,fields){
 	})
 }
 
-async function findDocs(q,f){
+async function findDocs(q,f,rows){
+  console.log((!q),q,f)
   return new Promise((resolve, reject) => {
+    if (!q) resolve([])
+    if (!rows) rows = 32
     let fl = '*,content:[value v=""]'
     if (Array.isArray(f) && f.length>0) {
       fl = f.join(',')
     }
-    let q_url = `/solr/core1/select?&wt=json&fl=${fl}&q=${encodeURIComponent(q)}`
+    let q_url = `/solr/core1/select?&wt=json&rows=${rows}&fl=${encodeURIComponent(fl)}&q=${encodeURIComponent(q)}`
     axios.get(q_url)
     .then(function (res) {
       if (res.data ) {

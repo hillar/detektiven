@@ -47,6 +47,9 @@
             <b-field label="content field name">
                <b-input v-model="contentField"></b-input>
             </b-field>
+            <b-field label="connector fields names">
+               <b-input v-model="connectorFields"></b-input>
+            </b-field>
             <b-field label="results per page">
                <b-input v-model="perPage" type="number" min="1" max="100"></b-input>
             </b-field>
@@ -106,7 +109,7 @@
          </template>
          <template slot="detail" slot-scope="props">
             <div style="height:600px">
-               <cytoscape :thing="props.row" :connectors="connectorFields"></cytoscape>
+               <cytoscape :thing="props.row" :connectors="cytoconnectors"></cytoscape>
             </div>
          </template>
          <template slot="bottom-left">
@@ -215,13 +218,10 @@
                 { title: 'ID', field: 'id', visible: false },
                 { title: 'Score', field: 'score', visible: true },
                 { title: 'Server', field: '_server_', visible: false },
-                { title: 'Name', field: 'upload_filename', visible: true },
+                { title: 'Title', field: 'title', visible: true },
                 { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true }
             ]
-            let connectorFields = [
-              "email_ss",
-              "upload_tags"
-            ]
+            let connectorFields = "email_ss,message_to_ss"
 
             return {
                 userQuery: this.query,
@@ -249,6 +249,9 @@
             let ret = []
             for (let i in this.columns) if (this.columns[i].visible) ret.push(this.columns[i])
             return ret
+          },
+          cytoconnectors(){
+            return this.connectorFields.split(',')
           },
           datalength(){
             return this.data.length
