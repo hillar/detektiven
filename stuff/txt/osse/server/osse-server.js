@@ -52,7 +52,7 @@ cliParams
   config.usersFile = cliParams.usersFile || configFile.usersFile || '/tmp/osse/users.json'
   config.uploadDirectory = cliParams.uploadDirectory || configFile.uploadDirectory || '/tmp/osse/uploads'
   config.subscriptionsDirectory = cliParams.subscriptionsDirectory || configFile.subscriptionsDirectory || '/tmp/osse/subscriptions'
-  config.staticDirectory = cliParams.static || config.staticDirectory || '/tmp/osse/dist'
+  config.staticDirectory = cliParams.static || configFile.staticDirectory || '/tmp/osse/dist'
   config.smtpfrom = cliParams.smtpSender || configFile.smtpSender || 'noreply-osse@localhost'
   config.smtphost = cliParams.smtpHost || configFile.smtpHost || '127.0.0.1'
   config.smtpport = cliParams.smtpPort || configFile.smtpPort || 25
@@ -173,6 +173,7 @@ cliParams
     let bittes = req.url.split('?')
     let urlPath = bittes[0]
     let leftpath = '/'+bittes[0].split('/')[1] || '/'
+    const route = req.method + leftpath
     let rightpath
     if (bittes[0].split('/')[2]) rightpath = bittes[0].split('/')[2]
     let singleServer
@@ -201,7 +202,7 @@ cliParams
           if (args[tmp[0]] === undefined) args[tmp[0]] = tmp[1]
         }
     }
-    const route = req.method + leftpath
+
     const { ip, username } = getIpUser(req)
     logNotice({ip,username,route,urlPath,args})
     switch (route) {
