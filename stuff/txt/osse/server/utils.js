@@ -128,7 +128,7 @@ async function pingServer(service,host,port){
 }
 
 function getIpUser(req){
-  let username = req.user || 'anonymous'
+  let username = req.user || '_noReqUser_'
   let ip = req.socket.remoteAddress
   return {ip, username}
 }
@@ -199,7 +199,7 @@ function sendMail(to, subject, body, from, host, port) {
 
 function ldapBindandFind(server,base,binduser,bindpass,field,user,pass,group){
   return new Promise((resolve, reject) => {
-    const func = 'getUser'
+    const func = 'ldapBindandFind'
     try {
       let client = ldap.createClient({url: `ldaps://${server}`, tlsOptions: {rejectUnauthorized: false}})
       client.on('error',function(err){
@@ -230,7 +230,8 @@ function ldapBindandFind(server,base,binduser,bindpass,field,user,pass,group){
                 if (entries.length === 1) {
                     resolve(entries[0])
                 } else {
-                  logError({func:'to many entiries ' + entries.length})
+                  if (entries.length === 0 ) logInfo({'notfound':{user,group}})
+                  else logError({'shouldNotHappen':user +' to many entiries ' + entries.length })
                   resolve(false)
                 }
               });

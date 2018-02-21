@@ -83,7 +83,7 @@ cliParams
   let subscriptionsDirectory = await ensureDirectory(config.subscriptionsDirectory)
   if (!subscriptionsDirectory) process.exit(1)
 
-  // test connection to ipa and servers
+  // test connection to ipa,smtp and servers
   if (cliParams.test) {
     if (await pingServer('ipa',config.ipaServer,389)) {
       let u = await getUser(config.ipaServer,config.ipaBase,config.ipaBinduser,config.ipaBindpass,config.ipaUserField,config.ipaBinduser,config.ipaBindpass,config.ipaUsergroup)
@@ -104,7 +104,70 @@ cliParams
     if (process.stdout.isTTY) console.log('fresh start !?, no users sessions history file',config.usersFile)
   }
 
-  let osse = http.createServer( async (req, res) => {
+  let basic = auth.basic({
+  		realm: config.realm
+  	}, async (username, password, callback) => {
+  		// do not reauth in X milliseconds
+  		if (users[username] && users[username]['lastseen'] && (Date.now() - users[username]['lastseen'] < config.reauth)){
+  			 callback(true)
+  		} else {
+  			//TODO get employeeNumber from header
+          let user = await getUser(config.ipaServer,config.ipaBase,config.ipaBinduser,config.ipaBindpass,config.ipaUserField,username,password,config.ipaUsergroup)
+  	 		  if (user && username === user.uid) {
+  					if (!users[username]) {
+  						users[username] = {}
+  						logNotice({'firstLogin':username})
+  					}
+  					users[username]['ipa'] = user
+  					users[username]['logintime'] = Date.now()
+            sendMail(user.mail, 'Welcome', `Welcome ${user.cn} !` , config.smtpfrom, config.smtphost, config.smtpport)
+  					callback(true);
+  				} else {
+            if (user) {
+  					    logWarning({'uidMismatch':{username,'uid':user.uid}})
+  					    callback(false);
+            } else {
+                callback(false);
+            }
+  				}
+  		}
+  	}
+  );
+  basic.on('success', (result, req) => {
+    const { ip, username } = getIpUser(req)
+    console.log(ip, username)
+    console.dir(result)
+    if (!users[result.user]){
+      users[result.user] = {'logintime':Date.now(), 'lastseen':Date.now(), ip}
+    } else {
+      users[result.user]['lastseen'] = Date.now()
+      if (users[result.user]['ip'] && ip != users[result.user]['ip']) {
+        logNotice({'newIP':ip})
+        sendMail(users[result.user].ipa.mail, 'new ip', 'new login from '+ ip, config.smtpfrom, config.smtphost, config.smtpport)
+      }
+    }
+    writeFile(config.usersFile,JSON.stringify(users))
+    let user_online = users[result.user]['lastseen'] - users[result.user]['logintime']
+  	console.log(`User ${result.user} authenticated since ${users[result.user]['logintime']} online time ${user_online}`);
+  });
+  basic.on('fail', (result, req) => {
+    const { ip, username } = getIpUser(req)
+    if (users[result.user]) {
+      delete users[result.user]
+      writeFile(config.usersFile,JSON.stringify(users))
+      logNotice({'authBasic':'removing user '+ result.user})
+    }
+    logWarning({'authBasic':'fail',ip,'username':result.user})
+  });
+  basic.on('error', (error, req) => {
+    console.dir(error)
+    logWarning({'authBasic':error})
+  });
+
+
+// ------------------------
+
+  let osse = http.createServer(basic, async (req, res) => {
 
     if (req.url.indexOf('/select?q=*:*&wt=csv&rows=0&facet') > -1 ) req.url = '/fields'
     let bittes = req.url.split('?')
