@@ -7,6 +7,7 @@ import cytoscape from 'cytoscape'
 import Weaver from "weaverjs";
 import cxtmenu from 'cytoscape-cxtmenu'
 import axios from 'axios'
+const createGraph = require('ngraph.graph');
 cxtmenu(cytoscape)
 
 async function getConnectors(doc,fields){
@@ -59,10 +60,11 @@ async function findDocs(q,f,rows){
 async function addElements(cy,docs,fields){
   return new Promise((resolve, reject) => {
     let label = 'path_basename_s'
+    cy.startBatch()
     for (let i in docs) {
       let doc = docs[i]
-      if (cy.getElementById(doc.id).length == 0) {
-          if (doc.id.length > 0) cy.add({data:{id:doc.id,label:doc[label],doc:doc}})
+      if (cy.getElementById(doc.id).length === 0) {
+          if (doc.id.length > 0) cy.add({data:{id:doc.id,type:'doc',label:doc[label],doc:doc}})
       }
       let connectors = {}
       for (let i in fields) {
@@ -77,32 +79,74 @@ async function addElements(cy,docs,fields){
       }
       for (let f in connectors){
         let c = doc.id + f
-
-        if (cy.getElementById(c).length == 0) {
+        if (cy.getElementById(c).length === 0) {
           cy.add({data:{id:c,label:f,type:'connector'}})
-          cy.add({data:{source:c,target:doc.id}})
+          cy.add({data:{source:doc.id,target:c}})
+          console.log(f,doc.id)
         }
         for (let i in connectors[f]){
             let cc = connectors[f][i]
             if (cy.getElementById(cc).length == 0) {
-              cy.add({data:{id:cc,label:cc}})
+              cy.add({data:{id:cc,type:f,label:cc}})
+              console.log(cc)
             }
             cy.add({data:{source:c,target:cc}})
         }
       }
-      /*
-      for (let i in connectors){
-        let c = connectors[i]
-        if (cy.getElementById(c).length == 0) {
-          cy.add({data:{id:c,label:c}})
-        }
-        cy.add({data:{source:c,target:doc.id}})
-      }
-      */
     }
+    cy.endBatch()
     resolve(true)
   })
 }
+
+async function buildG(docs,fields){
+  return new Promise((resolve, reject) => {
+    let g = createGraph()
+    let label = 'path_basename_s'
+    g.beginUpdate()
+    for (let i in docs) {
+      let doc = docs[i]
+      if (!g.getNode(doc.id)) {
+          if (doc.id.length > 0) g.addNode(doc.id,{type:'doc',label:doc[label],doc:doc})
+      }
+      let connectors = {}
+      for (let i in fields) {
+        let f = fields[i]
+        if (doc[f]) {
+          if (Array.isArray(doc[f])) {
+              if (doc[f].length > 0) connectors[f] = doc[f]
+          } else {
+            connectors[f] = [doc[f]]
+          }
+        }
+      }
+      for (let f in connectors){
+        let c = doc.id + f
+        if (!g.getNode(c)) {
+          g.addNode(c,{label:f,type:'connector'})
+          g.addLink(doc.id,c)
+        }
+        for (let i in connectors[f]){
+            let cc = connectors[f][i]
+            if (!g.getNode(cc)) {
+              g.addNode(cc,{type:f,label:cc})
+            }
+            g.addLink(c,cc)
+        }
+      }
+    }
+    // remove leaves
+    g.forEachNode(function(node){
+      if (node.links.length < 2 ) g.removeNode(node.id);
+    })
+    g.forEachNode(function(node){
+      if (node.links.length < 2 ) g.removeNode(node.id);
+    })
+    g.endUpdate()
+    resolve(g)
+  })
+}
+
 
 export default {
   name: 'cytoscape',
@@ -148,12 +192,21 @@ export default {
               selector: 'node[type="connector"]',
               style: {
                 'label': '',
-                'opacity': "0.2",
-                "font-size": 3,
-                "min-zoomed-font-size": 9,
-                "text-valign": "left",
+                'opacity': "0.1"
               }
             },
+            {
+             selector: 'node[type="doc"]',
+             style: {
+               'background-color':  '#0ff',
+             }
+           },
+           {
+            selector: 'node[type="root"]',
+            style: {
+              'background-color':  '#f00',
+            }
+          },
              {
                selector: 'edge',
                style: {
@@ -161,6 +214,20 @@ export default {
                  'line-color': '#ccc',
                  'target-arrow-color': '#ccc',
                  'target-arrow-shape': 'triangle'
+               }
+             },
+             {
+               selector: ".element-red",
+               style: {
+                 'font-size': 9,
+                 'background-color':  '#f00',
+               }
+             },
+             {
+               selector: ".element-green",
+               style: {
+                 'font-size': 12,
+                 'background-color':  '#0f0',
                }
              },
              {
@@ -259,17 +326,29 @@ export default {
   methods: {
     async loadRoot(root){
       this.loading = true
-      let docs = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s']))
-      await addElements(this.cy, docs, this.connectors, 'path_basename_s')
-      /*
-      let qs = await getConnectors(docs[0],this.connectors)
-      docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
-      await addElements(this.cy, docs, this.connectors, 'path_basename_s')
-      */
+      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s']))
+      let qs = await getConnectors(rootDoc[0],this.connectors)
+      let docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
+      docs.push(rootDoc[0])
+      let graph = await buildG(docs, this.connectors)
+      this.$toast.open('building graph .. <br> nodes: '+graph.getNodesCount()+' <br> edges: '+graph.getLinksCount())
+      this.cy.startBatch()
+      let cy = this.cy
+      graph.forEachNode(function(node) {
+        if (cy.getElementById(node.id).length === 0) {
+            if (node.id.length > 0) cy.add({data:{id:node.id,type:node.data.type,label:node.data.label,data:node.data}})
+        }
+      })
+      graph.forEachLink(function(link) {
+        cy.add({data:{source:link.fromId,target:link.toId}})
+      })
+      this.cy.getElementById(this.root).addClass("element-green")
+      this.cy.endBatch()
       let layout = this.cy.makeLayout(this.layout);
       layout.run();
       this.loading = false
     },
+
     settings () {
       this.$dialog.prompt({
                     message: `settings`,
@@ -289,7 +368,8 @@ export default {
       var that = this;
       that.cy.batch(function() {
         that.cy.elements().addClass("element-transparent");
-        node.closedNeighborhood().removeClass("element-transparent");
+        node.closedNeighborhood().closedNeighborhood().removeClass("element-transparent");
+        node.addClass("element-red")
       });
     },
     clearHighlights () {
