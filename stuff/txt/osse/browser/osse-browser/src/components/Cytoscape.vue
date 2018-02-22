@@ -29,7 +29,6 @@ async function getConnectors(doc,fields){
 }
 
 async function findDocs(q,f,rows){
-  console.log((!q),q,f)
   return new Promise((resolve, reject) => {
     if (!q) resolve([])
     if (!rows) rows = 32
@@ -65,19 +64,33 @@ async function addElements(cy,docs,fields){
       if (cy.getElementById(doc.id).length == 0) {
           if (doc.id.length > 0) cy.add({data:{id:doc.id,label:doc[label],doc:doc}})
       }
-      let connectors = []
+      let connectors = {}
       for (let i in fields) {
         let f = fields[i]
         if (doc[f]) {
           if (Array.isArray(doc[f])) {
-            for (let j in doc[f]){
-              if (doc[f][j].length > 0) connectors.push(doc[f][j])
-            }
+              if (doc[f].length > 0) connectors[f] = doc[f]
           } else {
-            if (doc[f].length > 0) connectors.push(doc[f])
+            connectors[f] = [doc[f]]
           }
         }
       }
+      for (let f in connectors){
+        let c = doc.id + f
+
+        if (cy.getElementById(c).length == 0) {
+          cy.add({data:{id:c,label:f,type:'connector'}})
+          cy.add({data:{source:c,target:doc.id}})
+        }
+        for (let i in connectors[f]){
+            let cc = connectors[f][i]
+            if (cy.getElementById(cc).length == 0) {
+              cy.add({data:{id:cc,label:cc}})
+            }
+            cy.add({data:{source:c,target:cc}})
+        }
+      }
+      /*
       for (let i in connectors){
         let c = connectors[i]
         if (cy.getElementById(c).length == 0) {
@@ -85,6 +98,7 @@ async function addElements(cy,docs,fields){
         }
         cy.add({data:{source:c,target:doc.id}})
       }
+      */
     }
     resolve(true)
   })
@@ -130,6 +144,16 @@ export default {
                  "text-valign": "top",
                }
              },
+             {
+              selector: 'node[type="connector"]',
+              style: {
+                'label': '',
+                'opacity': "0.2",
+                "font-size": 3,
+                "min-zoomed-font-size": 9,
+                "text-valign": "left",
+              }
+            },
              {
                selector: 'edge',
                style: {
@@ -237,9 +261,11 @@ export default {
       this.loading = true
       let docs = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s']))
       await addElements(this.cy, docs, this.connectors, 'path_basename_s')
+      /*
       let qs = await getConnectors(docs[0],this.connectors)
       docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
       await addElements(this.cy, docs, this.connectors, 'path_basename_s')
+      */
       let layout = this.cy.makeLayout(this.layout);
       layout.run();
       this.loading = false
