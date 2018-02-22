@@ -51,7 +51,10 @@
                <b-input v-model="connectorFields"></b-input>
             </b-field>
             <b-field label="results per page">
-               <b-input v-model="perPage" type="number" min="1" max="100"></b-input>
+               <b-input v-model="perPage" type="number" min="1" max="1024"></b-input>
+            </b-field>
+            <b-field label="truncate length">
+               <b-input v-model="truncateLength" type="number" min="1" max="9048"></b-input>
             </b-field>
             <b-field label="matched fragment size">
                <b-input v-model="fragSize" type="number" min="32" max="256"></b-input>
@@ -103,7 +106,7 @@
                     v-html="props.row[column.field]"
                 />
                 <template v-else>
-                    {{ props.row[column.field] }}
+                    {{ props.row[column.field] | truncate(truncateLength) }}
                 </template>
             </b-table-column>
          </template>
@@ -241,6 +244,7 @@
                 isAndOr: 'AND',
                 fragSize: 128,
                 snippetsCount: 4,
+                truncateLength: 1024,
                 separator: '; '
             }
         },
@@ -390,6 +394,16 @@
               }
               this.settings = !this.settings
               if (!this.settings) await this.search() // reload search if settings closed
+            }
+        },
+        filters: {
+            /**
+             * Filter to truncate string, accepts a length parameter
+             */
+            truncate(value, length) {
+                return value.length > length
+                    ? value.substr(0, length) + '...'
+                    : value
             }
         },
         mounted() {
