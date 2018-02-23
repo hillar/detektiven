@@ -142,6 +142,7 @@ async function buildG(docs,fields){
       }
     }
     // remove leaves
+    if (g.getNodesCount() > 384) {
     console.log('start',g.getNodesCount(),g.getLinksCount())
     await new Promise((resolve, reject) => {
       let nodes = g.getNodesCount()
@@ -155,18 +156,20 @@ async function buildG(docs,fields){
       })
     })
     console.log('step1',g.getNodesCount(),g.getLinksCount())
-    await new Promise((resolve, reject) => {
-      let nodes = g.getNodesCount()
-      let i = 0
-      g.forEachNode(function(node){
-        i += 1
-        if (node && node.links && node.links.length < 2 ) {
-          g.removeNode(node.id)
-        }
-        if (nodes === i ) resolve(true)
+      if (g.getNodesCount() > 384) {
+      await new Promise((resolve, reject) => {
+        let nodes = g.getNodesCount()
+        let i = 0
+        g.forEachNode(function(node){
+          i += 1
+          if (node && node.links && node.links.length < 2 ) {
+            g.removeNode(node.id)
+          }
+          if (nodes === i ) resolve(true)
+        })
       })
-    })
-    console.log('step2',g.getNodesCount(),g.getLinksCount())
+      console.log('step2',g.getNodesCount(),g.getLinksCount())
+    }
     // 4K is 3840  X 2160
     // still to big ;(
     if (g.getNodesCount() > 384) {
@@ -187,6 +190,7 @@ async function buildG(docs,fields){
           }
         }
         console.log('now should be small.. ',g.getNodesCount(),g.getLinksCount())
+    }
     }
     g.endUpdate()
     resolve(g)
@@ -335,16 +339,16 @@ export default {
       selector: "core",
       commands: [
         {
+          content: "Redraw",
+          select: this.reDrawGraph
+        },
+        {
           content: "Clear highlights",
           select: this.clearHighlights
         },
         {
           content: "Highlight root",
           select: this.centerOnGraph
-        },
-        {
-          content: "Redraw",
-          select: this.reDrawGraph
         },
         {
           content: "json",
@@ -387,10 +391,9 @@ export default {
           //console.log('docs',docs.length,'q',tmpq.join(' OR ').length)
       }
       if ((Date.now()-start)>4000) this.$toast.open('got docs: '+docs.length)
-      console.log('docs',docs.length)
-      console.log('queries',Date.now()-start)
+      console.log('queries took',Date.now()-start,'got docs',docs.length)
       let graph = await buildG(docs, this.connectors)
-      console.log('ngraph',Date.now()-start)
+      console.log('ngraph took',Date.now()-start,'got graph',graph.getNodesCount(),graph.getLinksCount())
       if ((Date.now()-start)>5000) this.$toast.open('nodes: '+graph.getNodesCount()+' <br> edges: '+graph.getLinksCount())
       this.cy.startBatch()
       let cy = this.cy
@@ -404,7 +407,7 @@ export default {
       })
       this.cy.getElementById(this.root).addClass("element-green")
       this.cy.endBatch()
-      console.log('cyto',Date.now()-start)
+      console.log('cyto took',Date.now()-start)
       let layout = this.cy.makeLayout(this.layout);
       layout.run();
       console.log('total took',Date.now()-start)
@@ -445,7 +448,7 @@ export default {
       this.cy.remove(node);
     },
     async expandNode(node) {
-      console.log('expandNode')
+      //console.log('expandNode')
       this.loading = true
       let id = node.data('id')
       let data = node.data('data')
