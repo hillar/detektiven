@@ -31,7 +31,7 @@ async function getConnectors(doc,fields){
 
 async function findDocs(q,f,rows){
   return new Promise((resolve, reject) => {
-    if (!q) resolve([])
+    if (!q) resolve(false)
     if (!rows) rows = 32
     let fl = '*,content:[value v=""]'
     if (Array.isArray(f) && f.length>0) {
@@ -46,13 +46,14 @@ async function findDocs(q,f,rows){
             resolve(res.data.response.docs)
           } else {
             console.error('not solr response')
+            resolve(false)
           }
         }
       }
     })
     .catch(function (err) {
       console.error(err.message)
-      resolve([])
+      resolve(false)
     })
   })
 }
@@ -82,13 +83,13 @@ async function addElements(cy,docs,fields){
         if (cy.getElementById(c).length === 0) {
           cy.add({data:{id:c,label:f,type:'connector'}})
           cy.add({data:{source:doc.id,target:c}})
-          console.log(f,doc.id)
+          //console.log(f,doc.id)
         }
         for (let i in connectors[f]){
             let cc = connectors[f][i]
             if (cy.getElementById(cc).length == 0) {
               cy.add({data:{id:cc,type:f,label:cc}})
-              console.log(cc)
+              //console.log(cc)
             }
             cy.add({data:{source:c,target:cc}})
         }
@@ -100,9 +101,10 @@ async function addElements(cy,docs,fields){
 }
 
 async function buildG(docs,fields){
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     let g = createGraph()
     let label = 'path_basename_s'
+    let counts = {}
     g.beginUpdate()
     for (let i in docs) {
       let doc = docs[i]
@@ -120,7 +122,10 @@ async function buildG(docs,fields){
           }
         }
       }
+      //console.log('connectors',Object.keys(connectors).length,doc.id)
       for (let f in connectors){
+        //console.log(f,connectors[f].length,doc.id)
+        if (!counts[f]) counts[f] = 0
         let c = doc.id + f
         if (!g.getNode(c)) {
           g.addNode(c,{label:f,type:'connector'})
@@ -132,16 +137,57 @@ async function buildG(docs,fields){
               g.addNode(cc,{type:f,label:cc})
             }
             g.addLink(c,cc)
+            counts[f] += 1
         }
       }
     }
     // remove leaves
-    g.forEachNode(function(node){
-      if (node.links.length < 2 ) g.removeNode(node.id);
+    console.log('start',g.getNodesCount(),g.getLinksCount())
+    await new Promise((resolve, reject) => {
+      let nodes = g.getNodesCount()
+      let i = 0
+      g.forEachNode(function(node){
+        i += 1
+        if (node && node.links && node.links.length < 2 ) {
+          g.removeNode(node.id)
+        }
+        if (nodes === i ) resolve(true)
+      })
     })
-    g.forEachNode(function(node){
-      if (node.links.length < 2 ) g.removeNode(node.id);
+    console.log('step1',g.getNodesCount(),g.getLinksCount())
+    await new Promise((resolve, reject) => {
+      let nodes = g.getNodesCount()
+      let i = 0
+      g.forEachNode(function(node){
+        i += 1
+        if (node && node.links && node.links.length < 2 ) {
+          g.removeNode(node.id)
+        }
+        if (nodes === i ) resolve(true)
+      })
     })
+    console.log('step2',g.getNodesCount(),g.getLinksCount())
+    // 4K is 3840  X 2160
+    // still to big ;(
+    if (g.getNodesCount() > 384) {
+        for (let f in counts ) {
+          //console.log(counts[f])
+          if (counts[f] > 384) {
+            await new Promise((resolve, reject) => {
+              let nodes = g.getNodesCount()
+              let i = 0
+              g.forEachNode(function(node){
+                i += 1
+                if (node && node.data && node.data.type === f ) {
+                  g.removeNode(node.id)
+                }
+                if (nodes === i ) resolve(true)
+              })
+            })
+          }
+        }
+        console.log('now should be small.. ',g.getNodesCount(),g.getLinksCount())
+    }
     g.endUpdate()
     resolve(g)
   })
@@ -258,16 +304,16 @@ export default {
           select: this.searchbarNode
         },
         {
-          content: "<h1 style='color:yellow'>*</h1>",
-          select: this.highlightNode
+          content: "<h1 style='color:red'>-</h1>",
+          select: this.removeNode
         },
         {
           content: "<h1 style='color:green'>+</h1>",
           select: this.expandNode
         },
         {
-          content: "<h1 style='color:red'>-</h1>",
-          select: this.removeNode
+          content: "<h1 style='color:yellow'>*</h1>",
+          select: this.highlightNode
         },
         {
           content: 'meta',
@@ -326,12 +372,26 @@ export default {
   methods: {
     async loadRoot(root){
       this.loading = true
+      let start = Date.now()
       let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s']))
       let qs = await getConnectors(rootDoc[0],this.connectors)
-      let docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
+      if (qs.length > 128) this.$toast.open('sorry, wait a bit ..<br>object to query: '+qs.length)
+      let docs = []
       docs.push(rootDoc[0])
+      let i,j,temparray,chunk = 128;
+      for (let i=0,j=qs.length; i<j; i+=chunk) {
+          let tmpq = qs.slice(i,i+chunk)
+          //console.log(i,j,tmpq.join(' OR '))
+          let tmp = await findDocs(tmpq.join(' OR '), this.connectors.concat(['id','path_basename_s']))
+          for (let y in tmp) if (!docs.find(x => x.id === tmp[y].id)) docs.push(tmp[y])
+          //console.log('docs',docs.length,'q',tmpq.join(' OR ').length)
+      }
+      if ((Date.now()-start)>4000) this.$toast.open('got docs: '+docs.length)
+      console.log('docs',docs.length)
+      console.log('queries',Date.now()-start)
       let graph = await buildG(docs, this.connectors)
-      this.$toast.open('building graph .. <br> nodes: '+graph.getNodesCount()+' <br> edges: '+graph.getLinksCount())
+      console.log('ngraph',Date.now()-start)
+      if ((Date.now()-start)>5000) this.$toast.open('nodes: '+graph.getNodesCount()+' <br> edges: '+graph.getLinksCount())
       this.cy.startBatch()
       let cy = this.cy
       graph.forEachNode(function(node) {
@@ -344,8 +404,10 @@ export default {
       })
       this.cy.getElementById(this.root).addClass("element-green")
       this.cy.endBatch()
+      console.log('cyto',Date.now()-start)
       let layout = this.cy.makeLayout(this.layout);
       layout.run();
+      console.log('total took',Date.now()-start)
       this.loading = false
     },
 
@@ -383,18 +445,60 @@ export default {
       this.cy.remove(node);
     },
     async expandNode(node) {
+      console.log('expandNode')
       this.loading = true
-      let doc = node.data('doc')
+      let id = node.data('id')
+      let data = node.data('data')
+      let cy = this.cy
       let docs = []
-      if (doc && doc.id){
-        let qs = await getConnectors(doc,this.connectors)
-        docs = await findDocs(qs.join(' OR '), this.connectors.concat(['id','path_basename_s']))
+      let added = false
+      if (data && data.doc && data.doc.id){
+        let qs = await getConnectors(data.doc,this.connectors)
+        if (qs.length > (384/8)) {
+          this.$toast.open('will explode, to many objects ..<br>object:'+qs.length)
+        } else {
+          added = await new Promise((resolve, reject) => {
+            let a = false
+            cy.startBatch()
+            for (let i in qs) {
+              let cc = qs[i]
+              if (cy.getElementById(cc).length === 0) {
+                  if (cc.length > 0) cy.add({data:{id:cc,type:'expanded',label:cc}})
+                  cy.add({data:{source:id,target:cc}})
+                  a = true
+              }
+            }
+            cy.endBatch()
+            resolve(a)
+          })
+        }
       } else {
-        docs = await findDocs([node.data('label')], this.connectors.concat(['id','path_basename_s']))
+        if (data && data.type && data.type !== 'connector') {
+          docs = await findDocs([node.data('label')], this.connectors.concat(['id','path_basename_s']))
+          if (docs.length > (384/8)) {
+            this.$toast.open('will explode, to many objects ..<br>object:'+docs.length)
+          } else {
+            added = await new Promise((resolve, reject) => {
+              let a = false
+              cy.startBatch()
+              for (let i in docs) {
+                let doc = docs[i]
+                if (cy.getElementById(doc.id).length === 0) {
+                    if (doc.id.length > 0) cy.add({data:{id:doc.id,type:'doc',label:doc['path_basename_s'],doc:doc}})
+                    cy.add({data:{source:id,target:doc.id}})
+                    a = true
+                }
+              }
+              cy.endBatch()
+              resolve(a)
+            })
+          }
+        }
       }
-      await addElements(this.cy,docs,this.connectors)
-      let layout = this.cy.makeLayout(this.layout);
-      layout.run();
+      if (added) {
+        let layout = this.cy.makeLayout(this.layout);
+        layout.run();
+      }
       this.highlightNode(node)
       this.loading = false
     },
@@ -412,17 +516,22 @@ export default {
       //this.download(filename, filecontent, "data:text/plain;charset=utf-8,");
     },
     peekNodeContent: async function(node) {
-      //console.log('peekNodeContent')
-      let doc = node.data('doc')
-      if (doc && doc.id) {
-        if (!doc.content){
+      console.log('peekNodeContent')
+      let data = node.data('data')
+
+      if (data && data.doc && data.doc.id) {
+        if (!data.doc.content){
           this.loading = true
-          let docs = await findDocs(`id:"${doc.id}"`, ['id','content'])
-          doc.content = docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+          let docs = await findDocs(`id:"${data.doc.id}"`, ['id','content'])
+          if (!docs || !docs[0] || !docs[0].content) {
+              this.$toast.open(`no doc ${node.data('id')}`)
+          } else {
+            data.doc.content = docs[0].content.join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+            this.$modal.open(`${data.doc.id}<hr><pre>${data.doc.content}</pre>`)
+          }
           this.loading = false
-          this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)
         } else {
-          this.$modal.open(`${doc.id}<hr><pre>${doc.content}</pre>`)
+          this.$modal.open(`${data.doc.id}<hr><pre>${data.doc.content}</pre>`)
         }
       } else {
       this.$toast.open(`no doc ${node.data('id')}`)
