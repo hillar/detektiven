@@ -379,7 +379,7 @@ export default {
     async loadRoot(root){
       this.loading = true
       let start = Date.now()
-      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s']))
+      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s','container_s']))
       let qs = await getConnectors(rootDoc[0],this.connectors)
       if (qs.length > 128) this.$toast.open('sorry, wait a bit ..<br>object to query: '+qs.length)
       let docs = []
@@ -388,7 +388,7 @@ export default {
       for (let i=0,j=qs.length; i<j; i+=chunk) {
           let tmpq = qs.slice(i,i+chunk)
           //console.log(i,j,tmpq.join(' OR '))
-          let tmp = await findDocs(tmpq.join(' OR '), this.connectors.concat(['id','path_basename_s']))
+          let tmp = await findDocs(tmpq.join(' OR '), this.connectors.concat(['id','path_basename_s','container_s']))
           for (let y in tmp) if (!docs.find(x => x.id === tmp[y].id)) docs.push(tmp[y])
           //console.log('docs',docs.length,'q',tmpq.join(' OR ').length)
       }
@@ -479,7 +479,7 @@ export default {
         }
       } else {
         if (data && data.type && data.type !== 'connector') {
-          docs = await findDocs([node.data('label')], this.connectors.concat(['id','path_basename_s']))
+          docs = await findDocs([node.data('label')], this.connectors.concat(['id','path_basename_s','container_s']))
           if (docs.length > (384/8)) {
             this.$toast.open('will explode, to many objects ..<br>object:'+docs.length)
           } else {
@@ -547,11 +547,11 @@ export default {
       console.log('exportNodeFile')
       let data = node.data('data')
       if (data && data.doc && data.doc.id && data.doc._server_) {
-      this.$dialog.confirm({
-                    message: `Download file ${data.doc.id}?`,
+        let fn = (data.doc.container_s ? data.doc.container_s : data.doc.id)
+        this.$dialog.confirm({        
+                    message: `Download file ${fn}?`,
                     onConfirm: () => {
-                      window.open('files?server='+data.doc._server_+'&file='+encodeURIComponent(data.doc.id), '_blank');
-                      this.$toast.open('User confirmed')
+                      window.open('files?server='+data.doc._server_+'&file='+encodeURIComponent(fn), '_blank');
                     }
                 })
       } else {
