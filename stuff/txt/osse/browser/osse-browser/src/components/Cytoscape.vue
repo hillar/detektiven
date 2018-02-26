@@ -86,7 +86,7 @@ async function addElements(cy,docs,fields){
           //console.log(f,doc.id)
         }
         for (let i in connectors[f]){
-            let cc = connectors[f][i]
+            let cc = connectors[f][i].replace(/['"]+/g, '')
             if (cy.getElementById(cc).length == 0) {
               cy.add({data:{id:cc,type:f,label:cc}})
               //console.log(cc)
@@ -464,7 +464,7 @@ export default {
             let a = false
             cy.startBatch()
             for (let i in qs) {
-              let cc = qs[i]
+              let cc = qs[i].replace(/['"]+/g, '')
               if (cy.getElementById(cc).length === 0) {
                   if (cc.length > 0) cy.add({data:{id:cc,type:'expanded',label:cc}})
                   cy.add({data:{source:id,target:cc}})
