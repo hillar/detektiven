@@ -458,7 +458,7 @@ cliParams
           let i = config.servers.findIndex(function(s){return s.HR === args.server})
           if (i > -1) {
             let server = config.servers[i]
-            let f = args.file.replace('file:///','')
+            let f = decodeURIComponent(args.file).replace('file:///','')
             //console.log('getFileFromServer',f,server)
             try {
               http.get('http://'+server.host+':'+config.filesPort+'/'+f, (fres) => {

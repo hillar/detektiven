@@ -33,8 +33,8 @@ config.ipListen = cliParams.ip || '127.0.0.1'
 config.pathRoot = cliParams.root || '/tmp/'
 
 http.createServer(function (request, response) {
-    console.log('request ', request.url);
-    if (!request.url.startsWith(config.pathRoot)) {
+    console.log('request ', request.url, decodeURIComponent(request.url));
+    if (!decodeURIComponent(request.url).startsWith(config.pathRoot)) {
        console.log('not in path',config.pathRoot)
        response.writeHead(403)
        response.end()
