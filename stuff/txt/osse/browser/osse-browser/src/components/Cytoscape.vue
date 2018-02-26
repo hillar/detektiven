@@ -322,12 +322,12 @@ export default {
           select: this.peekNodeContent
         },
         {
-          content: 'meta',
-          select: this.exportNodeJson
-        },
-        {
           content: 'export',
           select: this.exportNodeFile
+        },
+        {
+          content: 'meta',
+          select: this.exportNodeJson
         },
         {
           content: "<h1 style='color:red'>-</h1>",
@@ -545,11 +545,14 @@ export default {
     },
     exportNodeFile: function(node) {
       console.log('exportNodeFile')
-      let filename = node.data('filename')
-      if (filename ) {
+      let data = node.data('data')
+      if (data && data.doc && data.doc.id && data.doc._server_) {
       this.$dialog.confirm({
-                    message: `Download file ${filename}?`,
-                    onConfirm: () => this.$toast.open('User confirmed')
+                    message: `Download file ${data.doc.id}?`,
+                    onConfirm: () => {
+                      window.open('files?server='+data.doc._server_+'&file='+data.doc.id, '_blank');
+                      this.$toast.open('User confirmed')
+                    }
                 })
       } else {
         this.$toast.open('sorry, no file')

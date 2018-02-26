@@ -65,6 +65,7 @@ cliParams
   config.realm = configFile.realm || 'osse'
   config.reauth = configFile.reauth || 1000 * 60
   config.metaFilename = configFile.metaFilename || 'meta.json'
+  config.filesPort = configFile.filesPort || 8125
   config.subscriptionsFilename = configFile.subscriptionsFilename || 'subscriptions.json'
   config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
   // generate sample configFile
@@ -94,6 +95,7 @@ cliParams
       let server = config.servers[i]
       //if (!server.type) reject(new Error('no server type'))
       await pingServer(server.HR,server.host,server.port)
+      await pingServer(server.HR,server.host,config.filesPort)
     }
     process.exit(0);
   }
@@ -135,8 +137,6 @@ cliParams
   );
   basic.on('success', (result, req) => {
     const { ip, username } = getIpUser(req)
-    console.log(ip, username)
-    console.dir(result)
     if (!users[result.user]){
       users[result.user] = {'logintime':Date.now(), 'lastseen':Date.now(), ip}
     } else {
@@ -148,7 +148,7 @@ cliParams
     }
     writeFile(config.usersFile,JSON.stringify(users))
     let user_online = users[result.user]['lastseen'] - users[result.user]['logintime']
-  	console.log(`User ${result.user} authenticated since ${users[result.user]['logintime']} online time ${user_online}`);
+  	//console.log(`User ${result.user} authenticated since ${users[result.user]['logintime']} online time ${user_online}`);
   });
   basic.on('fail', (result, req) => {
     const { ip, username } = getIpUser(req)
@@ -452,6 +452,40 @@ cliParams
         })
         res.end('thanks for errors')
         break;
+      case 'GET/files':
+        //console.log(args)
+        if (args.server && args.file) {
+          let i = config.servers.findIndex(function(s){return s.HR === args.server})
+          if (i > -1) {
+            let server = config.servers[i]
+            let f = args.file.replace('file:///','')
+            //console.log('getFileFromServer',f,server)
+            try {
+              http.get('http://'+server.host+':'+config.filesPort+'/'+f, (fres) => {
+                const { statusCode, statusMessage, headers } = fres
+                if (statusCode !== 200) {
+                  logWarning({ip,username,'not200':{'code':statusCode,'message':statusMessage}})
+                  res.end()
+                } else {
+                  //console.dir(headers) 'content-type': 'image/jpeg'
+                  fres.on('error', (error) => {
+                    res.end()
+                    logWarning({args,error})
+                  })
+                  fres.on('data', (chunk) => { res.write(chunk)})
+                  fres.on('end', () => { res.end() })
+                }
+              })
+            } catch (error) {
+              logNotice({error})
+              res.end()
+            }
+          } else {
+            logWarning({ip,username,'notServer':args})
+            res.end()
+          }
+        }
+        break
       case 'PUT/files':
       case 'POST/files':
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
