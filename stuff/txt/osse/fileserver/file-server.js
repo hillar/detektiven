@@ -39,13 +39,13 @@ http.createServer(function (request, response) {
        response.writeHead(403)
        response.end()
     } else {
-      let contentType = getMime(request.url)
+      let contentType = getMime(decodeURIComponent(request.url))
       if (contentType === false) {
         console.log('not readable')
         response.writeHead(404)
         response.end()
       } else {
-        fs.readFile(request.url, function(error, content) {
+        fs.readFile(decodeURIComponent(request.url), function(error, content) {
             if (error) {
                 console.dir(error)
                 response.writeHead(520)

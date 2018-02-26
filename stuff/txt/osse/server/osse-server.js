@@ -468,6 +468,7 @@ cliParams
                   res.end()
                 } else {
                   //console.dir(headers) 'content-type': 'image/jpeg'
+                  res.writeHead(200, { 'Content-Type': headers['content-type'] })
                   fres.on('error', (error) => {
                     res.end()
                     logWarning({args,error})

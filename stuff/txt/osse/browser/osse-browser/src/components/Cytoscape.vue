@@ -550,7 +550,7 @@ export default {
       this.$dialog.confirm({
                     message: `Download file ${data.doc.id}?`,
                     onConfirm: () => {
-                      window.open('files?server='+data.doc._server_+'&file='+data.doc.id, '_blank');
+                      window.open('files?server='+data.doc._server_+'&file='+encodeURIComponent(data.doc.id), '_blank');
                       this.$toast.open('User confirmed')
                     }
                 })
