@@ -303,14 +303,8 @@ export default {
     this.cy.cxtmenu({
       selector: "node",
       commands: [
-        {
-          content: "<h1 style='color:blue'>?</h1>",
-          select: this.searchbarNode
-        },
-        {
-          content: "<h1 style='color:red'>-</h1>",
-          select: this.removeNode
-        },
+
+
         {
           content: "<h1 style='color:green'>+</h1>",
           select: this.expandNode
@@ -320,16 +314,24 @@ export default {
           select: this.highlightNode
         },
         {
-          content: 'meta',
-          select: this.exportNodeJson
+          content: "<h1 style='color:blue'>?</h1>",
+          select: this.searchbarNode
         },
         {
           content: 'peek',
           select: this.peekNodeContent
         },
         {
+          content: 'meta',
+          select: this.exportNodeJson
+        },
+        {
           content: 'export',
           select: this.exportNodeFile
+        },
+        {
+          content: "<h1 style='color:red'>-</h1>",
+          select: this.removeNode
         }
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
@@ -508,8 +510,9 @@ export default {
     searchbarNode (node) {
     console.log('searchbarNode')
     let label = node.data('label')
-    // TODO find a better way to emit
-    this.$parent.$emit('add2filter',label)
+    // TODO find a better way to change user query
+    this.$parent.$parent.userQuery += ' ' + label
+
     },
     exportNodeJson: function(node) {
       console.log('exportNodeJson')
