@@ -224,7 +224,7 @@
                 { title: 'Title', field: 'title', visible: true },
                 { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true }
             ]
-            let connectorFields = "email_ss,message_to_ss"
+            let connectorFields = ''
 
             return {
                 userQuery: this.query,
@@ -401,13 +401,22 @@
              * Filter to truncate string, accepts a length parameter
              */
             truncate(value, length) {
+                if (!value) value = ''
                 return value.length > length
                     ? value.substr(0, length) + '...'
                     : value
             }
         },
-        mounted() {
-            if (this.userQuery.length > 0) this.search()
+        async mounted() {
+          if (!this.connectorFields || this.connectorFields.split(',').length < 1) {
+            await this.loadFields()
+            let tmp = []
+            for (const c of this.columns) {
+              if (c.field.endsWith('_ss')) tmp.push(c.field)
+            }
+            this.connectorFields = tmp.join(',')
+          }
+            if (this.userQuery && this.userQuery.length > 0) this.search()
         }
     }
 </script>
