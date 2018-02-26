@@ -547,8 +547,8 @@ export default {
       console.log('exportNodeFile')
       let data = node.data('data')
       if (data && data.doc && data.doc.id && data.doc._server_) {
-        let fn = (data.doc.container_s ? data.doc.container_s : data.doc.id)
-        this.$dialog.confirm({        
+        let fn = (data.doc.container_s ? 'file://'+data.doc.container_s : data.doc.id)
+        this.$dialog.confirm({
                     message: `Download file ${fn}?`,
                     onConfirm: () => {
                       window.open('files?server='+data.doc._server_+'&file='+encodeURIComponent(fn), '_blank');
