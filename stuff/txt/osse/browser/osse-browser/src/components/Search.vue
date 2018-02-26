@@ -224,7 +224,7 @@
                 { title: 'Title', field: 'title', visible: true },
                 { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true }
             ]
-            let connectorFields = ''
+            let connectorFields = 'bitcoin_ss,dear_ss,email_ss,message_to_ss'
 
             return {
                 userQuery: this.query,

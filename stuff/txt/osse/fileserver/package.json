@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "commander": "^2.14.1",
+    "file-type": "^7.6.0",
+    "read-chunk": "^2.1.0"
+  }
+}
