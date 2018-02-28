@@ -180,7 +180,7 @@ cliParams
     if (rightpath && config.servers.find(function(s){return s.HR === rightpath})) singleServer = rightpath
     bittes.shift()
     let params = bittes.join('?').trim().split('&').filter(String)
-    args = {}
+    let args = {}
     for (let i in params){
         let tmp = params[i].split('=')
         if (!tmp[1]) { tmp[1] = true }
@@ -601,13 +601,13 @@ cliParams
         }
         break
       case 'GET/favicon.ico':
-        let indexFile = await readFile(path.join(config.staticDirectory,'static/favicon.ico'))
-        if (indexFile === false) {
+        let icoFile = await readFile(path.join(config.staticDirectory,'static/favicon.ico'))
+        if (icoFile === false) {
           logError({'msg':'missing favicon.ico'})
           res.end('')
         } else {
           res.setHeader('Content-type','image/x-icon')
-          res.end(indexFile)
+          res.end(icoFile)
         }
         break
       case 'GET/index.html':
