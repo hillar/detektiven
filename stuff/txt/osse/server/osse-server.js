@@ -453,15 +453,17 @@ cliParams
         res.end('thanks for errors')
         break;
       case 'GET/files':
-        //console.log(args)
         if (args.server && args.file) {
           let i = config.servers.findIndex(function(s){return s.HR === args.server})
           if (i > -1) {
             let server = config.servers[i]
             let f = decodeURIComponent(args.file).replace('file:///','')
-            //console.log('getFileFromServer',f,server)
             try {
-              http.get('http://'+server.host+':'+config.filesPort+'/'+f, (fres) => {
+              let freq = http.get('http://'+server.host+':'+config.filesPort+'/'+f, (fres) => {
+                fres.on('error', (error) => {
+                  res.end()
+                  logWarning({'fileserver':args.server,error})
+                })
                 const { statusCode, statusMessage, headers } = fres
                 if (statusCode !== 200) {
                   logWarning({ip,username,'not200':{'code':statusCode,'message':statusMessage}})
@@ -469,16 +471,16 @@ cliParams
                 } else {
                   //console.dir(headers) 'content-type': 'image/jpeg'
                   res.writeHead(200, { 'Content-Type': headers['content-type'] })
-                  fres.on('error', (error) => {
-                    res.end()
-                    logWarning({args,error})
-                  })
                   fres.on('data', (chunk) => { res.write(chunk)})
                   fres.on('end', () => { res.end() })
                 }
               })
+              freq.on('error', (error) => {
+                logWarning({'fileserver':args.server,error})
+                res.end()
+              })
             } catch (error) {
-              logNotice({error})
+              logWarning({'fileserver':args.server,error})
               res.end()
             }
           } else {
@@ -598,6 +600,16 @@ cliParams
           res.end(staticFile)
         }
         break
+      case 'GET/favicon.ico':
+        let indexFile = await readFile(path.join(config.staticDirectory,'static/favicon.ico'))
+        if (indexFile === false) {
+          logError({'msg':'missing favicon.ico'})
+          res.end('')
+        } else {
+          res.setHeader('Content-type','image/x-icon')
+          res.end(indexFile)
+        }
+        break
       case 'GET/index.html':
         let indexFile = await readFile(path.join(config.staticDirectory,'index.html'))
         if (indexFile === false) {
@@ -630,6 +642,11 @@ cliParams
   osse.listen(config.portListen, config.ipListen);
 
 }
+
+process.on('uncaughtException', (error) => {
+  logError({'uncaughtException':`${error}`})
+  if (process.stdout.isTTY) console.log(error)
+});
 
 main()
 .then(console.log)
