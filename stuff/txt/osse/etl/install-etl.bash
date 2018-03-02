@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# install etl_file.py as /usr/local/bin/etl-file
+# install etl_file.py 
 #
 # python files /opt/etl/python
 # config files /opt/etl/config
