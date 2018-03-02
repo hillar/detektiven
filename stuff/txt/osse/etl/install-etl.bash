@@ -1,12 +1,13 @@
 #!/bin/bash
 #
-# install etl_file.py 
+# install etl_file.py
 #
 # python files /opt/etl/python
 # config files /opt/etl/config
 # executable /opt/etl/bin/etl-file.bash
 #
 
+echo "$(date) starting $0"
 
 XENIAL=$(lsb_release -c | cut -f2)
 if [ "$XENIAL" != "xenial" ]; then
@@ -84,3 +85,6 @@ cat > "$ETL_DIR/bin/etl-file.bash" <<EOF
 python3 $ETL_DIR/python/etl_file.py --config="$ETL_DIR/config/etl" \$1
 
 EOF
+
+
+echo "$(date) done $0"

@@ -32,9 +32,18 @@ else
   java -version
 fi
 
+echo "$(date) installing tika"
 if [ -f "./tika/install-tika.bash" ];
 then
     bash ./tika/install-tika.bash
 else
   bash /vagrant/tika/install-tika.bash
 fi
+echo "$(date) installing solr"
+if [ -f "./solr/install-solr.bash" ];
+then
+    bash ./solr/install-solr.bash
+else
+  bash /vagrant/solr/install-solr.bash
+fi
+echo "$(date) installing etl"

@@ -9,6 +9,8 @@
 # ! tika error log is VERY verbose
 #
 
+echo "$(date) starting $0"
+
 XENIAL=$(lsb_release -c | cut -f2)
 if [ "$XENIAL" != "xenial" ]; then
     echo "sorry, tested only with xenial ;("; 1>&2
@@ -36,8 +38,8 @@ LOG_DIR="/var/log/$TIKA"
 mkdir -p "$TIKA_DIR/bin"
 mkdir -p "$TIKA_DIR/jar"
 cd "$TIKA_DIR/jar"
-[ -f "tika-server-.$VER.jar" ] || wget -q "http://www-eu.apache.org/dist/tika/tika-server-$VER.jar"
-md5sum "tika-server-.$VER.jar"
+[ -f "tika-server-$VER.jar" ] || wget -q "http://www-eu.apache.org/dist/tika/tika-server-$VER.jar"
+md5sum "tika-server-$VER.jar"
 
 addgroup --system "$TIKA_GROUP" --quiet
 adduser --system --home $TIKA_DIR --no-create-home --ingroup $TIKA_GROUP --disabled-password --shell /bin/false "$TIKA_USER"
@@ -82,7 +84,7 @@ EOF
 
 chmod +x "$TIKA_DIR/bin/start-tika.bash"
 
-cat > /etc/systemd/system//tika.service <<EOF
+cat > /etc/systemd/system/tika.service <<EOF
 [Unit]
 Description=Apache Tika Server
 Requires=network.target
@@ -104,3 +106,5 @@ systemctl status tika.service
 systemctl stop tika.service
 sleep 1
 systemctl status tika.service
+
+echo "$(date) done $0"
