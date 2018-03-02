@@ -46,4 +46,8 @@ then
 else
   bash /vagrant/solr/install-solr.bash
 fi
+systemclt start tika
+systemclt start solr
+systemclt status tika
+systemclt status solr
 echo "$(date) installing etl"

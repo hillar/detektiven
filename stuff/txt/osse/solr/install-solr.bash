@@ -27,6 +27,8 @@ export SYSTEMD_PAGER=''
 SOLR='solr'
 VER='7.2.1'
 MEM='512m'
+HOST='127.0.0.1'
+PORT='8983'
 
 
 SOLR_USER=$SOLR
@@ -37,8 +39,8 @@ DATA_DIR="/var/data/$SOLR"
 
 mkdir -p "$SOLR_DIR"
 mkdir -p "$DATA_DIR"
-SOLR_UID="8983"
-SOLR_GID="8983"
+SOLR_UID="$PORT"
+SOLR_GID="$PORT"
 DEFAULT="solrdefalutcore"
 groupadd -r --gid $SOLR_GID $SOLR_GROUP
 useradd -r --uid $SOLR_UID --gid $SOLR_GID $SOLR_USER
@@ -63,7 +65,7 @@ sudo -u "$SOLR_USER" sh -s "$@" <<EOF
   sleep 1
   $SOLR_DIR/bin/solr create -c $DEFAULT -q
   sleep 1
-  curl 'http://localhost:8983/solr/admin/cores?action=STATUS'
+  curl -s 'http://localhost:8983/solr/admin/cores?action=STATUS'
   $SOLR_DIR/bin/solr stop -q
 EOF
 
@@ -75,14 +77,14 @@ EOF
 mkdir -p /etc/systemd/system/solr.service.d
 cat > /etc/systemd/system/solr.service.d/default.conf <<EOF
 [Service]
+Environment='SOLR_HOST=$HOST'
+Environment='SOLR_PORT=$PORT'
 # Sets the min (-Xms) and max (-Xmx) heap size for the JVM
 Environment='SOLR_MEM=$MEM'
 # Sets the solr.data.home system property, where Solr will store data (index)
 Environment='SOLR_DATA_DIR=$DATA_DIR'
-# SOLR logs directory
-Environment='SOLR_LOG_DIR=''$LOG_DIR'
-Environment='SOLR_HOST=127.0.0.1'
-Environment='SOLR_PORT=8983'
+# links log directory to /var/log
+Environment='SOLR_LOG_DIR=$LOG_DIR'
 EOF
 
 cat > /etc/systemd/system/solr.service <<EOF
@@ -91,11 +93,11 @@ Description=Apache Solr Server
 Requires=network.target
 After=network.target
 [Service]
-PIDFile=$SOLR_DIR/bin/solr-$SOLR_PORT.pid
+PIDFile=$SOLR_DIR/bin/solr-$PORT.pid
 User=$SOLR_USER
 Group=$SOLR_GROUP
 EnvironmentFile=-/etc/default/solr
-ExecStart=$SOLR_DIR/bin/solr start -h \${SOLR_HOST} -p \${SOLR_PORT} -m \${SOLR_MEM} -t \${SOLR_DATA_DIR} -V
+ExecStart=$SOLR_DIR/bin/solr start -h \${SOLR_HOST} -p \${SOLR_PORT} -m \${SOLR_MEM} -t \${SOLR_DATA_DIR}
 ExecStop=$SOLR_DIR/bin/solr stop
 Type=simple
 [Install]
@@ -103,13 +105,9 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable solr.service
-systemctl start solr.service
-systemctl status solr.service
-ps aux | grep java
-sleep 5
-systemctl status solr.service
-ps aux | grep java
-#tail -100 /var/log/syslog
-#should be exit because 'Found 0 core definitions underneath /opt/solr/server/solr'
+
+# java -server -Xms512m -Xmx512m -XX:NewRatio=3 -XX:SurvivorRatio=4 -XX:TargetSurvivorRatio=90 -XX:MaxTenuringThreshold=8 -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -XX:+CMSScavengeBeforeRemark -XX:PretenureSizeThreshold=64m -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=50 -XX:CMSMaxAbortablePrecleanTime=6000 -XX:+CMSParallelRemarkEnabled -XX:+ParallelRefProcEnabled -XX:-OmitStackTraceInFastThrow -verbose:gc -XX:+PrintHeapAtGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -Xloggc:/opt/solr/server/logs/solr_gc.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=9 -XX:GCLogFileSize=20M -Dsolr.log.dir=/opt/solr/server/logs -Djetty.port=8983 -DSTOP.PORT=7983 -DSTOP.KEY=solrrocks -Dhost=127.0.0.1 -Duser.timezone=UTC -Djetty.home=/opt/solr/server -Dsolr.solr.home=/opt/solr/server/solr -Dsolr.data.home=/var/data/solr -Dsolr.install.dir=/opt/solr -Dsolr.default.confdir=/opt/solr/server/solr/configsets/_default/conf -Xss256k -Dsolr.jetty.https.port=8983 -Dsolr.log.muteconsole -XX:OnOutOfMemoryError=/opt/solr/bin/oom_solr.sh 8983 /opt/solr/server/logs -jar start.jar --module=http
+
+#java -jar /opt/solr/server/start.jar STOP.PORT=7983 STOP.KEY=solrrocks
 
 echo "$(date) done $0"
