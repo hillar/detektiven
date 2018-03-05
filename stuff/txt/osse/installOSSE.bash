@@ -46,8 +46,14 @@ then
 else
   bash /vagrant/solr/install-solr.bash
 fi
-systemclt start tika
-systemclt start solr
-systemclt status tika
-systemclt status solr
+systemctl start tika
+systemctl start solr
+systemctl status tika
+systemctl status solr
 echo "$(date) installing etl"
+if [ -f "./etl/install-etl.bash" ];
+then
+    bash ./etl/install-etl.bash
+else
+  bash /vagrant/etl/install-etl.bash
+fi

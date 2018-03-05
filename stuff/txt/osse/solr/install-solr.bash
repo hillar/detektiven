@@ -20,6 +20,7 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+[ -d "/vagrant" ] || mkdir /vagrant
 export LC_ALL=C
 #stupid systemclt ...
 export SYSTEMD_PAGER=''
@@ -63,7 +64,7 @@ sudo -u "$SOLR_USER" sh -s "$@" <<EOF
   whoami
   $SOLR_DIR/bin/solr start -t $DATA_DIR -q
   sleep 1
-  $SOLR_DIR/bin/solr create -c $DEFAULT -q
+  $SOLR_DIR/bin/solr create -c $DEFAULT
   sleep 1
   curl -s 'http://localhost:8983/solr/admin/cores?action=STATUS'
   $SOLR_DIR/bin/solr stop -q
@@ -109,5 +110,9 @@ systemctl enable solr.service
 # java -server -Xms512m -Xmx512m -XX:NewRatio=3 -XX:SurvivorRatio=4 -XX:TargetSurvivorRatio=90 -XX:MaxTenuringThreshold=8 -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -XX:+CMSScavengeBeforeRemark -XX:PretenureSizeThreshold=64m -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=50 -XX:CMSMaxAbortablePrecleanTime=6000 -XX:+CMSParallelRemarkEnabled -XX:+ParallelRefProcEnabled -XX:-OmitStackTraceInFastThrow -verbose:gc -XX:+PrintHeapAtGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -Xloggc:/opt/solr/server/logs/solr_gc.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=9 -XX:GCLogFileSize=20M -Dsolr.log.dir=/opt/solr/server/logs -Djetty.port=8983 -DSTOP.PORT=7983 -DSTOP.KEY=solrrocks -Dhost=127.0.0.1 -Duser.timezone=UTC -Djetty.home=/opt/solr/server -Dsolr.solr.home=/opt/solr/server/solr -Dsolr.data.home=/var/data/solr -Dsolr.install.dir=/opt/solr -Dsolr.default.confdir=/opt/solr/server/solr/configsets/_default/conf -Xss256k -Dsolr.jetty.https.port=8983 -Dsolr.log.muteconsole -XX:OnOutOfMemoryError=/opt/solr/bin/oom_solr.sh 8983 /opt/solr/server/logs -jar start.jar --module=http
 
 #java -jar /opt/solr/server/start.jar STOP.PORT=7983 STOP.KEY=solrrocks
-
+echo "installed solr to $SOLR_DIR"
+echo "solr server will run on $HOST:$PORT "
+echo "data dir is $DATA_DIR"
+echo "log dir is  $LOG_DIR"
+echo "start solr server with 'systemctl start solr.service'"
 echo "$(date) done $0"

@@ -22,11 +22,15 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+[ -d "/vagrant" ] || mkdir /vagrant
 #stupid systemclt ...
 export SYSTEMD_PAGER=''
+export LC_ALL=C
 
 TIKA='tika'
 VER='1.17'
+HOST='127.0.0.1'
+PORT='9998'
 MINMEM='512m'
 MAXMEM='2048m'
 
@@ -49,12 +53,12 @@ chown $TIKA_USER:$TIKA_GROUP "$LOG_DIR"
 
 cat > /etc/default/tika <<EOF
 # Additional Java OPTS
-TIKA_JAVA_OPTS="-Xms$MINMEM -Xmx$MAXMEM"
+TIKA_JAVA_OPTS='-Xms$MINMEM -Xmx$MAXMEM'
 # Tika logs directory
 # Error log can be VERY noisy
 TIKA_LOG_DIR="$LOG_DIR"
-#TIKA_HOST='127.0.0.1'
-#TIKA_PORT='9998'
+TIKA_HOST='$HOST'
+TIKA_PORT='$PORT'
 #TIKA_DIGEST='md5'
 EOF
 
@@ -100,11 +104,9 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable tika.service
-systemctl start tika.service
-sleep 1
-systemctl status tika.service
-systemctl stop tika.service
-sleep 1
-systemctl status tika.service
 
+echo "installed tika to $TIKA_DIR"
+echo "tika server will run on $HOST:$PORT "
+echo "log dir is $LOG_DIR"
+echo "start tika server with 'systemctl start tika.service'"
 echo "$(date) done $0"
