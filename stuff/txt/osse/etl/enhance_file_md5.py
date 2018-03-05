@@ -18,9 +18,9 @@ class enhance_file_md5(object):
 
 		#get md5 for file
 		m = hashlib.md5();
-        m.update(open(filename,'rb').read());
-        md5 = m.hexdigest()
-        data['file_md5'] = md5
+		m.update(open(filename,'rb').read());
+		md5 = m.hexdigest()
+		data['file_md5'] = md5
 
 		if verbose:
 			print ("File md5: {}".format( md5 ))
