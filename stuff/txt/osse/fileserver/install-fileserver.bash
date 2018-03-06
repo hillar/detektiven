@@ -3,6 +3,7 @@
 # install fileserver
 #
 #
+echo "$(date) starting $0"
 
 XENIAL=$(lsb_release -c | cut -f2)
 if [ "$XENIAL" != "xenial" ]; then
@@ -117,4 +118,5 @@ echo "$FS server will run on $HOST:$PORT "
 echo "file dir is $FILE_DIR"
 echo "log dir is $LOG_DIR"
 echo "start $FS server with 'systemctl start $FS.service'"
+
 echo "$(date) done $0"
