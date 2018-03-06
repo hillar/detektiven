@@ -26,5 +26,5 @@ bash /provision/detektiven-master/stuff/txt/osse/tika/install-tika.bash
 bash /provision/detektiven-master/stuff/txt/osse/solr/install-solr.bash
 bash /provision/detektiven-master/stuff/txt/osse/elasticsearch/install-elastic.bash
 bash /provision/detektiven-master/stuff/txt/osse/etl/install-etl.bash
-bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash 
+bash /provision/detektiven-master/stuff/txt/osse/fileserver/install-fileserver.bash 
 bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash
