@@ -39,6 +39,19 @@ TIKA_GROUP=$TIKA
 TIKA_DIR="/opt/$TIKA"
 LOG_DIR="/var/log/$TIKA"
 
+
+java=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+if [ "$java" != "" ]; then
+  echo "$(date) java ver $java "
+else
+  echo "$(date) installing java"
+  add-apt-repository ppa:webupd8team/java >> /vagrant/provision.log 2>&1
+  apt-get update >> /vagrant/provision.log 2>&1
+  echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
+  apt-get -y install oracle-java8-installer >> /vagrant/provision.log 2>&1
+  java -version
+fi
+
 mkdir -p "$TIKA_DIR/bin"
 mkdir -p "$TIKA_DIR/jar"
 cd "$TIKA_DIR/jar"
@@ -46,7 +59,7 @@ cd "$TIKA_DIR/jar"
 md5sum "tika-server-$VER.jar"
 
 addgroup --system "$TIKA_GROUP" --quiet
-adduser --system --home $TIKA_DIR --no-create-home --ingroup $TIKA_GROUP --disabled-password --shell /bin/false "$TIKA_USER"
+adduser --system --home $TIKA_DIR --no-create-home --ingroup $TIKA_GROUP --disabled-password --shell /bin/false "$TIKA_USER" --quiet
 
 mkdir -p $LOG_DIR
 chown $TIKA_USER:$TIKA_GROUP "$LOG_DIR"
@@ -103,7 +116,7 @@ Type=simple
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable tika.service
+systemctl enable tika.service >> /vagrant/provision.log 2>&1
 
 echo "installed tika to $TIKA_DIR"
 echo "tika server will run on $HOST:$PORT "

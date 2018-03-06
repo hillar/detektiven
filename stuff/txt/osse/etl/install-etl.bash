@@ -29,7 +29,8 @@ SOLR_CORE='solrdefalutcore'
 TIKA_HOST='127.0.0.1'
 TIKA_PORT='9998'
 
-apt-get -y install jq >> /vagrant/provision.log 2>&1
+apt-get -y install python3 jq >> /vagrant/provision.log 2>&1
+apt-get -y install tesseract-ocr tesseract-ocr-deu tesseract-ocr-est tesseract-ocr-rus tesseract-ocr-eng >> /vagrant/provision.log 2>&1
 
 rm -rf $ETL_DIR
 

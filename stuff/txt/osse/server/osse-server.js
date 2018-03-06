@@ -48,7 +48,7 @@ cliParams
   // override config with cmd params
   let config = {}
   config.portListen = cliParams.port || configFile.port || '9983'
-  config.ipListen = cliParams.host || configFile.host || '127.0.0.1'
+  config.ipBind = cliParams.ip || configFile.ipBind || '127.0.0.1'
   config.usersFile = cliParams.usersFile || configFile.usersFile || '/tmp/osse/users.json'
   config.uploadDirectory = cliParams.uploadDirectory || configFile.uploadDirectory || '/tmp/osse/uploads'
   config.subscriptionsDirectory = cliParams.subscriptionsDirectory || configFile.subscriptionsDirectory || '/tmp/osse/subscriptions'
@@ -639,7 +639,7 @@ cliParams
     });
   })
 
-  osse.listen(config.portListen, config.ipListen);
+  osse.listen(config.portListen, config.ipBind);
 
 }
 

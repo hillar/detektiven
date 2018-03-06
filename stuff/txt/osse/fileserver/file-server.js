@@ -5,18 +5,26 @@ const readChunk = require('read-chunk')
 const fileType = require('file-type')
 const cliParams = require('commander')
 
-function getMime(filename){
+function isFile(filename){
   try {
    fs.accessSync(filename, fs.constants.R_OK)
   } catch (err) {
    return false
   }
- let t = fileType(readChunk.sync(filename, 0, 4100))
- if (t) {
-  return t.mime
- } else {
-  return 'application/octet-stream'
- }
+  return true
+}
+
+function getMime(filename){
+  try {
+   let t = fileType(readChunk.sync(filename, 0, 4100))
+   if (t) {
+    return t.mime
+   } else {
+    return 'application/octet-stream'
+   }
+  } catch (err) {
+   return false
+  }
 }
 
 cliParams
@@ -33,19 +41,21 @@ config.ipListen = cliParams.ip || '127.0.0.1'
 config.pathRoot = cliParams.root || '/tmp/'
 
 http.createServer(function (request, response) {
-    console.log('request ', request.url, decodeURIComponent(request.url));
-    if (!decodeURIComponent(request.url).startsWith(config.pathRoot)) {
-       console.log('not in path',config.pathRoot)
+    let reqFile = decodeURIComponent(request.url)
+    let filename = config.pathRoot + reqFile
+    console.log('request ', reqFile);
+    if (!isFile(filename)) {
+       console.log('not in path',filename)
        response.writeHead(403)
        response.end()
     } else {
-      let contentType = getMime(decodeURIComponent(request.url))
+      let contentType = getMime(filename)
       if (contentType === false) {
         console.log('not readable')
         response.writeHead(404)
         response.end()
       } else {
-        fs.readFile(decodeURIComponent(request.url), function(error, content) {
+        fs.readFile(filename, function(error, content) {
             if (error) {
                 console.dir(error)
                 response.writeHead(520)
