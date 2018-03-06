@@ -94,17 +94,21 @@ chown $OSSE_USER:$OSSE_GROUP "$SUBS_DIR"
 chown $OSSE_USER:$OSSE_GROUP "$SPOOL_DIR"
 
 cat > /etc/default/$OSSE <<EOF
-OSSE_CONF="$OSSE_DIR/conf/config.json"
+#OSSE_CONF="$OSSE_DIR/conf/config.json"
+#OSSE_LOG_DIR='$LOG_DIR'
 EOF
 
 cat > "$OSSE_DIR/bin/start-$OSSE.bash" <<EOF
+#!/bin/bash
 if [ -z "\$OSSE_CONF" ]; then
   OSSE_CONF='$OSSE_DIR/conf/config.json'
 fi
-echo "starting $OSSE with  \$OSSE_CONF"
+if [ -z "\$OSSE_LOG_DIR" ]; then
+  OSSE_LOG_DIR='$LOG_DIR'
+fi
+echo "starting $OSSE with conf:\$OSSE_CONF log dir:\$OSSE_LOG_DIR"
 cd $OSSE_DIR/js
-/usr/bin/nodejs $OSSE_DIR/js/osse-server.js --config=\$OSSE_CONF -t
-/usr/bin/nodejs $OSSE_DIR/js/osse-server.js --config=\$OSSE_CONF
+/usr/bin/nodejs $OSSE_DIR/js/osse-server.js --config=\$OSSE_CONF 1>\${OSSE_LOG_DIR}/$OSSE.log 2>\${OSSE_LOG_DIR}/$OSSE.error
 echo "$OSSE exitcode \$?"
 EOF
 chmod +x $OSSE_DIR/bin/start-$OSSE.bash
@@ -124,7 +128,7 @@ Type=simple
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable $OSSE.service #>> /vagrant/provision.log 2>&1
+systemctl enable $OSSE.service >> /vagrant/provision.log 2>&1
 
 echo "installed $OSSE to $OSSE_DIR"
 echo "$OSSE server will run on $HOST:$PORT "

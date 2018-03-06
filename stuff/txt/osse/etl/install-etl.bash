@@ -32,10 +32,8 @@ TIKA_PORT='9998'
 apt-get -y install python3 jq >> /vagrant/provision.log 2>&1
 apt-get -y install tesseract-ocr tesseract-ocr-deu tesseract-ocr-est tesseract-ocr-rus tesseract-ocr-eng >> /vagrant/provision.log 2>&1
 
-rm -rf $ETL_DIR
-
 cd /tmp
-rm master.tar.gz*
+[ -f master.tar.gz ] && rm master.tar.gz*
 wget -q https://github.com/opensemanticsearch/open-semantic-etl/archive/master.tar.gz
 tar -xzf master.tar.gz
 cd /tmp/open-semantic-etl-master/src/opensemanticetl

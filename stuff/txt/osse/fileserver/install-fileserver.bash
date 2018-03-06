@@ -90,7 +90,7 @@ if [ -z "\$FS_PORT" ]; then
 fi
 echo "starting $FS \${FS_HOST}:\${FS_PORT} file dir: \${FS_FILE_DIR} log dir: \${FS_LOG_DIR}"
 cd /opt/$FS/js
-/usr/bin/nodejs /opt/$FS/js/file-server.js --port \${FS_PORT} --ip \${FS_HOST} --root \${FS_FILE_DIR} 1>\${FS_LOG_DIR}/$FS.log 2>\${FS_LOG_DIR}/$FS.error
+/usr/bin/nodejs /opt/$FS/js/file-server.js --port=\${FS_PORT} --ip=\${FS_HOST} --root=\${FS_FILE_DIR} 1>\${FS_LOG_DIR}/$FS.log 2>\${FS_LOG_DIR}/$FS.error
 echo "$FS exit code \$?"
 EOF
 
@@ -111,7 +111,7 @@ Type=simple
 WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
-systemctl enable $FS.service #>> /vagrant/provision.log 2>&1
+systemctl enable $FS.service >> /vagrant/provision.log 2>&1
 
 echo "installed $FS to $FS_DIR"
 echo "$FS server will run on $HOST:$PORT "
