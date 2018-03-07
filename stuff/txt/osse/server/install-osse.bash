@@ -132,7 +132,7 @@ systemctl enable $OSSE.service >> /vagrant/provision.log 2>&1
 
 echo "installed $OSSE to $OSSE_DIR"
 echo "$OSSE server will run on $HOST:$PORT "
-echo "config is $OSSE_CONF"
+echo "config is $OSSE_DIR/conf/config.json"
 echo "start $OSSE server with 'systemctl start $OSSE.service'"
 
 echo "$(date) done $0"

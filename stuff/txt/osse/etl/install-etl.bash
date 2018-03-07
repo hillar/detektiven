@@ -36,6 +36,7 @@ cd /tmp
 [ -f master.tar.gz ] && rm master.tar.gz*
 wget -q https://github.com/opensemanticsearch/open-semantic-etl/archive/master.tar.gz
 tar -xzf master.tar.gz
+rm master.tar.gz
 cd /tmp/open-semantic-etl-master/src/opensemanticetl
 export LC_ALL=C
 echo -en $(grep "Depends: " /tmp/open-semantic-etl-master/build/deb/stable/DEBIAN/control | sed 's/Depends: //'| sed 's/(>=0)//g' | sed 's/,/\\n/g') | grep python | while read p;
