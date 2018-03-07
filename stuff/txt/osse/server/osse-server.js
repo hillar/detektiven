@@ -3,6 +3,7 @@
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const lzma = require('lzma-native')
 const cliParams = require('commander')
 const http = require('http')
 const auth = require('http-auth')
@@ -516,22 +517,46 @@ function createGets(args,servers,singleServer){
             })
             busboy.on('file', async function(fieldname, file, filename, encoding, mimetype) {
               let chuncks = []
-              let savePath = path.join(config.uploadDirectory,uid)
-              let sDir = await ensureDirectory(savePath)
+              const compressor = lzma.createCompressor({preset: 9})
+              const uid = guid()
+              const savePath = path.join(config.uploadDirectory)
+              const sDir = await ensureDirectory(savePath)
               if (sDir) {
                 const hash = crypto.createHash('md5');
                 let safename = base64url(filename)
                 logNotice({ip,username,filename,safename})
-                let saveTo = path.join(savePath, safename);
-                file.pipe(fs.createWriteStream(saveTo));
+                let saveTo = path.join(savePath, uid+'_'+safename+'.xz');
+                file.pipe(compressor).pipe(fs.createWriteStream(saveTo));
                 file.on('data', function(data) {
                   chuncks.push(data.length)
                   hash.update(data)
                 });
-                file.on('end', function() {
+                file.on('end', async function() {
                   const md5 = hash.digest('hex')
-                  files.push({uid,md5,filename, safename, encoding, mimetype})
-                  logNotice({ip,username,md5,filename,safename, saveTo})
+                  let q = `md5:${md5}`
+                  //q = 'path_basename_s:UkUgRGFuZ2VyIS5tc2c'
+                  const gets = createGets({q:q,rows:10,start:0,fl:'id'},config.servers)
+                  let found = false
+                  const results = await Promise.all(gets)
+                  for (const result of results){
+                    if (result.result && result.result.numFound && result.result.numFound > 0){
+                      found = true
+                      if (result.result.docs) {
+                         for (const doc of result.result.docs){
+                           if (doc.id) {
+                             logNotice({ip,username,uploadExist:{md5,filename,id:doc.id,server:result.server.HR,saveTo}})
+                           }
+                         }
+                      }
+                    }
+                  }
+                  if (found) {
+                    fs.unlink(saveTo)
+                  } else {
+                    const meta = base64url(`${md5};${filename}`)
+                    files.push({uid,md5,filename, safename, encoding, mimetype,meta})
+                    logNotice({ip,username,uploadedFile:{md5,filename,saveTo, meta}})
+                  }
                 });
               }
             })

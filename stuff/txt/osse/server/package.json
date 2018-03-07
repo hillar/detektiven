@@ -23,6 +23,7 @@
     "commander": "^2.14.1",
     "http-auth": "^3.2.3",
     "ldapjs": "^1.0.2",
+    "lzma-native": "^3.0.5",
     "nodemailer": "^4.4.2"
   }
 }
