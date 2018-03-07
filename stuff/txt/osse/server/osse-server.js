@@ -2,6 +2,7 @@
 
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
 const cliParams = require('commander')
 const http = require('http')
 const auth = require('http-auth')
@@ -167,6 +168,111 @@ cliParams
 
 // ------------------------
 
+function createGets(args,servers,singleServer){
+  let httpgets = []
+  for (const server of servers){
+    //let server = config.servers[i]
+    if (!singleServer || singleServer === server.HR) httpgets.push(new Promise((resolve, reject) => {
+      let query = ''
+      switch (server.type) {
+        case 'solr':
+          query += '/solr/'+server.collection+'/select?'
+          //if (!args.wt)
+          args.wt = 'json'
+          query += 'wt='+args.wt+'&q=' + args.q + '&'
+          if (args.q_op && args.q_op === 'AND') query += 'q.op=AND&'
+          query += 'rows='+args.rows+'&start='+args.start+'&'
+          if (args.fl) query += 'fl='+args.fl+'&'
+          if (args.hl) {
+             query += 'hl=on&'
+             for (let hl in args.hl) {
+               query += 'hl.'+hl+'='+args.hl[hl]+'&'
+             }
+          }
+          httpGet(server.proto,server.host,server.port,query)
+          .then(function(result){
+            try {
+              let resJson = JSON.parse(result)
+              if (resJson.error) {
+                let responseHeader = resJson.responseHeader
+                logError({responseHeader})
+                let error = new Error(resJson.error.msg)
+                resolve({server,error})
+              } else {
+                if (resJson.highlighting){
+                  resolve({server,'result':resJson.response,'highlighting':resJson.highlighting})
+                } else resolve({server,'result':resJson.response})
+              }
+            } catch (e) {
+                let error = e
+                logError({e})
+                resolve({server})
+            }
+          })
+          .catch(function(error){
+            resolve({server,error})
+          })
+          break
+        case 'elastic':
+        case 'elasticsearch':
+            // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
+            // https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-id-field.html
+            if (args.q.indexOf('id%3A') !== -1) args.q = args.q.replace('id%3A','_id%3A')
+            query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
+            query += 'size='+args.rows+'&from='+args.start+'&'
+            query += '_source_include='+args.fl+'&'
+            let body
+            if (args.hl) {
+              // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
+              body = `{"highlight":{"fields":{"${args.hl.fl}":{"fragment_size":${args.hl.fragsize},"number_of_fragments":${args.hl.snippets}}}}}}`
+            }
+            httpGet(server.proto,server.host,server.port,query,body)
+            .then(function(res){
+              try {
+                let resElastic = JSON.parse(res)
+                if (resElastic.error){
+                    logWarning({'error':resElastic.error,query,server})
+                    resolve({server})
+                } else {
+                  if (resElastic.hits) {
+                    let docs = []
+                    while (resElastic.hits.hits.length>0) {
+                      let tmp = resElastic.hits.hits.pop()
+                      let doc = tmp._source
+                      doc.id = tmp._id
+                      doc.score = tmp._score
+                      if (doc.content) doc.content = [doc.content]
+                      if (tmp.highlight && tmp.highlight.content) doc['_highlighting_'] = tmp.highlight.content
+                      docs.push(doc)
+                    }
+                    resolve({server,'result':{'numFound':resElastic.hits.total,'docs':docs}})
+                  } else {
+                    logError({'error':'no hits and no error',query,server})
+                    resolve({server})}
+                }
+              } catch (e) {
+                let error = e.message
+                logError({error,query,server})
+                resolve({server})
+              }
+            })
+            .catch(function(error){
+              resolve({server,error})
+            })
+        break
+        default:
+          logError({'msg':'not supported ' + server.type,server})
+          resolve({server})
+      }
+    }))
+  }
+  return httpgets
+}
+
+
+
+// -------------------------
+
   let osse = http.createServer(basic, async (req, res) => {
 
     if (req.url.indexOf('/select?q=*:*&wt=csv&rows=0&facet') > -1 ) req.url = '/fields'
@@ -229,104 +335,8 @@ cliParams
           if (!args.hl.fragsize) args.hl.fragsize = 64
           if (!args.hl.fl) args.hl.fl = 'content'
         }
-        let httpgets = []
-        for (let i in config.servers){
-          let server = config.servers[i]
-          if (!singleServer || singleServer === server.HR) httpgets.push(new Promise((resolve, reject) => {
-            let query = ''
-            switch (server.type) {
-              case 'solr':
-                query += '/solr/'+server.collection+'/select?'
-                //if (!args.wt)
-                args.wt = 'json'
-                query += 'wt='+args.wt+'&q=' + args.q + '&'
-                if (args.q_op && args.q_op === 'AND') query += 'q.op=AND&'
-                query += 'rows='+args.rows+'&start='+args.start+'&'
-                if (args.fl) query += 'fl='+args.fl+'&'
-                if (args.hl) {
-                   query += 'hl=on&'
-                   for (let hl in args.hl) {
-                     query += 'hl.'+hl+'='+args.hl[hl]+'&'
-                   }
-                }
-                httpGet(server.proto,server.host,server.port,query)
-                .then(function(result){
-                  try {
-                    let resJson = JSON.parse(result)
-                    if (resJson.error) {
-                      let responseHeader = resJson.responseHeader
-                      logError({responseHeader})
-                      let error = new Error(resJson.error.msg)
-                      resolve({server,error})
-                    } else {
-                      if (resJson.highlighting){
-                        resolve({server,'result':resJson.response,'highlighting':resJson.highlighting})
-                      } else resolve({server,'result':resJson.response})
-                    }
-                  } catch (e) {
-                      let error = e
-                      logError({e})
-                      resolve({server})
-                  }
-                })
-                .catch(function(error){
-                  resolve({server,error})
-                })
-                break
-              case 'elastic':
-              case 'elasticsearch':
-                  // http://nocf-www.elastic.co/guide/en/elasticsearch/reference/current/search-uri-request.html
-                  // https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-id-field.html
-                  if (args.q.indexOf('id%3A') !== -1) args.q = args.q.replace('id%3A','_id%3A')
-                  query += '/'+server.collection+'/_search?track_scores&lenient&q=' + args.q + '&'
-                  query += 'size='+args.rows+'&from='+args.start+'&'
-                  query += '_source_include='+args.fl+'&'
-                  let body
-                  if (args.hl) {
-                    // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-request-highlighting.html
-                    body = `{"highlight":{"fields":{"${args.hl.fl}":{"fragment_size":${args.hl.fragsize},"number_of_fragments":${args.hl.snippets}}}}}}`
-                  }
-                  httpGet(server.proto,server.host,server.port,query,body)
-                  .then(function(res){
-                    try {
-                      let resElastic = JSON.parse(res)
-                      if (resElastic.error){
-                          logWarning({'error':resElastic.error,query,server})
-                          resolve({server})
-                      } else {
-                        if (resElastic.hits) {
-                          let docs = []
-                          while (resElastic.hits.hits.length>0) {
-                            let tmp = resElastic.hits.hits.pop()
-                            let doc = tmp._source
-                            doc.id = tmp._id
-                            doc.score = tmp._score
-                            if (doc.content) doc.content = [doc.content]
-                            if (tmp.highlight && tmp.highlight.content) doc['_highlighting_'] = tmp.highlight.content
-                            docs.push(doc)
-                          }
-                          resolve({server,'result':{'numFound':resElastic.hits.total,'docs':docs}})
-                        } else {
-                          logError({'error':'no hits and no error',query,server})
-                          resolve({server})}
-                      }
-                    } catch (e) {
-                      let error = e.message
-                      logError({error,query,server})
-                      resolve({server})
-                    }
-                  })
-                  .catch(function(error){
-                    resolve({server,error})
-                  })
-              break
-              default:
-                logError({'msg':'not supported ' + server.type,server})
-                resolve({server})
-            }
-          }))
-        }
-        Promise.all(httpgets).then(function(results){
+        const gets = createGets(args,config.servers,singleServer)
+        Promise.all(gets).then(function(results){
           let resEnd = {numFound:0,'start':args.start,found:[],docs:[]}
           for (let i in results){
             if (!results[i].server) throw new Error('no server')
@@ -509,16 +519,19 @@ cliParams
               let savePath = path.join(config.uploadDirectory,uid)
               let sDir = await ensureDirectory(savePath)
               if (sDir) {
+                const hash = crypto.createHash('md5');
                 let safename = base64url(filename)
                 logNotice({ip,username,filename,safename})
                 let saveTo = path.join(savePath, safename);
                 file.pipe(fs.createWriteStream(saveTo));
                 file.on('data', function(data) {
                   chuncks.push(data.length)
+                  hash.update(data)
                 });
                 file.on('end', function() {
-                  files.push({uid,filename, safename, encoding, mimetype})
-                  logNotice({ip,username,filename,safename, saveTo})
+                  const md5 = hash.digest('hex')
+                  files.push({uid,md5,filename, safename, encoding, mimetype})
+                  logNotice({ip,username,md5,filename,safename, saveTo})
                 });
               }
             })
