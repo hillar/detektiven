@@ -69,6 +69,7 @@ cliParams
   config.metaFilename = configFile.metaFilename || 'meta.json'
   config.filesPort = configFile.filesPort || 8125
   config.subscriptionsFilename = configFile.subscriptionsFilename || 'subscriptions.json'
+  config.etlMapping = configFile.etlMapping || 'file:///'
   config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
   // generate sample configFile
   if (cliParams.generateConfig) {
@@ -476,7 +477,8 @@ function createGets(args,servers,singleServer){
           let i = config.servers.findIndex(function(s){return s.HR === args.server})
           if (i > -1) {
             let server = config.servers[i]
-            let f = decodeURIComponent(args.file).replace('file:///','')
+            let f = decodeURIComponent(args.file).replace(config.etlMapping,'') // same as in ETL config['mappings'] = { "/": "file:///" }
+
             try {
               let freq = http.get('http://'+server.host+':'+config.filesPort+'/'+f, (fres) => {
                 fres.on('error', (error) => {
