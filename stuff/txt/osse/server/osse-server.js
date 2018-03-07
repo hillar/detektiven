@@ -169,6 +169,14 @@ cliParams
 
 // ------------------------
 
+function compress2Base64Url(s){
+  return new Promise( resolve => {
+    lzma.compress(s, 9, function(result){
+      resolve(base64url(result))
+    })
+  })
+}
+
 function createGets(args,servers,singleServer){
   let httpgets = []
   for (const server of servers){
@@ -505,9 +513,7 @@ function createGets(args,servers,singleServer){
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
           try {
             let busboy = new Busboy({ preservePath: true, headers: req.headers })
-            let files = []
             let fields = {}
-            let uid = guid()
             busboy.on('error', function(error){
               let msg = error.message
               logWarning({ip,username,route,msg})
@@ -523,15 +529,14 @@ function createGets(args,servers,singleServer){
               const sDir = await ensureDirectory(savePath)
               if (sDir) {
                 const hash = crypto.createHash('md5');
-                let safename = base64url(filename)
-                logNotice({ip,username,filename,safename})
-                let saveTo = path.join(savePath, uid+'_'+safename+'.xz');
+                const saveTo = path.join(savePath, uid+'.tmp');
                 file.pipe(compressor).pipe(fs.createWriteStream(saveTo));
                 file.on('data', function(data) {
                   chuncks.push(data.length)
                   hash.update(data)
                 });
                 file.on('end', async function() {
+
                   const md5 = hash.digest('hex')
                   let q = `md5:${md5}`
                   //q = 'path_basename_s:UkUgRGFuZ2VyIS5tc2c'
@@ -551,25 +556,57 @@ function createGets(args,servers,singleServer){
                     }
                   }
                   if (found) {
-                    fs.unlink(saveTo)
+                    fs.unlinkSync(saveTo)
+                    //res.write('file exists: '+filename)
                   } else {
-                    const meta = base64url(`${md5};${filename}`)
-                    files.push({uid,md5,filename, safename, encoding, mimetype,meta})
-                    logNotice({ip,username,uploadedFile:{md5,filename,saveTo, meta}})
+                    if (!fields.upload_tags) fields.upload_tags = ''
+                    let tmp = fields.upload_tags.split(',')
+                    tmp.push('uploaded')
+                    tmp.sort(function(a, b) {return a.length - b.length;});
+                    let kala = `${filename}|${fields.upload_lastModified}|${username}|${tmp.join(',')}`
+                    let packed = await compress2Base64Url(kala)
+                    if (packed.length > 254) {
+                      // drop longest tags
+                      while (tmp.length > 0) {
+                        const tag = tmp.pop()
+                        logNotice({ip,username,dropTag:tag,filename})
+                        kala = `${filename}|${fields.upload_lastModified}|${username}|${tmp.join(',')}`
+                        packed = await compress2Base64Url(kala)
+                        if (packed.length < 254) break
+                      }
+                    }
+                    if (packed.length > 254) {
+                      // drop username
+                      logNotice({ip,username,dropUser:username,filename})
+                      kala = `$${filename}|${fields.upload_lastModified}`
+                      packed = await compress2Base64Url(kala)
+                    }
+                    if (packed.length > 254) {
+                      // drop time
+                      logNotice({ip,username,dropTime:fields.upload_lastModified,filename})
+                      kala = `$${filename}`
+                      packed = await compress2Base64Url(kala)
+                    }
+                    //console.log('lengths',packed.length-kala.length,kala.length,packed.length,packed)
+                    if (packed.length > 254) {
+                      // give up
+                      logWarning({ip,username,uploadFileNameToLong:{filename}})
+                      fs.unlinkSync(saveTo)
+                    } else {
+                      const newPath = path.join(savePath,packed)
+                      try {
+                        fs.renameSync(saveTo, newPath)
+                      } catch (error) {
+                        logError({renameFailed:{saveTo, newPath}})
+                      }
+                      logNotice({ip,username,uploadedFile:{md5,filename,newPath}})
+                    }
                   }
                 });
               }
             })
             busboy.on('finish', async function() {
-              fields['upload_by'] = username
-              fields['upload_time'] = now()
-              let saveTo = path.join(config.uploadDirectory,uid)
-              let fDir = await ensureDirectory(saveTo)
-              if (fDir) {
-                let fSave = await writeFile(path.join(saveTo,config.metaFilename),JSON.stringify(fields))
-                if (!fSave) res.end('try again')
-                else res.end('thanks for files')
-              }
+              res.end()
             });
             req.pipe(busboy);
           } catch (error){
