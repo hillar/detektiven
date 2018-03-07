@@ -67,9 +67,11 @@ cliParams
   config.realm = configFile.realm || 'osse'
   config.reauth = configFile.reauth || 1000 * 60
   config.metaFilename = configFile.metaFilename || 'meta.json'
-  config.filesPort = configFile.filesPort || 8125
   config.subscriptionsFilename = configFile.subscriptionsFilename || 'subscriptions.json'
   config.etlMapping = configFile.etlMapping || 'file:///'
+  config.uploadFileServer = configFile.uploadFileServer || '127.0.0.1'
+  config.filesPort = configFile.filesPort || 8125
+  config.uploadUser = cliParams.uploadUser || configFile.uploadUser || 'uploadonly'
   config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
   // generate sample configFile
   if (cliParams.generateConfig) {
@@ -113,6 +115,8 @@ cliParams
   		realm: config.realm
   	}, async (username, password, callback) => {
   		// do not reauth in X milliseconds
+      if (username === config.uploadUser && password === config.uploadUser) callback(true)
+      // do not reauth in X milliseconds
   		if (users[username] && users[username]['lastseen'] && (Date.now() - users[username]['lastseen'] < config.reauth)){
   			 callback(true)
   		} else {
@@ -173,7 +177,25 @@ cliParams
 function compress2Base64Url(s){
   return new Promise( resolve => {
     lzma.compress(s, 9, function(result){
-      resolve(base64url(result))
+      const b = base64url.encode(result)
+      //chop xz header
+      //_Td6WFoAAAFpIt42AgAhARwAAAAQz1j
+      const c = b.slice(32)
+      resolve(c)
+    })
+  })
+}
+
+function decompress2Base64Url(s){
+  return new Promise( resolve => {
+    const b = '_Td6WFoAAAFpIt42AgAhARwAAAAQz1jM' + s
+    const c = base64url.toBuffer(b)
+    lzma.decompress(c, function(result){
+      if (result !== null) {
+        resolve(result.toString())
+      } else {
+        resolve('')
+      }
     })
   })
 }
@@ -320,11 +342,12 @@ function createGets(args,servers,singleServer){
     }
 
     const { ip, username } = getIpUser(req)
-    logNotice({ip,username,route,urlPath,args})
+    logNotice({ip,username,access:{route,urlPath,args}})
     switch (route) {
       // ----------------------------------------------------------------
       case 'GET/search':
       case 'GET/solr':
+        if (username === config.uploadUser) break
         if (!args.q || typeof(args.q) != 'string')  {
           logError({ip,username,route,'msg':'no q in args'})
           res.end()
@@ -385,6 +408,7 @@ function createGets(args,servers,singleServer){
         })
         break;
       case 'GET/fields': // --------------------------------------------------
+        if (username === config.uploadUser) break
         let getFields = []
         for (let i in config.servers){
           let server = config.servers[i]
@@ -458,6 +482,7 @@ function createGets(args,servers,singleServer){
         })
         break;
       case 'POST/errors':
+      if (username === config.uploadUser) break
         let errors = [];
         req.on('data', (chunk) => {
           errors.push(chunk);
@@ -473,6 +498,7 @@ function createGets(args,servers,singleServer){
         res.end('thanks for errors')
         break;
       case 'GET/files':
+      if (username === config.uploadUser) break
         if (args.server && args.file) {
           let i = config.servers.findIndex(function(s){return s.HR === args.server})
           if (i > -1) {
@@ -561,8 +587,8 @@ function createGets(args,servers,singleServer){
                     fs.unlinkSync(saveTo)
                     //res.write('file exists: '+filename)
                   } else {
-                    if (!fields.upload_tags) fields.upload_tags = ''
-                    let tmp = fields.upload_tags.split(',')
+                    let tmp = []
+                    if (fields.upload_tags && fields.upload_tags.length > 3) tmp = fields.upload_tags.split(',')
                     tmp.push('uploaded')
                     tmp.sort(function(a, b) {return a.length - b.length;});
                     let kala = `${filename}|${fields.upload_lastModified}|${username}|${tmp.join(',')}`
@@ -595,13 +621,18 @@ function createGets(args,servers,singleServer){
                       logWarning({ip,username,uploadFileNameToLong:{filename}})
                       fs.unlinkSync(saveTo)
                     } else {
+                      const kala2 = await decompress2Base64Url(packed)
+                      console.dir(kala2)
+                      if (kala2 !== kala){
+                          logError({critical:{compress2Base64Url:'wrong chop',packed,kala}})
+                      }
                       const newPath = path.join(savePath,packed)
                       try {
                         fs.renameSync(saveTo, newPath)
                       } catch (error) {
                         logError({renameFailed:{saveTo, newPath}})
                       }
-                      logNotice({ip,username,uploadedFile:{md5,filename,newPath}})
+                      logNotice({ip,username,uploadedFile:{md5,filename,spool:newPath,kala,fields}})
                     }
                   }
                 });
@@ -619,11 +650,13 @@ function createGets(args,servers,singleServer){
         } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
         break;
       case 'GET/subscriptions':
+        if (username === config.uploadUser) break
         let subscriptions  = await readJSON(path.join(config.subscriptionsDirectory,username,'subscriptions.json'))
         if (subscriptions == false || !subscriptions.fields ) res.end('')
         else res.end(JSON.stringify({'fields':subscriptions.fields}))
         break;
       case 'POST/subscriptions':
+        if (username === config.uploadUser) break
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
           let subsFields = {}
           try {
@@ -659,6 +692,7 @@ function createGets(args,servers,singleServer){
         } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
         break
       case 'GET/static':
+        if (username === config.uploadUser) break
         let staticFilename = path.join(config.staticDirectory,urlPath)
         let staticFile = await readFile(staticFilename)
         if (staticFile === false){
@@ -678,6 +712,7 @@ function createGets(args,servers,singleServer){
         }
         break
       case 'GET/favicon.ico':
+        if (username === config.uploadUser) break
         let icoFile = await readFile(path.join(config.staticDirectory,'static/favicon.ico'))
         if (icoFile === false) {
           logError({'msg':'missing favicon.ico'})
@@ -688,6 +723,7 @@ function createGets(args,servers,singleServer){
         }
         break
       case 'GET/index.html':
+        if (username === config.uploadUser) break
         let indexFile = await readFile(path.join(config.staticDirectory,'index.html'))
         if (indexFile === false) {
           logError({'msg':'missing index.html'})
@@ -698,6 +734,7 @@ function createGets(args,servers,singleServer){
         }
         break
       case 'GET/':
+          if (username === config.uploadUser) break
           res.writeHead(301, {'Location' : '/index.html'});
           res.end();
           break
