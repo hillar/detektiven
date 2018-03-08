@@ -3,6 +3,7 @@ const path = require('path')
 const net = require('net')
 const http = require('http')
 const https = require('https')
+const request = require('request')
 const nodemailer = require('nodemailer')
 const ldap = require('ldapjs')
 
@@ -16,6 +17,19 @@ function guid() {
 function now(){
   const now = new Date()
   return now.toJSON()
+}
+
+function date2JSON(v){
+  const tmp = parseInt(v)
+  if (! isNaN(tmp) ) {
+    const d = new Date(tmp)
+    if (isNaN(d.getTime())) return false
+    else return d.toJSON()
+  } else {
+    const d = new Date(v)
+    if (isNaN(d.getTime())) return false
+    else return d.toJSON()
+  }
 }
 
 function logError(error){
@@ -128,7 +142,7 @@ async function pingServer(service,host,port){
 }
 
 function getIpUser(req){
-  let username = req.user || '_noReqUser_'
+  let username = req.user || false
   let ip = req.socket.remoteAddress
   if (req.headers['x-real-ip']) ip = req.headers['x-real-ip']
   if (req.headers['x-public-ip']) ip = req.headers['x-public-ip']
@@ -180,6 +194,35 @@ async function httpGet(proto, host, port, path, body){
       req.end();
     } catch (error) {
       logError({'httpGet':'try error', error})
+      reject(error)
+    }
+  })
+}
+
+async function httpPost(proto, host, port, path,filename,fields){
+  return new Promise((resolve, reject) => {
+    if (!host) reject(new Error('httpPost no host'))
+    if (!port) reject(new Error('httpPost no port'))
+    if (!path) reject(new Error('httpPost no path'))
+    if (!filename) reject(new Error('httpPost no filename'))
+    const start = Date.now()
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+    let formData = {file: fs.createReadStream(filename)}
+    if (fields) for (const field of Object.keys(fields).sort()){
+      if (fields[field]) formData[field] = fields[field]
+    }
+    const url = `${(proto === 'https' ? 'https' : 'http')}://${host}:${port}/${path}`
+    logInfo({'httpPost':'start',proto, host, port, path, filename,url})
+    try {
+      request.post({url:url, formData: formData}, function cb(err, httpResponse, body) {
+        if (err) {
+          logWarning({'httpPost':'request error', error:err.message})
+          reject(err);
+        }
+        resolve(body)
+      });
+    } catch (error) {
+      logWarning({'httpPost':'try error', error})
       reject(error)
     }
   })
@@ -273,6 +316,7 @@ async function getUser(server,base,binduser,bindpass,field,user,pass,group){
 module.exports = {
   guid: guid,
   now: now,
+  date2JSON: date2JSON,
   logNotice: logNotice,
   logWarning: logWarning,
   logError: logError,
@@ -283,6 +327,7 @@ module.exports = {
   sendMail: sendMail,
   getUser: getUser,
   httpGet: httpGet,
+  httpPost: httpPost,
   getIpUser: getIpUser,
   readJSON: async function(filename){
     let data = await readFile(filename)

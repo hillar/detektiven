@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-
+const os = require('os')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
@@ -10,7 +10,7 @@ const auth = require('http-auth')
 const Busboy = require('busboy')
 const base64url = require('base64url')
 const querystring = require('querystring')
-const { guid, now, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, getIpUser } = require('./utils')
+const { guid, now, date2JSON, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, httpPost, getIpUser } = require('./utils')
 
 async function main() {
 
@@ -70,6 +70,7 @@ cliParams
   config.subscriptionsFilename = configFile.subscriptionsFilename || 'subscriptions.json'
   config.etlMapping = configFile.etlMapping || 'file:///'
   config.uploadFileServer = configFile.uploadFileServer || '127.0.0.1'
+  config.uploadFileServerProto = configFile.uploadFileServer || 'http'
   config.filesPort = configFile.filesPort || 8125
   config.uploadUser = cliParams.uploadUser || configFile.uploadUser || 'uploadonly'
   config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
@@ -155,7 +156,6 @@ cliParams
     }
     writeFile(config.usersFile,JSON.stringify(users))
     let user_online = users[result.user]['lastseen'] - users[result.user]['logintime']
-  	//console.log(`User ${result.user} authenticated since ${users[result.user]['logintime']} online time ${user_online}`);
   });
   basic.on('fail', (result, req) => {
     const { ip, username } = getIpUser(req)
@@ -167,7 +167,6 @@ cliParams
     logWarning({'authBasic':'fail',ip,'username':result.user})
   });
   basic.on('error', (error, req) => {
-    console.dir(error)
     logWarning({'authBasic':error})
   });
 
@@ -305,7 +304,8 @@ function createGets(args,servers,singleServer){
 
 // -------------------------
 
-  let osse = http.createServer(basic, async (req, res) => {
+//  let osse = http.createServer(basic, async (req, res) => {
+let osse = http.createServer( async (req, res) => {
 
     if (req.url.indexOf('/select?q=*:*&wt=csv&rows=0&facet') > -1 ) req.url = '/fields'
     let bittes = req.url.split('?')
@@ -516,7 +516,6 @@ function createGets(args,servers,singleServer){
                   logWarning({ip,username,'not200':{'code':statusCode,'message':statusMessage}})
                   res.end()
                 } else {
-                  //console.dir(headers) 'content-type': 'image/jpeg'
                   res.writeHead(200, { 'Content-Type': headers['content-type'] })
                   fres.on('data', (chunk) => { res.write(chunk)})
                   fres.on('end', () => { res.end() })
@@ -538,7 +537,7 @@ function createGets(args,servers,singleServer){
         break
       case 'PUT/files':
       case 'POST/files':
-        if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1) {
+        if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1 ) {
           try {
             let busboy = new Busboy({ preservePath: true, headers: req.headers })
             let fields = {}
@@ -566,6 +565,10 @@ function createGets(args,servers,singleServer){
                 file.on('end', async function() {
 
                   const md5 = hash.digest('hex')
+                  fields.osse_prepack_md5 = md5
+                  fields.osse_from_ip = ip
+                  if (username) fields.osse_uploader = username
+                  fields.osse_hostname = os.hostname()
                   let q = `md5:${md5}`
                   //q = 'path_basename_s:UkUgRGFuZ2VyIS5tc2c'
                   const gets = createGets({q:q,rows:10,start:0,fl:'id'},config.servers)
@@ -587,6 +590,9 @@ function createGets(args,servers,singleServer){
                     fs.unlinkSync(saveTo)
                     //res.write('file exists: '+filename)
                   } else {
+                    //if (fields.upload_lastModified)
+                    fields.upload_lastModified = date2JSON(fields.upload_lastModified)
+                    //if (!fields.upload_lastModified) fields.upload_lastModified = 0
                     let tmp = []
                     if (fields.upload_tags && fields.upload_tags.length > 3) tmp = fields.upload_tags.split(',')
                     tmp.push('uploaded')
@@ -615,14 +621,12 @@ function createGets(args,servers,singleServer){
                       kala = `$${filename}`
                       packed = await compress2Base64Url(kala)
                     }
-                    //console.log('lengths',packed.length-kala.length,kala.length,packed.length,packed)
                     if (packed.length > 254) {
                       // give up
                       logWarning({ip,username,uploadFileNameToLong:{filename}})
                       fs.unlinkSync(saveTo)
                     } else {
                       const kala2 = await decompress2Base64Url(packed)
-                      console.dir(kala2)
                       if (kala2 !== kala){
                           logError({critical:{compress2Base64Url:'wrong chop',packed,kala}})
                       }
@@ -631,8 +635,23 @@ function createGets(args,servers,singleServer){
                         fs.renameSync(saveTo, newPath)
                       } catch (error) {
                         logError({renameFailed:{saveTo, newPath}})
+
                       }
                       logNotice({ip,username,uploadedFile:{md5,filename,spool:newPath,kala,fields}})
+                      httpPost(config.uploadFileServerProto,config.uploadFileServer, config.filesPort, '/',newPath,fields)
+                      .then(function(result){
+                          logNotice({fileserverOK:{server:config.uploadFileServer,file:newPath,fields}})
+                          try {
+                            // TODO make all unlinkSync wait
+                            fs.unlinkSync(newPath)
+                          } catch (error) {
+                            logError({error})
+                          }
+                      })
+                      .catch(function(error){
+                        //TODO handle leftovers ...
+                        logWarning({fileservererror:{server:config.uploadFileServer,file:newPath,error}})
+                      })
                     }
                   }
                 });
