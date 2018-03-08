@@ -3,6 +3,7 @@
     "busboy": "^0.2.14",
     "commander": "^2.14.1",
     "file-type": "^7.6.0",
-    "read-chunk": "^2.1.0"
+    "read-chunk": "^2.1.0",
+    "request": "^2.83.0"
   }
 }

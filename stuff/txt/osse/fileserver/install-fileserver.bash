@@ -53,6 +53,7 @@ mkdir -p "$FS_DIR/js"
 cd "$FS_DIR/js"
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/fileserver/package.json
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/fileserver/file-server.js
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/server/utils.js
 npm install >> /vagrant/provision.log 2>&1
 
 mkdir -p $LOG_DIR

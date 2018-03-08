@@ -15,6 +15,9 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+IP=$1
+[ -z $IP ] && IP="192.168.11.2"
+
 [ -d "/vagrant" ] || mkdir /vagrant
 export LC_ALL=C
 [ -d /provision ] || mkdir /provision
@@ -32,5 +35,5 @@ systemctl start elasticsearch.service
 bash /provision/detektiven-master/stuff/txt/osse/etl/install-etl.bash
 bash /provision/detektiven-master/stuff/txt/osse/fileserver/install-fileserver.bash
 systemctl start osse-fileserver.service
-bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash
+bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash $IP
 systemctl start osse-server.service

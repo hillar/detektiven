@@ -17,9 +17,12 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+IP=$1
+[ -z $IP ] && IP="127.0.0.1"
+
 OSSE='osse-server'
 OSSE_DIR="/opt/$OSSE"
-HOST='127.0.0.1'
+HOST=$IP
 PORT='9983'
 
 OSSE_USER=$OSSE
