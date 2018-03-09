@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const readChunk = require('read-chunk')
 const fileType = require('file-type')
+const { logError, logWarning } = require('./log.js')
 
 module.exports = {
   ensureDirectory,

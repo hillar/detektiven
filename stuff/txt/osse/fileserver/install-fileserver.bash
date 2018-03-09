@@ -53,7 +53,11 @@ mkdir -p "$FS_DIR/js"
 cd "$FS_DIR/js"
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/fileserver/package.json
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/fileserver/file-server.js
-wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/server/utils.js
+#TODO replace this ugly hack with some sane bundler....
+grep common file-server.js | grep -v '//'| cut -f2 -d"'"| cut -f3 -d"/"| while read f;
+do
+  wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/common/$f
+done
 npm install >> /vagrant/provision.log 2>&1
 
 mkdir -p $LOG_DIR
