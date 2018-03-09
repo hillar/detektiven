@@ -10,7 +10,15 @@ const auth = require('http-auth')
 const Busboy = require('busboy')
 const base64url = require('base64url')
 const querystring = require('querystring')
-const { guid, now, date2JSON, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, httpPost, getIpUser } = require('./utils')
+const { nowAsJSON, date2JSON } = require('./common/time.js')
+const { ensureDirectory, writeFile, readJSON, isFile, getMime } = require('./common/fs.js')
+const { logError, logWarning, logNotice } = require('./common/log.js')
+const { getIpUser } = require('./common/request.js')
+const { guid } = require('./common/var.js')
+const { httpGet, httpPost, pingServer } = require('./common/net.js')
+const { getUser } = require('./common/freeipa.js')
+
+//const { guid, now, date2JSON, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, httpPost, getIpUser } = require('./utils')
 
 async function main() {
 
@@ -650,7 +658,7 @@ let osse = http.createServer( async (req, res) => {
                       })
                       .catch(function(error){
                         //TODO handle leftovers ...
-                        logWarning({fileservererror:{server:config.uploadFileServer,file:newPath,error}})
+                        logWarning({fileservererror:{server:config.uploadFileServer,file:newPath,error:error.message}})
                       })
                     }
                   }
@@ -688,7 +696,7 @@ let osse = http.createServer( async (req, res) => {
               subsFields[fieldname] = val
             })
             subsBusBoy.on('finish', async function() {
-              let uploadtime = now()
+              let uploadtime = nowAsJSON()
               let emails = '' // TODO
               let subsFile = false
               let subscriptionsDirectory = await ensureDirectory(path.join(config.subscriptionsDirectory,username))

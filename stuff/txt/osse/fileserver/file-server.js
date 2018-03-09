@@ -2,35 +2,14 @@ const fs = require('fs')
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto')
-const readChunk = require('read-chunk')
-const fileType = require('file-type')
 const cliParams = require('commander')
 const Busboy = require('busboy')
-
-const { guid, now, logNotice, logWarning, logError, ensureDirectory, writeFile, getIpUser } = require('./utils')
-
-
-function isFile(filename){
-  try {
-   fs.accessSync(filename, fs.constants.R_OK)
-  } catch (err) {
-   return false
-  }
-  return true
-}
-
-function getMime(filename){
-  try {
-   let t = fileType(readChunk.sync(filename, 0, 4100))
-   if (t) {
-    return t.mime
-   } else {
-    return 'application/octet-stream'
-   }
-  } catch (err) {
-   return false
-  }
-}
+const { nowAsJSON } = require('./common/time.js')
+const { ensureDirectory, writeFile, isFile, getMime } = require('./common/fs.js')
+const { logError, logWarning, logNotice } = require('./common/log.js')
+const { getIpUser } = require('./common/request.js')
+const { guid } = require('./common/var.js')
+//const { guid, now, logNotice, logWarning, logError, ensureDirectory, writeFile, getIpUser } = require('./common/utils')
 
 cliParams
   .version('0.0.1')
@@ -107,7 +86,7 @@ http.createServer(function (request, response) {
                   //NOOP !?
                 })
                 file.on('end', async function() {
-                  fields.saved_time = now()
+                  fields.saved_time = nowAsJSON()
                   fields.saved_ip = ip
                   fields.saved_md5 = hash.digest('hex')
                   if (username) fields.saved_user = username
