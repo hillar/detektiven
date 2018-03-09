@@ -67,6 +67,14 @@ mkdir -p "$OSSE_DIR/conf"
 mkdir -p "$OSSE_DIR/js"
 cd "$OSSE_DIR/js"
 cp /provision/detektiven-master/stuff/txt/osse/server/* .
+#TODO replace this ugly hack with some sane bundler....
+mkdir common
+cd common
+grep common ../osse-server.js | grep -v '//'| cut -f2 -d"'"| cut -f3 -d"/"| while read f;
+do
+  wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/common/$f
+done
+cd ..
 npm install --unsafe-perm >> /vagrant/provision.log 2>&1
 cd /provision/detektiven-master/stuff/txt/osse/browser/osse-browser
 npm install >> /vagrant/provision.log 2>&1
