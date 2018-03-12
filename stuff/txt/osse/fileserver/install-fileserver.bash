@@ -108,8 +108,8 @@ chmod +x "$FS_DIR/bin/start-$FS.bash"
 cat > /etc/systemd/system/$FS.service <<EOF
 [Unit]
 Description=OSSE File Server
-Requires=network.target
-After=network.target
+Requires=network.target $FS-spool-monitor.service
+After=network.target $FS-spool-monitor.service
 [Service]
 User=$FS_USER
 Group=$FS_GROUP
@@ -165,6 +165,24 @@ done < <(inotifywait -mr -e close_write "\$SPOOL_DIR")
 echo "\$(date) stopped \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/spool-\$\$.log
 EOF
 
+cat > /etc/systemd/system/$FS-spool-monitor.service <<EOF
+[Unit]
+Description=OSSE File Spool Monitor
+Requires=$FS-news-monitor.service
+After=$FS-news-monitor.service
+[Service]
+User=$FS_USER
+Group=$FS_GROUP
+EnvironmentFile=-/etc/default/$FS-monitor
+ExecStart=$FS_DIR/bin/$FS-spool-monitor.bash
+Type=simple
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable $FS-spool-monitor.service >> /vagrant/provision.log 2>&1
+
+
 cat > "$FS_DIR/bin/$FS-news-monitor.bash" <<EOF
 #!/bin/bash
 # tails \$NEWS_FILE $FILE_DIR/new-dirs.txt
@@ -181,11 +199,29 @@ done
 echo "\$(date) stop \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/news-\$\$.log
 EOF
 
+cat > /etc/systemd/system/$FS-news-monitor.service <<EOF
+[Unit]
+Description=OSSE File Spool NEWS Monitor
+[Service]
+User=$FS_USER
+Group=$FS_GROUP
+EnvironmentFile=-/etc/default/$FS-monitor
+ExecStart=$FS_DIR/bin/$FS-news-monitor.bash
+Type=simple
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable $FS-news-monitor.service >> /vagrant/provision.log 2>&1
+
+
 
 echo "installed $FS to $FS_DIR"
 echo "$FS server will run on $HOST:$PORT "
 echo "file dir is $FILE_DIR"
 echo "log dir is $LOG_DIR"
+echo "start $FS news monitor with 'systemctl start $FS-news-monitor.service'"
+echo "start $FS spool monitor with 'systemctl start $FS-spool-monitor.service'"
 echo "start $FS server with 'systemctl start $FS.service'"
 
 echo "$(date) done $0"
