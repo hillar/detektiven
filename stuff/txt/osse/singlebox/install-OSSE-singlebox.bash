@@ -41,6 +41,6 @@ systemctl start osse-server.service
 
 touch /tmp/empty.file
 f=/tmp/empty.file
-curl -XPOST -F "data=@$f" -F "tags=TEST" -H "Content-Type: multipart/form-data" -uuploadonly:uploadonly "$IP:9983/files"
+curl -s -XPOST -F "data=@$f" -F "tags=TEST" -H "Content-Type: multipart/form-data" -uuploadonly:uploadonly "$IP:9983/files"
 sleep 3
 etl-file /tmp/empty.file

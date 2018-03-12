@@ -119,7 +119,7 @@ if [ -z "\$OSSE_LOG_DIR" ]; then
 fi
 echo "starting $OSSE with conf:\$OSSE_CONF log dir:\$OSSE_LOG_DIR"
 cd $OSSE_DIR/js
-/usr/bin/nodejs $OSSE_DIR/js/osse-server.js --config=\$OSSE_CONF 1>\${OSSE_LOG_DIR}/$OSSE.log 2>\${OSSE_LOG_DIR}/$OSSE.error
+/usr/bin/nodejs $OSSE_DIR/js/osse-server.js --config=\$OSSE_CONF 1>>\${OSSE_LOG_DIR}/$OSSE.log 2>>\${OSSE_LOG_DIR}/$OSSE.error
 echo "$OSSE exitcode \$?"
 EOF
 chmod +x $OSSE_DIR/bin/start-$OSSE.bash

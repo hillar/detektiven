@@ -11,7 +11,7 @@ const Busboy = require('busboy')
 const base64url = require('base64url')
 const querystring = require('querystring')
 const { nowAsJSON, date2JSON } = require('./common/time.js')
-const { ensureDirectory, writeFile, readJSON, isFile, getMime } = require('./common/fs.js')
+const { ensureDirectory, writeFile, readFile, readJSON, isFile, getMime } = require('./common/fs.js')
 const { logError, logWarning, logNotice } = require('./common/log.js')
 const { getIpUser } = require('./common/request.js')
 const { guid } = require('./common/var.js')
@@ -243,8 +243,7 @@ function createGets(args,servers,singleServer){
                 } else resolve({server,'result':resJson.response})
               }
             } catch (e) {
-                let error = e
-                logError({e})
+                logError({try233:e.message})
                 resolve({server})
             }
           })
@@ -773,9 +772,12 @@ let osse = http.createServer( async (req, res) => {
     }
   })
 
-  process.on('SIGTERM', function () {
-    server.close(function () {
-      logNotice({'msg':'got SIGTERM'})
+  process.on('SIGTERM', async function () {
+    logNotice({'msg':'got SIGTERM'})
+    let saved = await writeFile(config.usersFile,JSON.stringify(users))
+    logNotice({'msg':'saved users', saved})
+    osse.close(function () {
+      logNotice({'msg':'close server done'})
       process.exit(0);
     });
   })
