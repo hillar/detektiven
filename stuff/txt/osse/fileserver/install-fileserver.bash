@@ -144,8 +144,8 @@ find ./ -type d | while read dirname
 do
   find "\$dirname" -type f | while read f; do file \$f; done| grep -v "XZ compressed data" | cut -f1 -d":"| while read filename
   do
-    xz -9e \$filename 1>> \$LOG_DIR/spool-\$\$.log 2>>\$ERROR_FILE
-    echo "packed old \$filename" >> \$LOG_DIR/spool-\$\$.log
+    xz -9e \$filename 1>> \$LOG_DIR/spool-\$\$.log 2>>\$LOG_DIR/spool-\$\$.error
+    echo "\$(date) \$0 pid \$\$ packed old \$filename" >> \$LOG_DIR/spool-\$\$.log
   done | sort | uniq >> \$NEWS_FILE
 done
 # watch for changes
@@ -158,7 +158,7 @@ do
       find "\$dirname" -type f | while read f; do file \$f; done| grep -v "XZ compressed data" | cut -f1 -d":"| while read filename
       do
         xz -9e \$filename 1>> \$LOG_DIR/spool-\$\$.log 2>>\$LOG_DIR/spool-\$\$.error
-        echo "packed \$filename" >> \$LOG_DIR/spool-\$\$.log
+        echo "\$(date) \$0 pid \$\$ packed \$filename" >> \$LOG_DIR/spool-\$\$.log
         echo "\$dirname"
       done | sort | uniq >> \$NEWS_FILE
     done
@@ -193,6 +193,7 @@ source /etc/default/$FS-monitor
 echo "\$(date) starting \$0 pid \$\$" >> \$LOG_DIR/news-\$\$.log
 tail --lines=0 -F \$NEWS_FILE | while read dirname
 do
+  echo "\$(date) \$0 pid \$\$ new files in \$dirname" >> \$LOG_DIR/news-\$\$.log
   ls \$dirname/* | grep -v "\$META_FILE"| while read filename
   do
     etl-file \$filename 1>> \$LOG_DIR/news-\$\$.log 2>> \$LOG_DIR/news-\$\$.error
