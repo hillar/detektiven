@@ -34,6 +34,13 @@ bash /provision/detektiven-master/stuff/txt/osse/elasticsearch/install-elastic.b
 systemctl start elasticsearch.service
 bash /provision/detektiven-master/stuff/txt/osse/etl/install-etl.bash
 bash /provision/detektiven-master/stuff/txt/osse/fileserver/install-fileserver.bash
-systemctl start osse-fileserver.service
+systemctl start osse-fileserver-news-monitor.service
+systemctl start systemctl start osse-fileserver.service
 bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash $IP
 systemctl start osse-server.service
+
+touch /tmp/empty.file
+f=/tmp/empty.file
+curl -XPOST -F "data=@$f" -F "tags=TEST" -H "Content-Type: multipart/form-data" -uuploadonly:uploadonly "$IP:9983/files"
+sleep 3
+etl-file /tmp/empty.file
