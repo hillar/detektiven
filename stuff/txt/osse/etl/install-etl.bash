@@ -106,9 +106,9 @@ error() { echo "\$(date) \$0: \$*" >&2; }
 die() { error "\$*"; exit 1; }
 md5=\$(md5sum "\$FILE"| cut -f1 -d" ")
 existsTMP=\$(mktemp)
-curl -s "http://\$SOLR/solr/\$CORE/select?fl=id,file_md5&wt=json&q=file_md5:\$md5" > \$existsTMP
+curl -s "http://\$SOLR/solr/\$CORE/select?fl=id,file_md5_ss&wt=json&q=file_md5_ss:\$md5" > \$existsTMP
 [ \$? != 0 ] && die "solr down"
-if [ ! \$(cat \$existsTMP | jq .response.docs[].file_md5 | grep  "\$md5" | wc -l) -eq 1 ]; then
+if [ ! \$(cat \$existsTMP | jq .response.docs[].file_md5_ss | grep  "\$md5" | wc -l) -eq 1 ]; then
   log "adding \$md5 \$FILE"
   python3 $ETL_DIR/python/etl_file.py --config="$ETL_DIR/config/etl" \$FILE
   # etl_file.py commit is broken, force it
