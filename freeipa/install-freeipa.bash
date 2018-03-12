@@ -18,8 +18,8 @@ fi
 [ -d "/vagrant" ] || mkdir /vagrant
 
 
-_PASSWORD_='verylongpassword'
-_UID_='sampleuser'
+_PASSWORD_='password'
+_UID_='username'
 
 IP=$1
 [ -z $IP ] && IP="127.0.0.1"
@@ -93,6 +93,9 @@ ipa role-add-member ReadOnlyLDAP --users=$_UID_
 ipa role-show ReadOnlyLDAP
 ipa user-find $_UID_
 ldapsearch -x -D "uid=$_UID_,cn=users,cn=accounts,dc=example,dc=org" -w $_PASSWORD_ -h 192.168.10.2 -b "cn=accounts,dc=example,dc=org" -s sub 'uid=$_UID_'
+
+ipa group-add osse
+ipa group-add-member osse --users=$_UID_
 
 
 

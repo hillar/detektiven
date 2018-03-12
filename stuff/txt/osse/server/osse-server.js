@@ -17,6 +17,7 @@ const { getIpUser } = require('./common/request.js')
 const { guid } = require('./common/var.js')
 const { httpGet, httpPost, pingServer } = require('./common/net.js')
 const { getUser } = require('./common/freeipa.js')
+const { sendMail } = require('./common/mail.js')
 
 //const { guid, now, date2JSON, logNotice, logWarning, logError, ensureDirectory, readFile, writeFile, readJSON, pingServer, sendMail, getUser, httpGet, httpPost, getIpUser } = require('./utils')
 
@@ -311,8 +312,8 @@ function createGets(args,servers,singleServer){
 
 // -------------------------
 
-//  let osse = http.createServer(basic, async (req, res) => {
-let osse = http.createServer( async (req, res) => {
+let osse = http.createServer(basic, async (req, res) => {
+//let osse = http.createServer( async (req, res) => {
 
     if (req.url.indexOf('/select?q=*:*&wt=csv&rows=0&facet') > -1 ) req.url = '/fields'
     let bittes = req.url.split('?')

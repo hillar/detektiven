@@ -80,6 +80,8 @@ cd /provision/detektiven-master/stuff/txt/osse/browser/osse-browser
 npm install >> /vagrant/provision.log 2>&1
 npm run build >> /vagrant/provision.log 2>&1
 mv dist "$OSSE_DIR/js"
+cd "$OSSE_DIR/js"
+cp dist/static/favicon.ico dist/
 mkdir -p $LOG_DIR
 mkdir -p $DATA_DIR
 mkdir -p $SESS_DIR
