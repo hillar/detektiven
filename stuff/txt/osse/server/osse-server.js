@@ -82,7 +82,7 @@ cliParams
   config.uploadFileServerProto = configFile.uploadFileServer || 'http'
   config.filesPort = configFile.filesPort || 8125
   config.uploadUser = cliParams.uploadUser || configFile.uploadUser || 'uploadonly'
-  config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"default","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
+  config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"solrdefalutcore","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
   // generate sample configFile
   if (cliParams.generateConfig) {
     console.log(JSON.stringify(config, null, 2))
