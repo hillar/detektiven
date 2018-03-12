@@ -18,7 +18,9 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 IP=$1
-[ -z $IP ] && IP="127.0.0.1"
+[ -z $1 ] && IP="127.0.0.1"
+IPAHOST=$2
+[ -z $2 ] && IPAHOST="127.0.0.1"
 
 OSSE='osse-server'
 OSSE_DIR="/opt/$OSSE"
@@ -92,6 +94,7 @@ cat > $OSSE_DIR/conf/config.json <<EOF
 {
   "portListen": "$PORT",
   "ipBind": "$HOST",
+  "ipaServer": "$IPAHOST",
   "usersFile": "$SESS_DIR/users.json",
   "uploadDirectory": "$SPOOL_DIR",
   "subscriptionsDirectory": "$SUBS_DIR",

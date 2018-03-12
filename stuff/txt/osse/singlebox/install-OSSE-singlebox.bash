@@ -16,7 +16,9 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 IP=$1
-[ -z $IP ] && IP="192.168.11.2"
+[ -z $1 ] && IP="192.168.11.2"
+IPA=$2
+[ -z $2 ] && IPAHOST="192.168.10.2"
 
 [ -d "/vagrant" ] || mkdir /vagrant
 export LC_ALL=C
@@ -36,7 +38,7 @@ bash /provision/detektiven-master/stuff/txt/osse/etl/install-etl.bash
 bash /provision/detektiven-master/stuff/txt/osse/fileserver/install-fileserver.bash
 systemctl start osse-fileserver-news-monitor.service
 systemctl start systemctl start osse-fileserver.service
-bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash $IP
+bash /provision/detektiven-master/stuff/txt/osse/server/install-osse.bash $IP $IPA
 systemctl start osse-server.service
 
 touch /tmp/empty.file
