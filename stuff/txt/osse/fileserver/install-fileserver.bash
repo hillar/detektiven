@@ -162,7 +162,7 @@ do
         echo "\$dirname"
       done | sort | uniq >> \$NEWS_FILE
     done
-done < <(inotifywait -mr -e close_write "\$SPOOL_DIR")
+done < <(inotifywait -mr -e close_write ./)
 echo "\$(date) stopped \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/spool-\$\$.log
 EOF
 chmod +x "$FS_DIR/bin/$FS-spool-monitor.bash"
