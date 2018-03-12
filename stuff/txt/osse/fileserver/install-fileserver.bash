@@ -43,6 +43,7 @@ else
   apt-get -y upgrade >> /vagrant/provision.log 2>&1
   apt-get -y install nodejs >> /vagrant/provision.log 2>&1
 fi
+ apt-get -y install inotify-tools >> /vagrant/provision.log 2>&1
 
 addgroup --system "$FS_GROUP" --quiet
 adduser --system --home $FS_DIR --no-create-home --ingroup $FS_GROUP --disabled-password --shell /bin/false "$FS_USER" --quiet
@@ -120,6 +121,33 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable $FS.service >> /vagrant/provision.log 2>&1
+
+cat > /etc/default/$FS-monitor <<EOF
+SPOOL_DIR='$FILE_DIR'
+LOG_DIR='/var/log/$FS-monitor'
+NEWS_FILE="$FILE_DIR/new-dirs.txt"
+META_FILE="meta.json"
+EOF
+
+cat > "$FS_DIR/bin/$FS-spool-monitor.bash" <<EOF
+EOF
+
+cat > "$FS_DIR/bin/$FS-news-monitor.bash" <<EOF
+#!/bin/bash
+# tails \$NEWS_FILE $NEWS_FILE
+# and feeds files in new dir one by one etl-file
+source /etc/default/$FS-monitor
+echo "\$(date) starting \$0 pid \$\$" >> \$LOG_DIR/news-\$\$.log
+tail --lines=0 -F \$NEWS_FILE | while read dirname
+do
+  ls \$dirname/* | grep -v "\$META_FILE"| while read filename
+  do
+    etl-file \$filename 1>> \$LOG_DIR/news-\$\$.log 2>> \$LOG_DIR/news-\$\$.error
+  done
+done
+echo "\$(date) stop \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/news-\$\$.log
+EOF
+
 
 echo "installed $FS to $FS_DIR"
 echo "$FS server will run on $HOST:$PORT "
