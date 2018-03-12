@@ -65,10 +65,12 @@ cd ..
 npm install >> /vagrant/provision.log 2>&1
 
 mkdir -p $LOG_DIR
+mkdir -p /var/log/$FS-monitor
 mkdir -p $FILE_DIR
 chown -R $FS_USER:$FS_GROUP "$FS_DIR"
 chown $FS_USER:$FS_GROUP "$LOG_DIR"
 chown $FS_USER:$FS_GROUP "$FILE_DIR"
+chown $FS_USER:$FS_GROUP "/var/log/$FS-monitor"
 
 cat > /etc/default/$FS <<EOF
 FS_HOST='$HOST'
@@ -135,7 +137,6 @@ cat > "$FS_DIR/bin/$FS-spool-monitor.bash" <<EOF
 # if not xz packed, packs
 # and writes new dirnames to \$NEWS_FILE $FILE_DIR/new-dirs.txt
 source /etc/default/$FS-monitor
-[ -d \$LOG_DIR ] || mkdir -p \$LOG_DIR
 echo "\$(date) \$0 pid \$\$ scanning \$SPOOL_DIR news to \$NEWS_FILE" >> \$LOG_DIR/spool-\$\$.log
 cd \$SPOOL_DIR
 # at start scan full spool
@@ -215,8 +216,6 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable $FS-news-monitor.service >> /vagrant/provision.log 2>&1
-
-
 
 echo "installed $FS to $FS_DIR"
 echo "$FS server will run on $HOST:$PORT "
