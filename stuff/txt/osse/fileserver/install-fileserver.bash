@@ -130,11 +130,44 @@ META_FILE="meta.json"
 EOF
 
 cat > "$FS_DIR/bin/$FS-spool-monitor.bash" <<EOF
+#!/bin/bash
+# watches fileserver \$FILE_DIR $FILE_DIR
+# if not xz packed, packs
+# and writes new dirnames to \$NEWS_FILE $FILE_DIR/new-dirs.txt
+source /etc/default/$FS-monitor
+[ -d \$LOG_DIR ] || mkdir -p \$LOG_DIR
+echo "\$(date) \$0 pid \$\$ scanning \$SPOOL_DIR news to \$NEWS_FILE" >> \$LOG_DIR/spool-\$\$.log
+cd \$SPOOL_DIR
+# at start scan full spool
+find ./ -type d | while read dirname
+do
+  find "\$dirname" -type f | while read f; do file \$f; done| grep -v "XZ compressed data" | cut -f1 -d":"| while read filename
+  do
+    xz -9e \$filename 1>> \$LOG_DIR/spool-\$\$.log 2>>\$ERROR_FILE
+    echo "packed old \$filename" >> \$LOG_DIR/spool-\$\$.log
+  done | sort | uniq >> \$NEWS_FILE
+done
+# watch for changes
+echo "\$(date)  \$0 pid \$\$ watching \$SPOOL_DIR news to \$NEWS_FILE" >> \$LOG_DIR/spool-\$\$.log
+while read tmp
+do
+    echo "\$tmp" | grep "\$META_FILE" | while read meta
+    do
+      dirname=\$(echo "\$meta"| cut -f1 -d" ")
+      find "\$dirname" -type f | while read f; do file \$f; done| grep -v "XZ compressed data" | cut -f1 -d":"| while read filename
+      do
+        xz -9e \$filename 1>> \$LOG_DIR/spool-\$\$.log 2>>\$LOG_DIR/spool-\$\$.error
+        echo "packed \$filename" >> \$LOG_DIR/spool-\$\$.log
+        echo "\$dirname"
+      done | sort | uniq >> \$NEWS_FILE
+    done
+done < <(inotifywait -mr -e close_write "\$SPOOL_DIR")
+echo "\$(date) stopped \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/spool-\$\$.log
 EOF
 
 cat > "$FS_DIR/bin/$FS-news-monitor.bash" <<EOF
 #!/bin/bash
-# tails \$NEWS_FILE $NEWS_FILE
+# tails \$NEWS_FILE $FILE_DIR/new-dirs.txt
 # and feeds files in new dir one by one etl-file
 source /etc/default/$FS-monitor
 echo "\$(date) starting \$0 pid \$\$" >> \$LOG_DIR/news-\$\$.log
