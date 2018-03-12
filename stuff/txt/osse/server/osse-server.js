@@ -219,7 +219,7 @@ function createGets(args,servers,singleServer){
           query += '/solr/'+server.collection+'/select?'
           //if (!args.wt)
           args.wt = 'json'
-          query += 'wt='+args.wt+'&q=' + args.q + '&'
+          query += 'wt='+args.wt+'&q=' + args.q.trim() + '&'
           if (args.q_op && args.q_op === 'AND') query += 'q.op=AND&'
           query += 'rows='+args.rows+'&start='+args.start+'&'
           if (args.fl) query += 'fl='+args.fl+'&'
@@ -361,7 +361,7 @@ let osse = http.createServer(basic, async (req, res) => {
           res.end()
           break
         }
-        if (args.q.indexOf('%') === -1) args.q = querystring.escape(args.q)
+        if (args.q.indexOf('%') === -1) args.q = querystring.escape(args.q).trim()
         //TODO check max
         if (!args.rows) args.rows = 1
         args.rows = Math.min(args.rows,Math.floor(MAXRESULTS/config.servers.length))

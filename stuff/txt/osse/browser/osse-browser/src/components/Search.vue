@@ -301,7 +301,7 @@
               errorsSend()
               // convert fieldname:* to fieldname:[* TO *]
               this.userQuery += ' '
-              this.userQuery = this.userQuery.replace(':* ',':[* TO *] ')
+              this.userQuery = this.userQuery.replace(':* ',':[* TO *] ').trim()
               this.$router.push('/search?q='+this.userQuery)
               const loadingComponent = this.$loading.open()
               let old = this.message
