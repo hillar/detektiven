@@ -18,7 +18,7 @@ fi
 IP=$1
 [ -z $1 ] && IP="192.168.11.2"
 IPA=$2
-[ -z $2 ] && IPAHOST="192.168.10.2"
+[ -z $2 ] && IPA="192.168.10.2"
 
 [ -d "/vagrant" ] || mkdir /vagrant
 export LC_ALL=C
