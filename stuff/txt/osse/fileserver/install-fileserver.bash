@@ -164,6 +164,7 @@ do
 done < <(inotifywait -mr -e close_write "\$SPOOL_DIR")
 echo "\$(date) stopped \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/spool-\$\$.log
 EOF
+chmod +x "$FS_DIR/bin/$FS-spool-monitor.bash"
 
 cat > /etc/systemd/system/$FS-spool-monitor.service <<EOF
 [Unit]
@@ -198,6 +199,7 @@ do
 done
 echo "\$(date) stop \$0 pid \$\$ exit code \$?" >> \$LOG_DIR/news-\$\$.log
 EOF
+chmod +x "$FS_DIR/bin/$FS-news-monitor.bash"
 
 cat > /etc/systemd/system/$FS-news-monitor.service <<EOF
 [Unit]
