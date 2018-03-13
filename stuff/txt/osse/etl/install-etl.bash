@@ -114,6 +114,7 @@ if [ ! \$(cat \$existsTMP | jq .response.docs[].file_md5_ss | grep  "\$md5" | wc
   # etl_file.py commit is broken, force it
   curl -s http://127.0.0.1:8983/solr/solrdefalutcore/update?commit=true > /dev/null
 else
+  #TODO handle dups and aliases
   if [ ! \$(cat \$existsTMP| grep "\$FILE"| wc -l ) -eq 1 ]; then
     error "file alias \$md5 \$FILE \$(cat \$existsTMP| grep "file\:///")"
   else

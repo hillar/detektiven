@@ -190,7 +190,8 @@ cat > "$FS_DIR/bin/$FS-news-monitor.bash" <<EOF
 # tails \$NEWS_FILE $FILE_DIR/new-dirs.txt
 # and feeds files in new dir one by one etl-file
 source /etc/default/$FS-monitor
-echo "\$(date) starting \$0 pid \$\$" >> \$LOG_DIR/news-\$\$.log
+cd \$SPOOL_DIR
+echo "\$(date) starting \$0 pid \$\$ \$(pwd)" >> \$LOG_DIR/news-\$\$.log
 tail --lines=0 -F \$NEWS_FILE | while read dirname
 do
   echo "\$(date) \$0 pid \$\$ new files in \$dirname" >> \$LOG_DIR/news-\$\$.log
