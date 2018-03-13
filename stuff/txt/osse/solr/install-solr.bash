@@ -30,7 +30,7 @@ VER='7.2.1'
 MEM='512m'
 HOST='127.0.0.1'
 PORT='8983'
-
+DEFAULT="solrdefalutcore"
 
 SOLR_USER=$SOLR
 SOLR_GROUP=$SOLR
@@ -54,7 +54,7 @@ mkdir -p "$SOLR_DIR"
 mkdir -p "$DATA_DIR"
 SOLR_UID="$PORT"
 SOLR_GID="$PORT"
-DEFAULT="solrdefalutcore"
+
 groupadd -r --gid $SOLR_GID $SOLR_GROUP
 useradd -r --uid $SOLR_UID --gid $SOLR_GID $SOLR_USER
 #addgroup --system "$SOLR_GROUP" --quiet
@@ -64,6 +64,13 @@ cd /tmp
 [ -f "solr-${VER}.tgz" ] || wget -q http://www-us.apache.org/dist/lucene/solr/7.2.1/solr-${VER}.tgz
 cd "$SOLR_DIR"
 tar -C "$SOLR_DIR" --extract --file /tmp/solr-${VER}.tgz --strip-components=1
+
+# server/solr/configsets/_default/conf/managed-schema
+#     <!-- This can be enabled, in case the client does not know what fields may be searched. It isn't enabled by default
+#         because it's very expensive to index everything twice. -->
+#    <!-- <copyField source="*" dest="_text_"/> -->
+
+sed -i -e 's,<!-- <copyField source="\*" dest="_text_"\/> -->,<copyField source="*" dest="_text_"/>,g' server/solr/configsets/_default/conf/managed-schema
 
 mkdir -p "$SOLR_DIR/server/logs"
 ln -s  "$SOLR_DIR/server/logs" "$LOG_DIR"
