@@ -71,7 +71,7 @@ tar -C "$SOLR_DIR" --extract --file /tmp/solr-${VER}.tgz --strip-components=1
 #         because it's very expensive to index everything twice. -->
 #    <!-- <copyField source="*" dest="_text_"/> -->
 
-sed -i -e 's,<!-- <copyField source="\*" dest="_text_"\/> -->,<copyField source="*" dest="_text_"/>,g' server/solr/configsets/_default/conf/managed-schema
+sed -i -e 's,<!-- <copyField source="\*" dest="_text_"\/> -->,<copyField source="*" dest="_text_"/>\n<dynamicField name="*" type="text_general" indexed="true" stored="true" multiValued="true"/>,g' server/solr/configsets/_default/conf/managed-schema
 
 mkdir -p "$SOLR_DIR/server/logs"
 ln -s  "$SOLR_DIR/server/logs" "$LOG_DIR"

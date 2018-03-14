@@ -1,6 +1,11 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
 import os
 import json
 import etl
+import zipfile
+import lzma
 
 class enhance_file_meta(object):
 
@@ -33,8 +38,24 @@ class enhance_file_meta(object):
 		meta = {}
 
 		if os.path.isfile(metafile):
+			if zipfile.is_zipfile(metafile):
+				if verbose:
+					print('is zipfile:' + metafile)
+				with ZipFile(metafile) as myzip:
+					fn = myzip.namelist()
+					with myzip.open(fn[0]) as myfile:
+						tmp = myfile.read()
+			else:
+				if metafile.endswith('.xz'):
+					if verbose:
+						print('is XZ file:' + metafile)
+					tmp = lzma.open(metafile, mode='rt', encoding='utf-8').read()
+				else:
+					if verbose:
+						print('not zip nor xz:' + metafile)
+					tmp = open(metafile).read()
 			try:
-				meta = json.loads(open(metafile).read())
+				meta = json.loads(tmp)
 			except Exception as e:
 				print('Exception loading ' + metafile + ' error' + e)
 			else:
