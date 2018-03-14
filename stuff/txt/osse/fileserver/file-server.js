@@ -24,7 +24,7 @@ config.portListen = cliParams.port || 8125
 config.ipListen = cliParams.ip || '127.0.0.1'
 config.pathRoot = cliParams.root || '/tmp/'
 
-http.createServer(function (request, response) {
+let fileserver = http.createServer(function (request, response) {
     const { ip, username } = getIpUser(request)
     if (request.method === 'GET') {
       let reqFile = decodeURIComponent(request.url)
@@ -122,10 +122,11 @@ http.createServer(function (request, response) {
         logWarning({'503':{ip,username,headers:request.headers}})
       }
     }
-}).listen(config.portListen, config.ipListen)
+})
+
 
 process.on('SIGTERM', function () {
-  server.close(function () {
+  fileserver.close(function () {
     logNotice({'msg':'got SIGTERM'})
     process.exit(0);
   });
@@ -136,4 +137,5 @@ logError({'uncaughtException':`${error}`})
 if (process.stdout.isTTY) console.log(error)
 });
 
-console.log(config)
+logNotice({'starting':config})
+fileserver.listen(config.portListen, config.ipListen)
