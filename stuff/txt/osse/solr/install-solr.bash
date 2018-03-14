@@ -43,6 +43,7 @@ if [ "$java" != "" ]; then
   echo "$(date) java ver $java "
 else
   echo "$(date) installing java"
+  apt -y install software-properties-common >> /vagrant/provision.log 2>&1
   add-apt-repository ppa:webupd8team/java >> /vagrant/provision.log 2>&1
   apt-get update >> /vagrant/provision.log 2>&1
   echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
