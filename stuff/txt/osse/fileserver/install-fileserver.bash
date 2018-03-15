@@ -20,6 +20,7 @@ FS='osse-fileserver'
 FS_DIR="/opt/$FS"
 HOST='127.0.0.1'
 PORT='8125'
+max_user_watches='524288'
 
 FS_USER=$FS
 FS_GROUP=$FS
@@ -47,7 +48,8 @@ fi
 
 addgroup --system "$FS_GROUP" --quiet
 adduser --system --home $FS_DIR --no-create-home --ingroup $FS_GROUP --disabled-password --shell /bin/false "$FS_USER" --quiet
-
+#TODO cat /proc/sys/fs/inotify/max_user_watches
+sysctl fs.inotify.max_user_watches=$max_user_watches
 
 mkdir -p "$FS_DIR/bin"
 mkdir -p "$FS_DIR/js"
