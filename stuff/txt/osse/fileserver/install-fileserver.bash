@@ -148,6 +148,7 @@ do
   do
     xz -9e \$filename 1>> \$LOG_DIR/spool-\$\$.log 2>>\$LOG_DIR/spool-\$\$.error
     echo "\$(date) \$0 pid \$\$ packed old \$filename" >> \$LOG_DIR/spool-\$\$.log
+    echo "\$dirname"
   done | sort | uniq >> \$NEWS_FILE
 done
 # watch for changes

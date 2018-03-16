@@ -28,6 +28,7 @@ SOLR_PORT='8983'
 SOLR_CORE='solrdefalutcore'
 TIKA_HOST='127.0.0.1'
 TIKA_PORT='9998'
+METAFILE='meta.json.xz'
 
 apt-get -y install python3 jq >> /vagrant/provision.log 2>&1
 apt-get -y install tesseract-ocr tesseract-ocr-deu tesseract-ocr-est tesseract-ocr-rus tesseract-ocr-eng >> /vagrant/provision.log 2>&1
@@ -100,25 +101,33 @@ cat > "$ETL_DIR/bin/etl-file.bash" <<EOF
 #!/bin/bash
 SOLR="$SOLR_HOST:$SOLR_PORT"
 CORE="$SOLR_CORE"
+META="$METAFILE"
 FILE="\$1"
 log() { echo "\$(date) \$0: \$*"; }
 error() { echo "\$(date) \$0: \$*" >&2; }
 die() { error "\$*"; exit 1; }
 md5=\$(md5sum "\$FILE"| cut -f1 -d" ")
 existsTMP=\$(mktemp)
-curl -s "http://\$SOLR/solr/\$CORE/select?fl=id,file_md5_ss&wt=json&q=file_md5_ss:\$md5" > \$existsTMP
+curl -s "http://\$SOLR/solr/\$CORE/select?fl=id,file_md5_ss,aliases&wt=json&q=file_md5_ss:\$md5" > \$existsTMP
 [ \$? != 0 ] && die "solr down"
-if [ ! \$(cat \$existsTMP | jq .response.docs[].file_md5_ss | grep  "\$md5" | wc -l) -eq 1 ]; then
+if [ \$(cat \$existsTMP | jq .response.docs[].file_md5_ss | grep  "\$md5" | wc -l) -eq 0 ]; then
   log "adding \$md5 \$FILE"
   python3 $ETL_DIR/python/etl_file.py --config="$ETL_DIR/config/etl" \$FILE
   # etl_file.py commit is broken, force it
   curl -s http://127.0.0.1:8983/solr/solrdefalutcore/update?commit=true > /dev/null
 else
-  #TODO handle dups and aliases
-  if [ ! \$(cat \$existsTMP| grep "\$FILE"| wc -l ) -eq 1 ]; then
-    error "file alias \$md5 \$FILE \$(cat \$existsTMP| grep "file\:///")"
+  if [ \$(cat \$existsTMP| grep "\$FILE"| wc -l ) -eq 0 ]; then
+      id=\$(cat \$existsTMP| jq .response.docs[0].id)
+      dirname=\$(dirname \$FILE)
+      metafile="\$dirname/\$META"
+      if [ -f "\$metafile" ];then
+        curl -s -X POST -H 'Content-Type: application/json' "http://\$SOLR/solr/\$CORE/update?commit=true" --data-binary "[{\"id\":\"\$FILE\",\"alias_for\":\$id,\$(xzcat \$metafile|sed 's/{//'| sed 's/}//')}]" > /dev/null
+        log "added meta \$md5 \$FILE "
+      fi
+      curl -s -X POST -H 'Content-Type: application/json' "http://\$SOLR/solr/\$CORE/update?commit=true" --data-binary "[{\"id\":\$id,\"aliases\":{\"add\":[\"\$FILE\"]}}]" > /dev/null
+      log "added alias \$md5 \$id \$FILE"
   else
-    log "file already indexed \$md5 \$FILE \$(cat \$existsTMP| grep "\$FILE")"
+    log "file already indexed \$md5 \$FILE \$(cat \$existsTMP| grep "\$FILE"|wc -l)"
   fi
 fi
 rm \$existsTMP

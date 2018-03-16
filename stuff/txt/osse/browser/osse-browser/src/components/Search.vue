@@ -221,8 +221,8 @@
                 { title: 'ID', field: 'id', visible: false },
                 { title: 'Score', field: 'score', visible: true },
                 { title: 'Server', field: '_server_', visible: false },
-                { title: 'Title', field: 'title', visible: true },
-                { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true }
+                { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true },
+                { title: 'Title', field: 'title', visible: false }
             ]
             let connectorFields = 'bitcoin_ss,dear_ss,email_ss,message_to_ss'
 

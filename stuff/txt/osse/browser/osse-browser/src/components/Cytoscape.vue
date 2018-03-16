@@ -34,9 +34,10 @@ async function findDocs(q,f,rows){
     if (!q) resolve(false)
     if (!rows) rows = 32
     let fl = '*,content:[value v=""]'
+    /*
     if (Array.isArray(f) && f.length>0) {
       fl = f.join(',')
-    }
+    }*/
     let q_url = `/solr/core1/select?&wt=json&rows=${rows}&fl=${encodeURIComponent(fl)}&q=${encodeURIComponent(q)}`
     axios.get(q_url)
     .then(function (res) {
@@ -379,8 +380,8 @@ export default {
     async loadRoot(root){
       this.loading = true
       let start = Date.now()
-      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','path_basename_s','container_s']))
-      let qs = await getConnectors(rootDoc[0],this.connectors)
+      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','aliases','path_basename_s','container_s']))
+      let qs = await getConnectors(rootDoc[0],this.connectors.concat(['aliases']))
       if (qs.length > 128) this.$toast.open('sorry, wait a bit ..<br>object to query: '+qs.length)
       let docs = []
       docs.push(rootDoc[0])
@@ -388,13 +389,13 @@ export default {
       for (let i=0,j=qs.length; i<j; i+=chunk) {
           let tmpq = qs.slice(i,i+chunk)
           //console.log(i,j,tmpq.join(' OR '))
-          let tmp = await findDocs(tmpq.join(' OR '), this.connectors.concat(['id','path_basename_s','container_s']))
+          let tmp = await findDocs(tmpq.join(' OR '), this.connectors.concat(['id','aliases','path_basename_s','container_s']))
           for (let y in tmp) if (!docs.find(x => x.id === tmp[y].id)) docs.push(tmp[y])
           //console.log('docs',docs.length,'q',tmpq.join(' OR ').length)
       }
       if ((Date.now()-start)>4000) this.$toast.open('got docs: '+docs.length)
       console.log('queries took',Date.now()-start,'got docs',docs.length)
-      let graph = await buildG(docs, this.connectors)
+      let graph = await buildG(docs, this.connectors.concat(['aliases']))
       console.log('ngraph took',Date.now()-start,'got graph',graph.getNodesCount(),graph.getLinksCount())
       if ((Date.now()-start)>5000) this.$toast.open('nodes: '+graph.getNodesCount()+' <br> edges: '+graph.getLinksCount())
       this.cy.startBatch()
@@ -458,6 +459,17 @@ export default {
       let docs = []
       let added = false
       if (data && data.doc && data.doc.id){
+        if (data.doc.alias_for && data.doc.alias_for[0]) {
+          if (cy.getElementById(data.doc.alias_for[0]).length === 0) cy.add({data:{id:data.doc.alias_for[0],data:{type:'doc'},label:data.doc.alias_for[0]}})
+          cy.add({data:{source:id,target:data.doc.alias_for[0]}})
+        }
+        if (data.doc.aliases ) {
+          for (const alias of data.doc.aliases) {
+            if (cy.getElementById(alias).length === 0) cy.add({data:{id:alias,data:{type:'doc'},label:alias}})
+            cy.add({data:{source:id,target:alias}})
+          }
+        }
+
         let qs = await getConnectors(data.doc,this.connectors)
         if (qs.length > (384/8)) {
           this.$toast.open('will explode, to many objects ..<br>object:'+qs.length)
@@ -467,7 +479,9 @@ export default {
             cy.startBatch()
             for (let i in qs) {
               let cc = qs[i].replace(/['"]+/g, '')
+              console.log(qs)
               if (cy.getElementById(cc).length === 0) {
+                  //TODO find human readable label
                   if (cc.length > 0) cy.add({data:{id:cc,type:'expanded',label:cc}})
                   cy.add({data:{source:id,target:cc}})
                   a = true
@@ -478,8 +492,8 @@ export default {
           })
         }
       } else {
-        if (data && data.type && data.type !== 'connector') {
-          docs = await findDocs([node.data('label')], this.connectors.concat(['id','path_basename_s','container_s']))
+        if (data && data.type && data.type !== 'connector' ) {
+          docs = await findDocs([node.data('label')], this.connectors.concat(['id','aliases','alias_for','path_basename_s','container_s']))
           if (docs.length > (384/8)) {
             this.$toast.open('will explode, to many objects ..<br>object:'+docs.length)
           } else {
@@ -492,6 +506,10 @@ export default {
                     if (doc.id.length > 0) cy.add({data:{id:doc.id,type:'doc',label:doc['path_basename_s'],doc:doc}})
                     cy.add({data:{source:id,target:doc.id}})
                     a = true
+                } else {
+                  if (id === doc.id) {
+                    cy.getElementById(id).data('doc',doc)
+                  }
                 }
               }
               cy.endBatch()
