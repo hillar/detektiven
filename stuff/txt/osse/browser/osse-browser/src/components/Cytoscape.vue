@@ -380,8 +380,8 @@ export default {
     async loadRoot(root){
       this.loading = true
       let start = Date.now()
-      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','aliases','path_basename_s','container_s']))
-      let qs = await getConnectors(rootDoc[0],this.connectors.concat(['aliases']))
+      let rootDoc = await findDocs(`id:"${root.id}"`, this.connectors.concat(['id','aliases','alias_for','path_basename_s','container_s']))
+      let qs = await getConnectors(rootDoc[0],this.connectors.concat(['aliases','alias_for']))
       if (qs.length > 128) this.$toast.open('sorry, wait a bit ..<br>object to query: '+qs.length)
       let docs = []
       docs.push(rootDoc[0])
@@ -469,7 +469,6 @@ export default {
             cy.add({data:{source:id,target:alias}})
           }
         }
-
         let qs = await getConnectors(data.doc,this.connectors)
         if (qs.length > (384/8)) {
           this.$toast.open('will explode, to many objects ..<br>object:'+qs.length)

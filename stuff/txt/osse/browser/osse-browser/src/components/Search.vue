@@ -91,9 +91,7 @@
          @page-change="onPageChange"
          detailed
          detail-key="id"
-         backend-sorting
          :current-page="page"
-         :default-sort-direction="defaultSortOrder"
          :default-sort="[sortField, sortOrder]"
          @sort="onSort">
          <template slot-scope="props">
@@ -219,7 +217,7 @@
         data() {
             let columns = [
                 { title: 'ID', field: 'id', visible: false },
-                { title: 'Score', field: 'score', visible: true },
+                { title: 'Score', field: 'score', visible: true, sortable: false },
                 { title: 'Server', field: '_server_', visible: false },
                 { title: 'Highlights', field: '_highlighting_', visible: true, renderHtml: true },
                 { title: 'Title', field: 'title', visible: false }
@@ -236,7 +234,6 @@
                 contentField:  'content',
                 sortField: 'score',
                 sortOrder: 'desc',
-                defaultSortOrder: 'desc',
                 page: 1,
                 perPage: 10,
                 message: 'do some search ..',

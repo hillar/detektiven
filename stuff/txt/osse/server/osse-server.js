@@ -221,6 +221,8 @@ function createGets(args,servers,singleServer){
           args.wt = 'json'
           query += 'wt='+args.wt+'&q=' + args.q.trim() + '&'
           if (args.q_op && args.q_op === 'AND') query += 'q.op=AND&'
+          //if (args.sort)
+          query +='sort=score%20desc&'
           query += 'rows='+args.rows+'&start='+args.start+'&'
           if (args.fl) query += 'fl='+args.fl+'&'
           if (args.hl) {
@@ -401,11 +403,13 @@ let osse = http.createServer(basic, async (req, res) => {
                         }
                       }
                       resEnd.docs.push(doc)
+                      resEnd.docs.sort(function(a, b) { return b.score - a.score })
                     }
                   }
                 }
             }
           }
+
           res.end(JSON.stringify({'response':resEnd}))
         })
         .catch(function(err) {
