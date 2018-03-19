@@ -15,12 +15,16 @@ class enhance_file_md5(object):
 				verbose = True
 
 		filename = parameters['filename']
+		if 'md5_field_name' in parameters:
+			md5_field_name = parameters['md5_field_name']
+		else:
+			md5_field_name = 'file_md5_s'
 
 		#get md5 for file
 		m = hashlib.md5();
 		m.update(open(filename,'rb').read());
 		md5 = m.hexdigest()
-		data['file_md5_ss'] = md5
+		data[md5_field_name] = md5
 
 		if verbose:
 			print ("File md5: {}".format( md5 ))

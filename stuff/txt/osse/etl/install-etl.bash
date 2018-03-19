@@ -29,6 +29,7 @@ SOLR_CORE='solrdefalutcore'
 TIKA_HOST='127.0.0.1'
 TIKA_PORT='9998'
 METAFILE='meta.json.xz'
+MD5FIELDNAME='file_md5_s'
 
 apt-get -y install python3 jq >> /vagrant/provision.log 2>&1
 apt-get -y install tesseract-ocr tesseract-ocr-deu tesseract-ocr-est tesseract-ocr-rus tesseract-ocr-eng >> /vagrant/provision.log 2>&1
@@ -52,6 +53,7 @@ mkdir -p "$ETL_DIR/python"
 cd $ETL_DIR/python
 mv /tmp/open-semantic-etl-master/src/opensemanticetl/*.py .
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_md5.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_meta.py
 mkdir -p "$ETL_DIR/config"
 cd "$ETL_DIR/config"
 mv /tmp/open-semantic-etl-master/etc/opensemanticsearch/* .
@@ -78,6 +80,10 @@ config['plugins'] = [
   'enhance_zip',
   'clean_title'
 ]
+config['md5_field_name']='$MD5FIELDNAME'
+
+config['enhance_file_meta_filename'] = 'meta.json.xz'
+config['plugins'].append('enhance_file_meta')
 
 config['plugins'].append('enhance_pdf_ocr')
 config['plugins'].append('enhance_ocr_descew')
@@ -102,15 +108,17 @@ cat > "$ETL_DIR/bin/etl-file.bash" <<EOF
 SOLR="$SOLR_HOST:$SOLR_PORT"
 CORE="$SOLR_CORE"
 META="$METAFILE"
+MD5F="$MD5FIELDNAME"
 FILE="\$1"
 log() { echo "\$(date) \$0: \$*"; }
 error() { echo "\$(date) \$0: \$*" >&2; }
 die() { error "\$*"; exit 1; }
 md5=\$(md5sum "\$FILE"| cut -f1 -d" ")
 existsTMP=\$(mktemp)
-curl -s "http://\$SOLR/solr/\$CORE/select?fl=id,file_md5_ss,aliases&wt=json&q=file_md5_ss:\$md5" > \$existsTMP
+curl -s "http://\$SOLR/solr/\$CORE/select?fl=id,\$MD5F,aliases&wt=json&q=\$MD5F:\$md5" > \$existsTMP
 [ \$? != 0 ] && die "solr down"
-if [ \$(cat \$existsTMP | jq .response.docs[].file_md5_ss | grep  "\$md5" | wc -l) -eq 0 ]; then
+#TODO .response.docs[].[\$MD5F]
+if [ \$(cat \$existsTMP | jq .response.docs[] | grep  "\$md5" | wc -l) -eq 0 ]; then
   log "adding \$md5 \$FILE"
   python3 $ETL_DIR/python/etl_file.py --config="$ETL_DIR/config/etl" \$FILE
   # etl_file.py commit is broken, force it
