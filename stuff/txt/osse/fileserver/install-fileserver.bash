@@ -20,6 +20,7 @@ FS='osse-fileserver'
 FS_DIR="/opt/$FS"
 HOST='127.0.0.1'
 PORT='8125'
+METAFILE='meta.json'
 max_user_watches='524288'
 
 FS_USER=$FS
@@ -101,9 +102,12 @@ fi
 if [ -z "\$FS_PORT" ]; then
   FS_PORT='8125'
 fi
+if [ -z "\$FS_META" ]; then
+  FS_PORT='$METAFILE'
+fi
 echo "starting $FS \${FS_HOST}:\${FS_PORT} file dir: \${FS_FILE_DIR} log dir: \${FS_LOG_DIR}"
 cd /opt/$FS/js
-/usr/bin/nodejs /opt/$FS/js/file-server.js --port=\${FS_PORT} --ip=\${FS_HOST} --root=\${FS_FILE_DIR} 1>>\${FS_LOG_DIR}/$FS.log 2>>\${FS_LOG_DIR}/$FS.error
+/usr/bin/nodejs /opt/$FS/js/file-server.js --port=\${FS_PORT} --ip=\${FS_HOST} --root=\${FS_FILE_DIR} --meta=\${FS_META} 1>>\${FS_LOG_DIR}/$FS.log 2>>\${FS_LOG_DIR}/$FS.error
 echo "$FS exit code \$?"
 EOF
 
@@ -130,7 +134,7 @@ cat > /etc/default/$FS-monitor <<EOF
 SPOOL_DIR='$FILE_DIR'
 LOG_DIR='/var/log/$FS-monitor'
 NEWS_FILE="$FILE_DIR/new-dirs.txt"
-META_FILE="meta.json"
+META_FILE="$METAFILE"
 EOF
 
 cat > "$FS_DIR/bin/$FS-spool-monitor.bash" <<EOF

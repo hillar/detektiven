@@ -17,12 +17,14 @@ cliParams
   .option('--port [number]','port to listen')
   .option('--ip [ip address]','ip to bind')
   .option('--root [path]','path to serve')
+  .option('--meta [filename]','meta file name')
   .parse(process.argv);
 
 let config = {}
 config.portListen = cliParams.port || 8125
 config.ipListen = cliParams.ip || '127.0.0.1'
 config.pathRoot = cliParams.root || '/tmp/'
+config.metaFilename = cliParams.meta || 'meta.json'
 
 let fileserver = http.createServer(function (request, response) {
     const { ip, username } = getIpUser(request)
@@ -86,13 +88,13 @@ let fileserver = http.createServer(function (request, response) {
                   //NOOP !?
                 })
                 file.on('end', async function() {
-                  fields.saved_time = nowAsJSON()
-                  fields.saved_ip = ip
-                  fields.saved_md5 = hash.digest('hex')
+                  fields.saved_time_dt = nowAsJSON()
+                  fields.saved_ip_s = ip
+                  fields.saved_md5_s = hash.digest('hex')
                   if (username) fields.saved_user = username
                   logNotice({ip, username, saved:{to:saveTo,orig:filename,fields}})
-                  metaSaved = await writeFile(path.join(savePath, 'meta.json'),JSON.stringify(fields))
-                  if (metaSaved === false) logError({critical:'can not write to  ' + path.join(savePath, 'meta.json') })
+                  metaSaved = await writeFile(path.join(savePath, config.metaFilename),JSON.stringify(fields))
+                  if (metaSaved === false) logError({critical:'can not write to  ' + path.join(savePath, config.metaFilename) })
                 })
               } else {
                 logError({critical:'can not create ' + savePath})
