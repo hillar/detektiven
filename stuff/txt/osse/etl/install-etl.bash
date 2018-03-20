@@ -59,6 +59,19 @@ cd "$ETL_DIR/config"
 mv /tmp/open-semantic-etl-master/etc/opensemanticsearch/* .
 mv etl etl.sample
 
+TAB="$(printf '\t')"
+cat > /opt/etl/config/regex/email.tsv <<EOF
+[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}${TAB}email_s
+[13][a-km-zA-HJ-NP-Z1-9]{25,34}${TAB}bitcoin_s
+[a-zA-Z]{2}[0-9]{2}[a-zA-Z0-9]{4}[0-9]{7}([a-zA-Z0-9]?){0,16}${TAB}iban_s
+#https://ipsec.pl/data-protection/2012/european-personal-data-regexp-patterns.html
+[3-6][0-9]{2}[1,2][0-9][0-9]{2}[0-9]{4}${TAB}ssn_s
+[0-9]{2}[0,1][0-9][0-9]{2}-[A-Z]-[0-9]{5}${TAB}ssn_s
+[0-9]{3}/?[0-9]{4}/?[0-9]{4}${TAB}ssn_s
+[0-9]{2}[0-9]{2}[0,1][0-9][0-9]{2}[A-Z][0-9]{2}[0-9]${TAB}ssn_s
+[0-9]{2}[0,1][0-9][0-9]-[0-9]{5}ssn_s
+EOF
+
 cat > "$ETL_DIR/config/etl" <<EOF
 config['force'] = False
 
