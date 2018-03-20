@@ -11,6 +11,8 @@ const { getIpUser } = require('./common/request.js')
 const { guid } = require('./common/var.js')
 //const { guid, now, logNotice, logWarning, logError, ensureDirectory, writeFile, getIpUser } = require('./common/utils')
 
+async function  main() {
+  
 cliParams
   .version('0.0.1')
   .usage('[options]')
@@ -25,6 +27,16 @@ config.portListen = cliParams.port || 8125
 config.ipListen = cliParams.ip || '127.0.0.1'
 config.pathRoot = cliParams.root || '/tmp/'
 config.metaFilename = cliParams.meta || 'meta.json'
+
+if (isNaN(parseInt(config.portListen))) {
+  logError({'port':'not a number'})
+  process.exit(1)
+}
+let pathCheck = await ensureDirectory(config.pathRoot)
+if (pathCheck === false){
+  logError({'path':'not writeable '+ config.pathRoot})
+  process.exit(1);
+}
 
 let fileserver = http.createServer(function (request, response) {
     const { ip, username } = getIpUser(request)
@@ -141,3 +153,11 @@ if (process.stdout.isTTY) console.log(error)
 
 logNotice({'starting':config})
 fileserver.listen(config.portListen, config.ipListen)
+}
+
+main()
+.then(() => {})
+.catch((error) => {
+  console.error(error)
+  logCritical(error)
+})
