@@ -103,9 +103,9 @@ if [ -z "\$FS_PORT" ]; then
   FS_PORT='8125'
 fi
 if [ -z "\$FS_META" ]; then
-  FS_PORT='$METAFILE'
+  FS_META='$METAFILE'
 fi
-echo "starting $FS \${FS_HOST}:\${FS_PORT} file dir: \${FS_FILE_DIR} log dir: \${FS_LOG_DIR}"
+echo "starting $FS \${FS_HOST}:\${FS_PORT} file dir: \${FS_FILE_DIR} meta file:\${FS_META} log dir: \${FS_LOG_DIR}"
 cd /opt/$FS/js
 /usr/bin/nodejs /opt/$FS/js/file-server.js --port=\${FS_PORT} --ip=\${FS_HOST} --root=\${FS_FILE_DIR} --meta=\${FS_META} 1>>\${FS_LOG_DIR}/$FS.log 2>>\${FS_LOG_DIR}/$FS.error
 echo "$FS exit code \$?"
