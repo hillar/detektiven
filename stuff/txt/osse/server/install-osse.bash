@@ -26,6 +26,7 @@ OSSE='osse-server'
 OSSE_DIR="/opt/$OSSE"
 HOST=$IP
 PORT='9983'
+MD5FIELDNAME='file_md5_s'
 
 OSSE_USER=$OSSE
 OSSE_GROUP=$OSSE
@@ -98,7 +99,8 @@ cat > $OSSE_DIR/conf/config.json <<EOF
   "usersFile": "$SESS_DIR/users.json",
   "uploadDirectory": "$SPOOL_DIR",
   "subscriptionsDirectory": "$SUBS_DIR",
-  "staticDirectory": "$OSSE_DIR/js/dist"
+  "staticDirectory": "$OSSE_DIR/js/dist",
+  "md5Fieldname":"$MD5FIELDNAME"
 }
 EOF
 

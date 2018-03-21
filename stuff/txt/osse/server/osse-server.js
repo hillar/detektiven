@@ -78,6 +78,7 @@ cliParams
   config.metaFilename = configFile.metaFilename || 'meta.json'
   config.subscriptionsFilename = configFile.subscriptionsFilename || 'subscriptions.json'
   config.etlMapping = configFile.etlMapping || 'file:///'
+  config.md5Fieldname = configFile.md5Fieldname || 'file_md5_s'
   config.uploadFileServer = configFile.uploadFileServer || '127.0.0.1'
   config.uploadFileServerProto = configFile.uploadFileServer || 'http'
   config.filesPort = configFile.filesPort || 8125
@@ -581,8 +582,7 @@ let osse = http.createServer(basic, async (req, res) => {
                   fields.osse_from_ip = ip
                   if (username) fields.osse_uploader = username
                   fields.osse_hostname = os.hostname()
-                  let q = `md5:${md5}`
-                  //q = 'path_basename_s:UkUgRGFuZ2VyIS5tc2c'
+                  let q = `${config.md5Fieldname}:${md5}`
                   const gets = createGets({q:q,rows:10,start:0,fl:'id'},config.servers)
                   let found = false
                   const results = await Promise.all(gets)
