@@ -33,24 +33,25 @@ class enhance_file_clamav(object):
 		try:
 			cd = pyclamd.ClamdNetworkSocket(host, port, timeout)
 		except pyclamd.ConnectionError as e:
-			print('Exception connecting to ' + host+':' + str(port)+ ' error' + e)
+			print('Exception connecting to ' + host+':' + str(port)+ ' error' + str(e))
 			return parameters, data
 		if verbose:
 			print(host+':' + str(port) +' '+cd.version().split()[0])
 
 		try:
-			r = cd.scan_file(filename)
+			r = cd.scan_stream(open(filename,'rb',buffering=0))
 		except Exception as e:
-			print('Exception CLAMAV scanning ' + host+':' + str(port)+' file '+ filename + ' error' + e)
+			print('Exception CLAMAV scanning ' + host+':' + str(port)+' file '+ filename + ' error' + str(e))
+			return parameters, data
 		if r != None:
 			# see https://bitbucket.org/xael/pyclamd/src/2089daa540e1343cf414c4728f1322c96a615898/pyclamd/pyclamd.py?at=default&fileviewer=file-view-default#pyclamd.py-593
-			status, reason = r[filename]
+			status, reason = r['stream']
 			if status == 'FOUND':
 				data['clam_s'] = reason
 			else:
 				print('ERROR CLAMAV scanning ' + host+':' + str(port)+' file '+ filename + ' status ' + status + ' reason ' + reason)
 
 			if verbose:
-				print ("ClamAV: {}".format( reason ))
+				print ("ClamAV: {}".format( data['clam_s'] ))
 
 		return parameters, data

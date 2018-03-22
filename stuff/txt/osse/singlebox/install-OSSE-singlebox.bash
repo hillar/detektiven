@@ -27,6 +27,7 @@ export LC_ALL=C
 
 # install clamav
 # TODO move it to separate machine as freeipa
+apt-get update
 apt-get -y install clamav-daemon
 systemctl stop clamav-daemon.socket
 systemctl disable clamav-daemon.socket
