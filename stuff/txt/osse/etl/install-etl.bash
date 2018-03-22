@@ -28,6 +28,8 @@ SOLR_PORT='8983'
 SOLR_CORE='solrdefalutcore'
 TIKA_HOST='127.0.0.1'
 TIKA_PORT='9998'
+CLAMAV_HOST='127.0.0.1'
+CLAMAV_PORT='3310'
 METAFILE='meta.json.xz'
 MD5FIELDNAME='file_md5_s'
 
@@ -48,12 +50,14 @@ do
 done
 ##apt-get -y install jq python3-pip
 #pip3 install scrapy
+pip3 install pyclamd
 
 mkdir -p "$ETL_DIR/python"
 cd $ETL_DIR/python
 mv /tmp/open-semantic-etl-master/src/opensemanticetl/*.py .
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_md5.py
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_meta.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_clamav.py
 mkdir -p "$ETL_DIR/config"
 cd "$ETL_DIR/config"
 mv /tmp/open-semantic-etl-master/etc/opensemanticsearch/* .
@@ -83,6 +87,7 @@ config['index'] = '$SOLR_CORE'
 config['mappings'] = { "/": "file:///" }
 config['facet_path_strip_prefix'] = [ "file://" ]
 config['plugins'] = [
+  'enhance_file_clamav',
   'enhance_mapping_id',
   'filter_blacklist',
   'enhance_file_md5',
@@ -93,6 +98,10 @@ config['plugins'] = [
   'enhance_zip',
   'clean_title'
 ]
+
+config['clamd_host'] = '$CLAMAV_HOST'
+config['clamd_port'] = $CLAMAV_PORT
+
 config['md5_field_name']='$MD5FIELDNAME'
 
 config['enhance_file_meta_filename'] = 'meta.json.xz'
