@@ -12,7 +12,7 @@ const base64url = require('base64url')
 const querystring = require('querystring')
 const { nowAsJSON, date2JSON } = require('./common/time.js')
 const { ensureDirectory, writeFile, readFile, readJSON, isFile, getMime } = require('./common/fs.js')
-const { logError, logWarning, logNotice } = require('./common/log.js')
+const { logError, logWarning, logNotice, logCritical } = require('./common/log.js')
 const { getIpUser } = require('./common/request.js')
 const { guid } = require('./common/var.js')
 const { httpGet, httpPost, pingServer } = require('./common/net.js')
@@ -185,13 +185,27 @@ cliParams
 
 function compress2Base64Url(s){
   return new Promise( resolve => {
-    lzma.compress(s, 9, function(result){
-      const b = base64url.encode(result)
-      //chop xz header
-      //_Td6WFoAAAFpIt42AgAhARwAAAAQz1j
-      const c = b.slice(32)
-      resolve(c)
-    })
+    try {
+      lzma.compress(s, 9, function(result){
+        const b = base64url.encode(result)
+        //chop xz header
+        //_Td6WFoAAAFpIt42AgAhARwAAAAQz1j
+        const c = b.slice(32)
+        resolve(c)
+      })
+    } catch (error) {
+      try {
+        lzma.compress(s, 5, function(result){
+          const b = base64url.encode(result)
+          //chop xz header
+          //_Td6WFoAAAFpIt42AgAhARwAAAAQz1j
+          const c = b.slice(32)
+          resolve(c)
+        })
+      } catch (error) {
+        resolve(s)
+      }
+    }
   })
 }
 
@@ -563,10 +577,17 @@ let osse = http.createServer(basic, async (req, res) => {
             })
             busboy.on('file', async function(fieldname, file, filename, encoding, mimetype) {
               let chuncks = []
+              let compressor
               try {
-                const compressor = lzma.createCompressor({preset: 9})
+                compressor = lzma.createCompressor({preset: 9})
               } catch (error) {
                 logCritical({lzma:error.message})
+                try {
+                  compressor = lzma.createCompressor({preset: 5})
+                } catch (error) {
+                  logCritical({lzma:error.message})
+                  compressor = new require('stream').PassThrough();
+                }
               }
               const uid = guid()
               const savePath = path.join(config.uploadDirectory)

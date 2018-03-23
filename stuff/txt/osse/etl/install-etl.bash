@@ -57,7 +57,8 @@ cd $ETL_DIR/python
 mv /tmp/open-semantic-etl-master/src/opensemanticetl/*.py .
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_md5.py
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_meta.py
-wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_clamav.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_clam.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_tika_und_clam.py
 mkdir -p "$ETL_DIR/config"
 cd "$ETL_DIR/config"
 mv /tmp/open-semantic-etl-master/etc/opensemanticsearch/* .
@@ -79,7 +80,10 @@ EOF
 cat > "$ETL_DIR/config/etl" <<EOF
 config['force'] = False
 
+config['clamd_host'] = '$CLAMAV_HOST'
+config['clamd_port'] = $CLAMAV_PORT
 config['tika_server'] = 'http://$TIKA_HOST:$TIKA_PORT'
+
 config['export'] = 'export_solr'
 config['solr'] = 'http://$SOLR_HOST:$SOLR_PORT/solr/'
 config['index'] = '$SOLR_CORE'
@@ -87,20 +91,16 @@ config['index'] = '$SOLR_CORE'
 config['mappings'] = { "/": "file:///" }
 config['facet_path_strip_prefix'] = [ "file://" ]
 config['plugins'] = [
-  'enhance_file_clamav',
-  'enhance_mapping_id',
   'filter_blacklist',
+  'enhance_zip',
+  'enhance_tika_und_clam',
+  'enhance_mapping_id',
   'enhance_file_md5',
   'enhance_file_mtime',
-  'enhance_extract_text_tika_server',
   'enhance_contenttype_group',
   'enhance_pst',
-  'enhance_zip',
   'clean_title'
 ]
-
-config['clamd_host'] = '$CLAMAV_HOST'
-config['clamd_port'] = $CLAMAV_PORT
 
 config['md5_field_name']='$MD5FIELDNAME'
 
