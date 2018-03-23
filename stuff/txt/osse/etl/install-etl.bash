@@ -57,8 +57,8 @@ cd $ETL_DIR/python
 mv /tmp/open-semantic-etl-master/src/opensemanticetl/*.py .
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_md5.py
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_meta.py
-wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_clam.py
-wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_tika_und_clam.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_clamav.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_tika_und_clamav.py
 mkdir -p "$ETL_DIR/config"
 cd "$ETL_DIR/config"
 mv /tmp/open-semantic-etl-master/etc/opensemanticsearch/* .
@@ -93,7 +93,7 @@ config['facet_path_strip_prefix'] = [ "file://" ]
 config['plugins'] = [
   'filter_blacklist',
   'enhance_zip',
-  'enhance_tika_und_clam',
+  'enhance_file_tika_und_clamav',
   'enhance_mapping_id',
   'enhance_file_md5',
   'enhance_file_mtime',
