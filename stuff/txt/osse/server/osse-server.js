@@ -563,7 +563,11 @@ let osse = http.createServer(basic, async (req, res) => {
             })
             busboy.on('file', async function(fieldname, file, filename, encoding, mimetype) {
               let chuncks = []
-              const compressor = lzma.createCompressor({preset: 9})
+              try {
+                const compressor = lzma.createCompressor({preset: 9})
+              } catch (error) {
+                logCritical({lzma:error.message})
+              }
               const uid = guid()
               const savePath = path.join(config.uploadDirectory)
               const sDir = await ensureDirectory(savePath)
