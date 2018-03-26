@@ -80,7 +80,7 @@ cliParams
   config.etlMapping = configFile.etlMapping || 'file:///'
   config.md5Fieldname = configFile.md5Fieldname || 'file_md5_s'
   config.uploadFileServer = configFile.uploadFileServer || '127.0.0.1'
-  config.uploadFileServerProto = configFile.uploadFileServer || 'http'
+  config.uploadFileServerProto = configFile.uploadFileServerProto || 'http'
   config.filesPort = configFile.filesPort || 8125
   config.uploadUser = cliParams.uploadUser || configFile.uploadUser || 'uploadonly'
   config.servers = configFile.servers || [{"HR":"hardCodedDefault","type":"solr","proto":"http","host":"localhost","port":8983,"collection":"solrdefalutcore","rotationperiod":"none"},{"HR":"hardCodedDefaultElastic","type":"elastic","proto":"http","host":"localhost","port":9200,"collection":"osse","rotationperiod":"yearly"}]
@@ -568,9 +568,11 @@ let osse = http.createServer(basic, async (req, res) => {
       case 'POST/files':
         if (req.headers['content-type'] && req.headers['content-type'].indexOf('multipart/form-data;')>-1 ) {
           try {
+            let result = {}
             let busboy = new Busboy({ preservePath: true, headers: req.headers })
             let fields = {}
             busboy.on('error', function(error){
+              result.error = error
               let msg = error.message
               logWarning({ip,username,route,msg})
             })
@@ -609,7 +611,9 @@ let osse = http.createServer(basic, async (req, res) => {
                   fields.osse_from_ip = ip
                   if (username) fields.osse_uploader = username
                   fields.osse_hostname = os.hostname()
-                  let q = `${config.md5Fieldname}:${md5}`
+                  //let q = `${config.md5Fieldname}:${md5}`
+                  // TODO check fields *md5*
+                  let q = `${md5}`
                   const gets = createGets({q:q,rows:10,start:0,fl:'id'},config.servers)
                   let found = false
                   const results = await Promise.all(gets)
@@ -627,6 +631,8 @@ let osse = http.createServer(basic, async (req, res) => {
                   }
                   if (found) {
                     fs.unlinkSync(saveTo)
+                    result.error = 'file exist'
+                    res.end(JSON.stringify(result))
                     //res.write('file exists: '+filename)
                   } else {
                     //if (fields.upload_lastModified)
@@ -664,7 +670,10 @@ let osse = http.createServer(basic, async (req, res) => {
                       // give up
                       logWarning({ip,username,uploadFileNameToLong:{filename}})
                       fs.unlinkSync(saveTo)
+                      result.error = 'file name to long'
+                      res.end(JSON.stringify(result))
                     } else {
+                      res.end()
                       const kala2 = await decompress2Base64Url(packed)
                       if (kala2 !== kala){
                           logError({critical:{compress2Base64Url:'wrong chop',packed,kala}})
@@ -697,15 +706,20 @@ let osse = http.createServer(basic, async (req, res) => {
               }
             })
             busboy.on('finish', async function() {
-              res.end()
+              //res.end(JSON.stringify(result))
             });
             req.pipe(busboy);
           } catch (error){
-            res.end('try again')
             let msg = error.message
             logWarning({ip,username,route,msg})
+            result.error = error.message
+            res.end(JSON.stringify(result))
+
           }
-        } else logWarning({ip,username,route,'msg':'not a multipart/form-data'})
+        } else {
+          logWarning({ip,username,route,'msg':'not a multipart/form-data'})
+
+        }
         break;
       case 'GET/subscriptions':
         if (username === config.uploadUser) break
@@ -774,7 +788,7 @@ let osse = http.createServer(basic, async (req, res) => {
         let icoFile = await readFile(path.join(config.staticDirectory,'static/favicon.ico'))
         if (icoFile === false) {
           logError({'msg':'missing favicon.ico'})
-          res.end('')
+          res.end()
         } else {
           res.setHeader('Content-type','image/x-icon')
           res.end(icoFile)
@@ -785,7 +799,7 @@ let osse = http.createServer(basic, async (req, res) => {
         let indexFile = await readFile(path.join(config.staticDirectory,'index.html'))
         if (indexFile === false) {
           logError({'msg':'missing index.html'})
-          res.end('')
+          res.end()
         } else {
           res.setHeader('Content-type','text/html')
           res.end(indexFile)

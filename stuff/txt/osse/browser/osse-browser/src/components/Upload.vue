@@ -114,10 +114,10 @@ import axios from 'axios'
                     axios.put("/files",data)
                       .then(function (res) {
                         console.log('uploaded',file.name,file.size)
-                        if (res.data.length > 0) {
-                          console.log(file.name,'server returned:',res.data)
-                          resolve({filename:file.name,server:res.data})
-                        } else resolve({filename:file.name})
+                        if (res.data && res.data.error) {
+                          //that.$toast.open(`${file.name} : ${res.data.error}`)
+                        }
+                        resolve({filename:file.name,server:res.data})
                       })
                       .catch(function (err) {
                         console.error(err.message)
@@ -129,8 +129,16 @@ import axios from 'axios'
               }
               Promise.all(uploadz)
               .then(function(filenames){
-                console.log('end uploadFiles')
-                that.$toast.open('uploaded '+files.length+' files<br>'+filenames.join('<br>'))
+                let uploadErrors = []
+                let uploads = []
+                for (const file of filenames) {
+                  if (file.server && file.server.error) {
+                    uploadErrors.push(file.filename+' : '+file.server.error)
+                  } else {
+                    uploads.push(file.filename)
+                  }
+                }
+                that.$dialog.alert({message:'uploaded OK '+uploads.length+' files<br>'+uploads.join('<br>')+'<p>upload ERRORS '+uploadErrors.length+' files<br>'+uploadErrors.join('<br>')})
               })
               .catch(function(error) {
                 if (error) that.$snackbar.open(error.message)
