@@ -203,6 +203,7 @@ function compress2Base64Url(s){
           resolve(c)
         })
       } catch (error) {
+        logCritical({compress2Base64Url:error.message})
         resolve(s)
       }
     }
@@ -371,6 +372,7 @@ let osse = http.createServer(basic, async (req, res) => {
     switch (route) {
       // ----------------------------------------------------------------
       case 'GET/search':
+      case 'GET/select':
       case 'GET/solr':
         if (username === config.uploadUser) break
         if (!args.q || typeof(args.q) != 'string')  {

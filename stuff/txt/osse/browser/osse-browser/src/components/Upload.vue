@@ -4,7 +4,11 @@
       <b-field label="Add some tags" class="is-fluid is-expanded">
        <b-taginput
            v-model="tagsList"
+           :data="lookupTags"
+           :allowNew="true"
            icon="label"
+           autocomplete
+           @typing="getTags"
            placeholder="Add a tag">
        </b-taginput>
      </b-field>
@@ -55,6 +59,7 @@ import axios from 'axios'
         data() {
             return {
                 tagsList: [],
+                lookupTags: [],
                 filesList: []
             }
         },
@@ -62,6 +67,30 @@ import axios from 'axios'
             doNotUploadThatFile(index) {
                 console.log('doNotUploadThatFile')
                 this.filesList.splice(index, 1)
+            },
+            getTags(text) {
+                if (text.length > 0) {
+                  this.lookupTags = []
+                  this.isFetching = true
+                  axios.get(`/select?wt=json&fl=upload_tags&rows=1024&q=upload_tags:*${text}*`)
+                      .then(({ data }) => {
+                          if (data.response && data.response.numFound && data.response.numFound > 0) {
+                            if (data.response.docs) {
+                              for (const doc of data.response.docs) {
+                                for (const tag of doc.upload_tags){
+                                  if (this.lookupTags.indexOf(tag) === -1) this.lookupTags.push(tag)
+                                }
+                              }
+                            }
+                          }
+                          this.isFetching = false
+                      })
+                      .catch((error) => {
+                          this.isFetching = false
+                          console.error(error)
+                    })
+                }
+
             },
             uploadFiles(files,tags) {
               const loadingComponent = this.$loading.open()
@@ -87,8 +116,8 @@ import axios from 'axios'
                         console.log('uploaded',file.name,file.size)
                         if (res.data.length > 0) {
                           console.log(file.name,'server returned:',res.data)
-                        }
-                        resolve(file.name)
+                          resolve({filename:file.name,server:res.data})
+                        } else resolve({filename:file.name})
                       })
                       .catch(function (err) {
                         console.error(err.message)
