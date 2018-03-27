@@ -50,7 +50,7 @@ do
 done
 ##apt-get -y install jq python3-pip
 #pip3 install scrapy
-pip3 install pyclamd
+pip3 install pyclamd >> /vagrant/provision.log 2>&1
 
 mkdir -p "$ETL_DIR/python"
 cd $ETL_DIR/python
@@ -58,7 +58,7 @@ mv /tmp/open-semantic-etl-master/src/opensemanticetl/*.py .
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_md5.py
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_meta.py
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_clamav.py
-wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_tika_und_clamav.py
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/etl/enhance_file_tika_und_clamav.py
 mkdir -p "$ETL_DIR/config"
 cd "$ETL_DIR/config"
 mv /tmp/open-semantic-etl-master/etc/opensemanticsearch/* .

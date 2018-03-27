@@ -96,6 +96,10 @@ ldapsearch -x -D "uid=$_UID_,cn=users,cn=accounts,dc=example,dc=org" -w $_PASSWO
 
 ipa group-add osse
 ipa group-add-member osse --users=$_UID_
+ipa group-add hardCodedDefault
+ipa group-add-member hardCodedDefault --users=$_UID_
+ipa group-add hardCodedDefaultElastic
+ipa group-add-member hardCodedDefaultElastic --users=$_UID_
 
 
 

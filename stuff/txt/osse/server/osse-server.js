@@ -107,6 +107,7 @@ cliParams
       if (u) logNotice({u})
     }
     if (await pingServer('smtp',config.smtphost,config.smtpport)) await sendMail(config.smtpfrom, 'test','1234', config.smtpfrom, config.smtphost, config.smtpport)
+    await pingServer('fileserver',config.uploadFileServer,config.filesPort)
     for (let i in config.servers){
       let server = config.servers[i]
       //if (!server.type) reject(new Error('no server type'))
