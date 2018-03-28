@@ -81,7 +81,7 @@ stop_vm(){
   shutdown_vm $1
   counter=0
   while  [ $(vm_is_running $1) -eq 0 -a $counter -lt 10 ]; do
-    sleep 2
+    sleep 3
     let counter++
   done
   if [ $counter -eq 10 ]; then
@@ -130,4 +130,13 @@ getfile_vm(){
 delete_vm() {
   force_stop_vm $1
   virsh undefine $1 --managed-save --snapshots-metadata --nvram --remove-all-storage
+}
+
+compress_vm(){
+  NAME=$1
+  [ $(vm_is_running ${NAME}) = '0' ] && stop_vm ${NAME}
+  imagefile=$(getfile_vm ${NAME})
+  mv $imagefile $imagefile.backup
+  qemu-img convert -O qcow2 -c $imagefile.backup $imagefile
+  rm $imagefile.backup
 }

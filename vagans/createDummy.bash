@@ -1,5 +1,6 @@
 #!/bin/bash
-
+export LC_ALL=C
+export DEBIAN_FRONTEND=noninteractive
 apt-get -y install virtinst
 
 DOMAIN=`/bin/hostname -d`

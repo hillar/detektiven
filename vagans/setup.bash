@@ -19,6 +19,10 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
+export SYSTEMD_PAGER=''
+export LC_ALL=C
+export DEBIAN_FRONTEND=noninteractive
+
 [ -d /provision ] || mkdir -p /provision
 
 # libvirt
@@ -51,6 +55,7 @@ VM='dummy'
 
 FB='firstborn'
 [ $(vm_exists ${FB}) = '0' ] || virt-clone  -o ${VM} -n ${FB} --auto-clone
+compress_vm ${FB}
 
 IPA='freeipa'
 [ $(vm_exists ${IPA}) = '0' ] || virt-clone  -o ${FB} -n ${IPA} --auto-clone
@@ -59,10 +64,12 @@ start_vm ${IPA}
 sleep 1
 ipa_ip=$(getip_vm ${IPA})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "echo ${IPA} > /etc/hostname"
-ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo apt-get -y install wget"
+#ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo apt-get -y install wget"
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash"
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip}"
 stop_vm ${IPA}
+virsh dumpxml ${IPA} > ${IPA}.xml
+compress_vm ${IPA}
 start_vm ${IPA}
 ipa_ip=$(getip_vm ${IPA})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "netstat -ntple"
@@ -74,11 +81,13 @@ TIKA='tika'
 start_vm ${TIKA}
 tika_ip=$(getip_vm ${TIKA})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "echo ${TIKA} > /etc/hostname"
-ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo apt-get -y install wget"
+#ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo apt-get -y install wget"
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash"
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/install-tika.bash ${tika_ip}"
-stop_vm ${IPA}
-start_vm ${IPA}
+stop_vm ${TIKA}
+virsh dumpxml ${TIKA} > ${TIKA}.xml
+compress_vm ${TIKA}
+start_vm ${TIKA}
 tika_ip=$(getip_vm ${TIKA})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "netstat -ntple"
-curl ${tika_ip}
+curl ${tika_ip}:9998

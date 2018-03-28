@@ -6,8 +6,11 @@ The is partly inspired by https://github.com/fleet-commander/fc-vagans
 
 The setup needs about XX GB of free RAM and YY GB disk space.
 
-## Commander
+## Build
 
 ```shell
+$ wget https://raw.githubusercontent.com/hillar/detektiven/master/vagans/setup.bash
+$ more setup.bash
+$ chmod +x setup.bash
 $ ./setup.bash
 ```
