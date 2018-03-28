@@ -30,6 +30,7 @@ export LC_ALL=C
 TIKA='tika'
 VER='1.17'
 HOST='127.0.0.1'
+[ -z $1 ] || HOST=$1
 PORT='9998'
 MINMEM='512m'
 MAXMEM='2048m'
