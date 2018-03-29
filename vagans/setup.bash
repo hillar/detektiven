@@ -150,7 +150,7 @@ if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   tika_ip=$(getip_vm ${TIKA})
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${tika_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'"
-  [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash
+  [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash -O $BOXESDIR/scripts/install-tika.bash
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}:
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/install-tika.bash ${tika_ip}" >> $DEBUGLOG 2>&1
