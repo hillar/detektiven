@@ -34,7 +34,7 @@ export DEBIAN_FRONTEND=noninteractive
 # debug log
 [ -d  $BOXESDIR/log ] || mkdir -p $BOXESDIR/log
 DEBUGLOG="$BOXESDIR/log/debug.$(date +%Y%m%d%H%M%S)"
-
+log "see debug log with tail -f $DEBUGLOG"
 # libvirt
 virsh list --all >> $DEBUGLOG 2>&1
 if [ $? -ne 0 ]; then
@@ -144,6 +144,8 @@ ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "netstat
 ipa80=$(curl -s ${ipa_ip} | wc -l)
 if [ $ipa80 -ne 375 ]; then
    log " WARNING IPA ${IPA} ${ipa_ip} did not replied as expected"
+else
+  log "IPA ${IPA} ${ipa_ip} seems ok"
 fi
 
 TIKA='tika'
@@ -157,7 +159,7 @@ if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash -O $BOXESDIR/scripts/install-tika.bash
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
-  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}: >> $DEBUGLOG 2>&1
+  scp -oStrictHostKeyChecking=no -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}: >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/install-tika.bash ${tika_ip}" >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash" >> $DEBUGLOG 2>&1
   stop_vm ${TIKA} >> $DEBUGLOG 2>&1
@@ -171,4 +173,6 @@ ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "netsta
 tika69=$(curl -s ${tika_ip}:9998 | wc -l)
 if [ $tika69 -ne 69 ]; then
    log " WARNING TIKA ${TIKA} ${tika_ip} did not replied as expected"
+else
+  log "TIKA ${TIKA} ${tika_ip} seems ok"
 fi
