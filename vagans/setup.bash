@@ -21,7 +21,7 @@ die() { log ": $*" >&2; exit 1; }
 
 DIR='/nvme/libvirt'
 [ -z $1 ] || DIR=$1
-log " starting with DIR=$DIR"
+log "starting with DIR=$DIR"
 [ -d $DIR ] || mkdir -p $DIR
 [ -d $DIR ] || die "can not create $DIR"
 IMAGESDIR="$DIR/images"
@@ -39,7 +39,7 @@ log "see debug log with tail -f $DEBUGLOG"
 # libvirt
 virsh list --all >> $DEBUGLOG 2>&1
 if [ $? -ne 0 ]; then
-  log " installing virsh "
+  log "installing virsh "
   apt-get -y install qemu-kvm libvirt-bin libvirt-dev ubuntu-vm-builder bridge-utils >> $DEBUGLOG 2>&1
   systemctl stop libvirt-guests.service >> $DEBUGLOG 2>&1
   systemctl stop libvirt-bin.service >> $DEBUGLOG 2>&1
@@ -100,7 +100,7 @@ stop_vm ${FB}
 
 JAVA='preinstalled.java'
 if [ ! $(vm_exists ${JAVA}) = '0' ]; then
-  log " creating preinstalled java"
+  log "creating preinstalled java"
   virt-clone -q -o ${FB} -n ${JAVA} --auto-clone
   start_vm ${JAVA}
   java_ip=$(getip_vm ${JAVA})
@@ -121,13 +121,13 @@ stop_vm ${JAVA}
 
 IPA='freeipa'
 if [ ! $(vm_exists ${IPA}) = '0' ]; then
-  log " creating IPA ${IPA}"
+  log "creating IPA ${IPA}"
   virt-clone -q  -o ${JAVA} -n ${IPA} --auto-clone
   start_vm ${IPA} >> $DEBUGLOG 2>&1
   ipa_ip=$(getip_vm ${IPA})
   [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA}"
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${ipa_ip} >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname';sudo hostname ${IPA}" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname';sudo hostname ${IPA}.${DOMAIN}" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-freeipa.bash ${USERNAME}@${ipa_ip}: >> $DEBUGLOG 2>&1
@@ -144,20 +144,20 @@ sleep 2
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "netstat -ntple" >> $DEBUGLOG 2>&1
 ipa80=$(curl -s ${ipa_ip} | wc -l)
 if [ $ipa80 -ne 375 ]; then
-   log " WARNING IPA ${IPA} ${ipa_ip} did not replied as expected"
+   log "WARNING IPA ${IPA} ${ipa_ip} did not replied as expected"
 else
   log "IPA ${IPA} ${ipa_ip} seems ok"
 fi
 
 TIKA='tika'
 if [ ! $(vm_exists ${TIKA}) = '0' ]; then
-  log " creating TIKA ${TIKA}"
+  log "creating TIKA ${TIKA}"
   virt-clone -q  -o ${JAVA} -n ${TIKA} --auto-clone
   start_vm ${TIKA} >> $DEBUGLOG 2>&1
   tika_ip=$(getip_vm ${TIKA})
   [ $? -ne 0 ] && die "failed to get ip address for vm ${TIKA}"
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${tika_ip} >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'; sudo hostname ${TIKA}" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'; sudo hostname ${TIKA}.${DOMAIN}" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash -O $BOXESDIR/scripts/install-tika.bash
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
   scp -oStrictHostKeyChecking=no -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}: >> $DEBUGLOG 2>&1
@@ -173,7 +173,7 @@ tika_ip=$(getip_vm ${TIKA})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "netstat -ntple" >> $DEBUGLOG 2>&1
 tika69=$(curl -s ${tika_ip}:9998 | wc -l)
 if [ $tika69 -ne 69 ]; then
-   log " WARNING TIKA ${TIKA} ${tika_ip} did not replied as expected"
+   log "WARNING TIKA ${TIKA} ${tika_ip} did not replied as expected"
 else
   ldapsearch -x -D "uid=demo,cn=users,cn=accounts,dc=example,dc=org" -w password -h ${ipa_ip} -b "cn=accounts,dc=example,dc=org" -s sub 'uid=demo'
   echo $?
