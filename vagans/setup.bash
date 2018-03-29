@@ -119,6 +119,7 @@ stop_vm ${JAVA}
 
 IPA='freeipa'
 if [ ! $(vm_exists ${IPA}) = '0' ]; then
+  log " creating IPA ${IPA}"
   virt-clone -q  -o ${JAVA} -n ${IPA} --auto-clone
   start_vm ${IPA}
   ipa_ip=$(getip_vm ${IPA})
@@ -145,6 +146,7 @@ fi
 
 TIKA='tika'
 if [ ! $(vm_exists ${TIKA}) = '0' ]; then
+  log " creating TIKA ${TIKA}"
   virt-clone -q  -o ${JAVA} -n ${TIKA} --auto-clone
   start_vm ${TIKA}
   tika_ip=$(getip_vm ${TIKA})
