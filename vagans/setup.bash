@@ -55,10 +55,10 @@ if [ $? -ne 0 ]; then
   systemctl start libvirt-guests.service >> $DEBUGLOG 2>&1
   virsh list --all >> $DEBUGLOG 2>&1
   if [ $? -ne 0 ]; then
-    log " installing virsh failed"
-    return 1
+    die "installing virsh failed"
   fi
 fi
+
 # boxes
 [ -d  $BOXESDIR/scripts ] || mkdir -p $BOXESDIR/scripts
 cd $BOXESDIR/scripts
@@ -67,22 +67,23 @@ cd $BOXESDIR/scripts
 [ -f virtHelpers.bash ] && rm virtHelpers.bash
 [ -f createDummy.bash ] && rm createDummy.bash
 
-wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/setup.bash
+[ -f  $BOXESDIR/scripts/setup.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/setup.bash
 [ -f  $BOXESDIR/scripts/setup.bash ] || die "missing setup.bash"
-wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/virtHelpers.bash
-[ -f  $BOXESDIR/scripts/setup.bash ] || die "missing virtHelpers.bash"
-wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/createDummy.bash
-[ -f  $BOXESDIR/scripts/setup.bash ] || die "missing createDummy.bash"
-source virtHelpers.bash
+[ -f  $BOXESDIR/scripts/virtHelpers.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/virtHelpers.bash
+[ -f  $BOXESDIR/scripts/virtHelpers.bash ] || die "missing virtHelpers.bash"
+[ -f  $BOXESDIR/scripts/createDummy.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/createDummy.bash
+[ -f  $BOXESDIR/scripts/createDummy.bash ] || die "missing createDummy.bash"
+source $BOXESDIR/scripts/virtHelpers.bash
 
 cd $BOXESDIR
 
 DUMMY='dummy'
 if [ ! $(vm_exists ${DUMMY}) = '0' ]; then
   log "creating very first dummy"
-  bash $BOXESDIR/scripts/createDummy.bash ${USERNAME}
+  bash $BOXESDIR/scripts/createDummy.bash ${USERNAME} $BOXESDIR/scripts/virtHelpers.bash >> $DEBUGLOG 2>&1
   virsh dumpxml ${DUMMY} > ${DUMMY}.xml
 fi
+[ ! $(vm_exists ${DUMMY}) = '0' ] && die "can not create ${DUMMY}"
 stop_vm ${DUMMY}
 
 FB='firstborn'
@@ -91,6 +92,7 @@ if [ ! $(vm_exists ${FB}) = '0' ]; then
   virt-clone -q -o ${DUMMY} -n ${FB} --auto-clone
   compress_vm ${FB}
 fi
+[ ! $(vm_exists ${FB}) = '0' ] && die "can not create ${FB}"
 stop_vm ${FB}
 
 [ -f ${USERNAME}.key ] || die "missing ${USERNAME}.key"
@@ -101,6 +103,7 @@ if [ ! $(vm_exists ${JAVA}) = '0' ]; then
   virt-clone -q -o ${FB} -n ${JAVA} --auto-clone
   start_vm ${JAVA}
   java_ip=$(getip_vm ${JAVA})
+  ssh-keygen -f "/root/.ssh/known_hosts" -R ${java_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${java_ip} "echo ${JAVA} > /etc/hostname"
   [ -f  $BOXESDIR/scripts/install-java.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/install-java.bash -O $BOXESDIR/scripts/install-java.bash
   [ -f  $BOXESDIR/scripts/install-java.bash ] || die "missing install-java.bash"
@@ -111,6 +114,7 @@ if [ ! $(vm_exists ${JAVA}) = '0' ]; then
   virsh dumpxml ${JAVA} > ${JAVA}.xml
   compress_vm ${JAVA}
 fi
+[ ! $(vm_exists ${JAVA}) = '0' ] && die "can not create ${JAVA}"
 stop_vm ${JAVA}
 
 IPA='freeipa'
@@ -118,6 +122,7 @@ if [ ! $(vm_exists ${IPA}) = '0' ]; then
   virt-clone -q  -o ${JAVA} -n ${IPA} --auto-clone
   start_vm ${IPA}
   ipa_ip=$(getip_vm ${IPA})
+  ssh-keygen -f "/root/.ssh/known_hosts" -R ${ipa_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "echo ${IPA} > /etc/hostname"
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
@@ -128,11 +133,12 @@ if [ ! $(vm_exists ${IPA}) = '0' ]; then
   virsh dumpxml ${IPA} > ${IPA}.xml
   compress_vm ${IPA}
 fi
+[ ! $(vm_exists ${IPA}) = '0' ] && die "can not create ${IPA}"
 start_vm ${IPA}
 ipa_ip=$(getip_vm ${IPA})
 sleep 2
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "netstat -ntple"
-ipa80=$(curl ${ipa_ip} | wc -l)
+ipa80=$(curl -s ${ipa_ip} | wc -l)
 if [ $ipa80 -ne 375 ]; then
    log " WARNING IPA ${IPA} ${ipa_ip} did not replied as expected"
 fi
@@ -142,6 +148,7 @@ if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   virt-clone -q  -o ${JAVA} -n ${TIKA} --auto-clone
   start_vm ${TIKA}
   tika_ip=$(getip_vm ${TIKA})
+  ssh-keygen -f "/root/.ssh/known_hosts" -R ${tika_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "echo ${TIKA} > /etc/hostname"
   [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
@@ -152,6 +159,7 @@ if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   virsh dumpxml ${TIKA} > ${TIKA}.xml
   compress_vm ${TIKA}
 fi
+[ ! $(vm_exists ${TIKA}) = '0' ] && die "can not create ${TIKA}"
 start_vm ${TIKA}
 tika_ip=$(getip_vm ${TIKA})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "netstat -ntple"

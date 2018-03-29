@@ -584,6 +584,7 @@ let osse = http.createServer(basic, async (req, res) => {
               let chuncks = []
               let compressor
               try {
+                // TODO --block-size=$((16*1024*1024))
                 compressor = lzma.createCompressor({preset: 9})
               } catch (error) {
                 logCritical({lzma:error.message})

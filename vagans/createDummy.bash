@@ -1,18 +1,37 @@
 #!/bin/bash
+#
+# creates Ubuntu 16.04 image from scratch with virt-install
+#
+
+XENIAL=$(lsb_release -c | cut -f2)
+if [ "$XENIAL" != "xenial" ]; then
+    echo "sorry, tested only with xenial ;(";
+    exit;
+fi
+
+log() { echo "$(date) $0: $*"; }
+die() { log ": $*" >&2; exit 1; }
+
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
-apt-get -y install virtinst
+apt-get -y install virtinst > /dev/null
 
 DOMAIN=`/bin/hostname -d`
 NAME='dummy'
 USERNAME='dummy'
 [ -z $1 ] || USERNAME=$1
-PASSWORD='dummy'
+PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+HELPERS='virtHelpers.bash'
+[ -z $2 ] || HELPERS=$2
+[ -f ${HELPERS} ] || die "missing ${HELPERS}"
+source ${HELPERS}
 
 
-[ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key
+[ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
+[ -f ${USERNAME}.key ] || die "can not create ${USERNAME}.key"
 
 cat > preseed.cfg <<EOF
+# Automatically created $(date) with $0
 # ------------------------------------------------------------------------------
 # This preseed file is designed for Ubuntu 16.04 (although it might work
 # with other Ubuntu releases as well). It runs unattended, and generates
@@ -117,25 +136,22 @@ d-i pkgsel/update-policy select none
 d-i pkgsel/include string openssh-server bash-completion acpi-support wget
 d-i pkgsel/upgrade select full-upgrade
 
-# Run postinst.sh in /target just before the install finishes.
-d-i preseed/late_command string mkdir -p /target/home/${USERNAME}/.ssh; cp ${USERNAME}.key.pub /target/home/${USERNAME}/.ssh/authorized_keys; echo '${USERNAME} ALL=NOPASSWD:ALL' > /target/etc/sudoers.d/${USERNAME};cp postinstall.sh /target/home/${USERNAME}/; in-target chmod +x /home/${USERNAME}/postinstall.sh
-# chmod  0440 sudo
-#; in-target /home/${USERNAME}/postinstall.sh > /home/${USERNAME}/postinstall.log 2>&1
-#; chmod 700 /target/home/${USERNAME}/.ssh;
-#d-i preseed/late_command string chmod 0600 /target/home/${USERNAME}/.ssh/authorized_keys;
-#d-i preseed/late_command string chown -R ${USERNAME}:${USERNAME} /target/home/${USERNAME}/.ssh
-#in-target bash -x /provision/postinst.sh > /provision/postinst.log 2>&1
+# add ${USERNAME} to sudoers and copy ssh key and postinstall.bash to /target
+d-i preseed/late_command string mkdir -p /target/home/${USERNAME}/.ssh; cp ${USERNAME}.key.pub /target/home/${USERNAME}/.ssh/authorized_keys; echo '${USERNAME} ALL=NOPASSWD:ALL' > /target/etc/sudoers.d/${USERNAME};cp postinstall.bash /target/home/${USERNAME}/; in-target chmod +x /home/${USERNAME}/postinstall.bash
 
 # Avoid that last message about the install being complete.
 d-i finish-install/reboot_in_progress note
+
 # Perform a poweroff instead of a reboot
 d-i debian-installer/exit/poweroff boolean true
-
 EOF
 
-cat > postinstall.sh <<EOF
-#!/bin/sh
-echo "$(date) $0 starting whiteout"
+[ -f preseed.cfg ] || die 'can not create preseed.cfg'
+
+cat > postinstall.bash <<EOF
+#!/bin/bash
+# Automatically created $(date) with $0
+echo "$(date) $0: starting whiteout"
 # Cleanup apt cache
 apt-get -y autoremove --purge
 apt-get -y clean
@@ -165,14 +181,14 @@ rm -f /EMPTY
 
 # Make sure we wait until all the data is written to disk
 sync
-echo "$(date) $0 done whiteout"
+echo "$(date) $0: done whiteout"
 EOF
 
-source virtHelpers.bash
+[ -f postinstall.bash ] || die 'missing postinstall.bash'
 
-[ $(vm_is_running ${NAME}) = '0' ] && stop_vm ${NAME}
-[ $(vm_exists ${NAME}) = '0' ] && delete_vm ${NAME}
-
+log "going to delete ${NAME}"
+delete_vm ${NAME} > /dev/null
+[ $(vm_exists ${NAME}) = '0' ] && die "can not delete vm ${NAME}"
 
 OS_TYPE="linux"
 OS_VARIANT="ubuntu16.04"
@@ -188,7 +204,7 @@ virt-install \
 --disk size=16,path=/var/lib/libvirt/images/${NAME}.qcow2,format=qcow2,bus=virtio,cache=none \
 --initrd-inject=preseed.cfg \
 --initrd-inject=${USERNAME}.key.pub \
---initrd-inject=postinstall.sh \
+--initrd-inject=postinstall.bash \
 --location ${LOCATION} \
 --virt-type=kvm \
 --controller usb,model=none \
@@ -196,15 +212,18 @@ virt-install \
 --network network=default,model=virtio \
 --wait=-1 \
 --noreboot \
---extra-args="auto=true DEBIAN_FRONTEND=text hostname="${NAME}" domain="${DOMAIN}" console=tty0 console=ttyS0,115200n8 serial"
+--extra-args="auto=true DEBIAN_FRONTEND=text hostname="${NAME}" domain="${DOMAIN}" console=tty0 console=ttyS0,115200n8 serial" > /tmp/virt-install.$0.$(date +%s) 1>&2
 
-virsh start ${NAME}
+[ $(vm_exists ${NAME}) = '0' ] || die "failed to create vm ${NAME}"
+
+start_vm ${NAME} > /dev/null
 ip=$(getip_vm ${NAME})
-#ssh-keyscan -H -t rsa ip_or_ipalias  >> ~/.ssh/known_hosts
-ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ip} "sudo /home/${USERNAME}/postinstall.sh"
-
-[ $(vm_is_running ${NAME}) = '0' ] && stop_vm ${NAME}
+[ $? -ne 0 ] && die "failed to get ip address for vm ${NAME}"
+ssh-keygen -f "~/.ssh/known_hosts" -R ${ip}
+ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ip} "sudo /home/${USERNAME}/postinstall.bash" > /dev/null
+stop_vm ${NAME} > /dev/null
 imagefile=$(getfile_vm ${NAME})
 mv $imagefile $imagefile.backup
-time qemu-img convert -O qcow2 -c $imagefile.backup $imagefile
+qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
 rm $imagefile.backup
+log "created vm: ${NAME} username: ${USERNAME} key: ${USERNAME}.key"
