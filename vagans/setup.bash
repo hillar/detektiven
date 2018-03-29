@@ -27,6 +27,7 @@ log " starting with DIR=$DIR"
 IMAGESDIR="$DIR/images"
 BOXESDIR="$DIR/boxes"
 USERNAME='dummy'
+DOMAIN=$(/bin/hostname -d)
 export SYSTEMD_PAGER=''
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
@@ -126,11 +127,11 @@ if [ ! $(vm_exists ${IPA}) = '0' ]; then
   ipa_ip=$(getip_vm ${IPA})
   [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA}"
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${ipa_ip} >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname'" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname';sudo hostname ${IPA}" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-freeipa.bash ${USERNAME}@${ipa_ip}: >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip}" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip} ${IPA} ${DOMAIN}" >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash " >> $DEBUGLOG 2>&1
   stop_vm ${IPA} >> $DEBUGLOG 2>&1
   virsh dumpxml ${IPA} > ${IPA}.xml
@@ -156,7 +157,7 @@ if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   tika_ip=$(getip_vm ${TIKA})
   [ $? -ne 0 ] && die "failed to get ip address for vm ${TIKA}"
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${tika_ip} >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'; sudo hostname ${TIKA}" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash -O $BOXESDIR/scripts/install-tika.bash
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
   scp -oStrictHostKeyChecking=no -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}: >> $DEBUGLOG 2>&1
@@ -174,5 +175,7 @@ tika69=$(curl -s ${tika_ip}:9998 | wc -l)
 if [ $tika69 -ne 69 ]; then
    log " WARNING TIKA ${TIKA} ${tika_ip} did not replied as expected"
 else
+  ldapsearch -x -D "uid=demo,cn=users,cn=accounts,dc=example,dc=org" -w password -h ${ipa_ip} -b "cn=accounts,dc=example,dc=org" -s sub 'uid=demo'
+  echo $?
   log "TIKA ${TIKA} ${tika_ip} seems ok"
 fi

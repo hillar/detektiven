@@ -16,7 +16,7 @@ export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
 apt-get -y install virtinst > /dev/null
 
-DOMAIN=`/bin/hostname -d`
+DOMAIN=$(/bin/hostname -d)
 NAME='dummy'
 USERNAME='dummy'
 [ -z $1 ] || USERNAME=$1

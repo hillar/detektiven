@@ -21,13 +21,17 @@ fi
 _PASSWORD_='password'
 _UID_='username'
 
-IP=$1
-[ -z $IP ] && IP="127.0.0.1"
 
+IP='127.0.0.1'
+[ -z $1 ] || IP=$1
+HOSTNAME='ipa'
+[ -z $2 ] || HOSTNAME=$2
+DOMAIN='example.org'
+[ -z $3 ] || DOMAIN=$3
 
 
 echo "127.0.0.1 localhost" > /etc/hosts
-echo "$IP ipa.example.org ipa" >> /etc/hosts
+echo "$IP ${HOSTNAME}.${DOMAIN} ${HOSTNAME}" >> /etc/hosts
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -92,7 +96,7 @@ ipa role-add-member ReadOnlyLDAP --users=$_UID_
 
 ipa role-show ReadOnlyLDAP
 ipa user-find $_UID_
-ldapsearch -x -D "uid=$_UID_,cn=users,cn=accounts,dc=example,dc=org" -w $_PASSWORD_ -h 192.168.10.2 -b "cn=accounts,dc=example,dc=org" -s sub 'uid=$_UID_'
+#ldapsearch -x -D "uid=$_UID_,cn=users,cn=accounts,dc=example,dc=org" -w $_PASSWORD_ -h 192.168.10.2 -b "cn=accounts,dc=example,dc=org" -s sub 'uid=$_UID_'
 
 ipa group-add osse
 ipa group-add-member osse --users=$_UID_
