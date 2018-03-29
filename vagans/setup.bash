@@ -109,7 +109,7 @@ if [ ! $(vm_exists ${JAVA}) = '0' ]; then
   [ -f  $BOXESDIR/scripts/install-java.bash ] || die "missing install-java.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-java.bash ${USERNAME}@${java_ip}:
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${java_ip} "sudo bash -x /home/${USERNAME}/install-java.bash " >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${java_ip} "sudo bash -x /home/${USERNAME}/postinstall.sh" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${java_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash" >> $DEBUGLOG 2>&1
   stop_vm ${JAVA}
   virsh dumpxml ${JAVA} > ${JAVA}.xml
   compress_vm ${JAVA}
@@ -128,7 +128,7 @@ if [ ! $(vm_exists ${IPA}) = '0' ]; then
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-java.bash ${USERNAME}@${ipa_ip}:
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip}" >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/postinstall.sh " >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash " >> $DEBUGLOG 2>&1
   stop_vm ${IPA}
   virsh dumpxml ${IPA} > ${IPA}.xml
   compress_vm ${IPA}
@@ -154,7 +154,7 @@ if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}:
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/install-tika.bash ${tika_ip}" >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/postinstall.sh" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash" >> $DEBUGLOG 2>&1
   stop_vm ${TIKA}
   virsh dumpxml ${TIKA} > ${TIKA}.xml
   compress_vm ${TIKA}
