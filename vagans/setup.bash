@@ -83,24 +83,26 @@ if [ ! $(vm_exists ${DUMMY}) = '0' ]; then
   bash $BOXESDIR/scripts/createDummy.bash ${USERNAME}
   virsh dumpxml ${DUMMY} > ${DUMMY}.xml
 fi
-[ -f ${USERNAME}.key ] || die "missing ${USERNAME}.key"
-[ $(vm_is_running ${DUMMY}) = '0' ] && stop_vm ${DUMMY}
+stop_vm ${DUMMY}
 
 FB='firstborn'
 if [ ! $(vm_exists ${FB}) = '0' ]; then
   log "creating first clone from dummy"
-  virt-clone  -o ${DUMMY} -n ${FB} --auto-clone
+  virt-clone -q -o ${DUMMY} -n ${FB} --auto-clone
   compress_vm ${FB}
 fi
+stop_vm ${FB}
+
+[ -f ${USERNAME}.key ] || die "missing ${USERNAME}.key"
 
 JAVA='preinstalled.java'
 if [ ! $(vm_exists ${JAVA}) = '0' ]; then
   log " creating preinstalled java"
-  virt-clone  -o ${FB} -n ${JAVA} --auto-clone
+  virt-clone -q -o ${FB} -n ${JAVA} --auto-clone
   start_vm ${JAVA}
   java_ip=$(getip_vm ${JAVA})
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${java_ip} "echo ${JAVA} > /etc/hostname"
-  [ -f  $BOXESDIR/scripts/install-java.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/install-java.bash
+  [ -f  $BOXESDIR/scripts/install-java.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/install-java.bash -O $BOXESDIR/scripts/install-java.bash
   [ -f  $BOXESDIR/scripts/install-java.bash ] || die "missing install-java.bash"
   scp $BOXESDIR/scripts/install-java.bash -i ${USERNAME}.key ${USERNAME}@${java_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-java.bash " >> $DEBUGLOG 2>&1
@@ -109,14 +111,15 @@ if [ ! $(vm_exists ${JAVA}) = '0' ]; then
   virsh dumpxml ${JAVA} > ${JAVA}.xml
   compress_vm ${JAVA}
 fi
+stop_vm ${JAVA}
 
 IPA='freeipa'
 if [ ! $(vm_exists ${IPA}) = '0' ]; then
-  virt-clone  -o ${JAVA} -n ${IPA} --auto-clone
+  virt-clone -q  -o ${JAVA} -n ${IPA} --auto-clone
   start_vm ${IPA}
   ipa_ip=$(getip_vm ${IPA})
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "echo ${IPA} > /etc/hostname"
-  [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash
+  [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
   scp $BOXESDIR/scripts/install-java.bash -i ${USERNAME}.key ${USERNAME}@${ipa_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip}" >> $DEBUGLOG 2>&1
@@ -136,7 +139,7 @@ fi
 
 TIKA='tika'
 if [ ! $(vm_exists ${TIKA}) = '0' ]; then
-  virt-clone  -o ${JAVA} -n ${TIKA} --auto-clone
+  virt-clone -q  -o ${JAVA} -n ${TIKA} --auto-clone
   start_vm ${TIKA}
   tika_ip=$(getip_vm ${TIKA})
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "echo ${TIKA} > /etc/hostname"

@@ -100,7 +100,7 @@ getip_vm(){
     last=$(virsh domifaddr $1|wc -l)
     counter=0
     while  [ $last -lt 4 -a $counter -lt 10 ]; do
-      sleep 2
+      sleep 3
       last=$(virsh domifaddr $1|wc -l)
       let counter++
     done
