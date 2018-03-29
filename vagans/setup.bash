@@ -127,7 +127,7 @@ if [ ! $(vm_exists ${IPA}) = '0' ]; then
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname'"
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
-  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-java.bash ${USERNAME}@${ipa_ip}:
+  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-freeipa.bash ${USERNAME}@${ipa_ip}:
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip}" >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash " >> $DEBUGLOG 2>&1
   stop_vm ${IPA}
