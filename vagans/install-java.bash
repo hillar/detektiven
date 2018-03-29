@@ -14,7 +14,7 @@ if [ "$(id -u)" != "0" ]; then
    exit 1
 fi
 
-DEBUGLOG=/tmp/LOG.$0
+DEBUGLOG=/tmp/install-java.log
 [ -z $1 ] DEBUGLOG=$1
 
 java=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')

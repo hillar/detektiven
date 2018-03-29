@@ -212,7 +212,7 @@ virt-install \
 --network network=default,model=virtio \
 --wait=-1 \
 --noreboot \
---extra-args="auto=true DEBIAN_FRONTEND=text hostname="${NAME}" domain="${DOMAIN}" console=tty0 console=ttyS0,115200n8 serial" > /tmp/virt-install.$0.$(date +%s) 1>&2
+--extra-args="auto=true DEBIAN_FRONTEND=text hostname="${NAME}" domain="${DOMAIN}" console=tty0 console=ttyS0,115200n8 serial" > /tmp/virt-install
 
 [ $(vm_exists ${NAME}) = '0' ] || die "failed to create vm ${NAME}"
 
