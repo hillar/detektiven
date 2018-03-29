@@ -6,6 +6,7 @@ apt-get -y install virtinst
 DOMAIN=`/bin/hostname -d`
 NAME='dummy'
 USERNAME='dummy'
+[ -z $1 ] || USERNAME=$1
 PASSWORD='dummy'
 
 
@@ -134,11 +135,11 @@ EOF
 
 cat > postinstall.sh <<EOF
 #!/bin/sh
-# Set up sudo
-#echo '${USERNAME} ALL=NOPASSWD:ALL' > /etc/sudoers.d/${USERNAME}
-
-sed -i "/[# ]*UseDNS[ \t].*/d" /etc/ssh/sshd_config
-echo "UseDNS no" >> /etc/sshd_config
+echo "$(date) $0 starting whiteout"
+# Cleanup apt cache
+apt-get -y autoremove --purge
+apt-get -y clean
+apt-get -y autoclean
 
 # Cleanup DHCP
 if [ -d "/var/lib/dhcp" ]; then
@@ -147,11 +148,6 @@ fi
 
 # Cleanup tmp
 rm -rf /tmp/*
-
-# Cleanup apt cache
-apt-get -y autoremove --purge
-apt-get -y clean
-apt-get -y autoclean
 
 # Clean up log files
 find /var/log -maxdepth 1 -type f -exec cp /dev/null {} \;
@@ -169,7 +165,7 @@ rm -f /EMPTY
 
 # Make sure we wait until all the data is written to disk
 sync
-echo "done whiteout"
+echo "$(date) $0 done whiteout"
 EOF
 
 source virtHelpers.bash
