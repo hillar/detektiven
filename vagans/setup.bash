@@ -103,6 +103,7 @@ if [ ! $(vm_exists ${JAVA}) = '0' ]; then
   virt-clone -q -o ${FB} -n ${JAVA} --auto-clone
   start_vm ${JAVA}
   java_ip=$(getip_vm ${JAVA})
+  [ $? -ne 0 ] && die "failed to get ip address for vm ${JAVA}"
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${java_ip}
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${java_ip} "sudo su -c 'echo ${JAVA} > /etc/hostname'"
   [ -f  $BOXESDIR/scripts/install-java.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/install-java.bash -O $BOXESDIR/scripts/install-java.bash
@@ -121,24 +122,25 @@ IPA='freeipa'
 if [ ! $(vm_exists ${IPA}) = '0' ]; then
   log " creating IPA ${IPA}"
   virt-clone -q  -o ${JAVA} -n ${IPA} --auto-clone
-  start_vm ${IPA}
+  start_vm ${IPA} >> $DEBUGLOG 2>&1
   ipa_ip=$(getip_vm ${IPA})
-  ssh-keygen -f "/root/.ssh/known_hosts" -R ${ipa_ip}
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname'"
+  [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA}"
+  ssh-keygen -f "/root/.ssh/known_hosts" -R ${ipa_ip} >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname'" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
-  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-freeipa.bash ${USERNAME}@${ipa_ip}:
+  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-freeipa.bash ${USERNAME}@${ipa_ip}: >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/install-freeipa.bash ${ipa_ip}" >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash " >> $DEBUGLOG 2>&1
-  stop_vm ${IPA}
+  stop_vm ${IPA} >> $DEBUGLOG 2>&1
   virsh dumpxml ${IPA} > ${IPA}.xml
   compress_vm ${IPA}
 fi
 [ ! $(vm_exists ${IPA}) = '0' ] && die "can not create ${IPA}"
-start_vm ${IPA}
+start_vm ${IPA} >> $DEBUGLOG 2>&1
 ipa_ip=$(getip_vm ${IPA})
 sleep 2
-ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "netstat -ntple"
+ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "netstat -ntple" >> $DEBUGLOG 2>&1
 ipa80=$(curl -s ${ipa_ip} | wc -l)
 if [ $ipa80 -ne 375 ]; then
    log " WARNING IPA ${IPA} ${ipa_ip} did not replied as expected"
@@ -148,23 +150,24 @@ TIKA='tika'
 if [ ! $(vm_exists ${TIKA}) = '0' ]; then
   log " creating TIKA ${TIKA}"
   virt-clone -q  -o ${JAVA} -n ${TIKA} --auto-clone
-  start_vm ${TIKA}
+  start_vm ${TIKA} >> $DEBUGLOG 2>&1
   tika_ip=$(getip_vm ${TIKA})
-  ssh-keygen -f "/root/.ssh/known_hosts" -R ${tika_ip}
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'"
+  [ $? -ne 0 ] && die "failed to get ip address for vm ${TIKA}"
+  ssh-keygen -f "/root/.ssh/known_hosts" -R ${tika_ip} >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${TIKA} > /etc/hostname'" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-tika.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/tika/install-tika.bash -O $BOXESDIR/scripts/install-tika.bash
   [ -f $BOXESDIR/scripts/install-tika.bash ] || die "${TIKA} missing install-tika.bash"
-  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}:
+  scp -i ${USERNAME}.key $BOXESDIR/scripts/install-tika.bash ${USERNAME}@${tika_ip}: >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/install-tika.bash ${tika_ip}" >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "sudo bash -x /home/${USERNAME}/postinstall.bash" >> $DEBUGLOG 2>&1
-  stop_vm ${TIKA}
+  stop_vm ${TIKA} >> $DEBUGLOG 2>&1
   virsh dumpxml ${TIKA} > ${TIKA}.xml
   compress_vm ${TIKA}
 fi
 [ ! $(vm_exists ${TIKA}) = '0' ] && die "can not create ${TIKA}"
-start_vm ${TIKA}
+start_vm ${TIKA} >> $DEBUGLOG 2>&1
 tika_ip=$(getip_vm ${TIKA})
-ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "netstat -ntple"
+ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${tika_ip} "netstat -ntple" >> $DEBUGLOG 2>&1
 tika69=$(curl -s ${tika_ip}:9998 | wc -l)
 if [ $tika69 -ne 69 ]; then
    log " WARNING TIKA ${TIKA} ${tika_ip} did not replied as expected"
