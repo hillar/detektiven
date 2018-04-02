@@ -42,8 +42,6 @@ StandardOutput=syslog
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload
-systemctl enable clamav-daemon.service
 
 cat > /etc/clamav/clamd.conf <<EOF
 User clamav
@@ -130,3 +128,7 @@ Bytecode true
 BytecodeSecurity TrustSigned
 BytecodeTimeout 60000
 EOF
+
+systemctl daemon-reload
+systemctl enable clamav-daemon.service
+systemctl start clamav-daemon.service

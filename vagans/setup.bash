@@ -191,7 +191,7 @@ if [ ! $(vm_exists ${CLAMAV}) = '0' ]; then
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${clamav_ip} >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${CLAMAV}.${DOMAIN} > /etc/hostname'; sudo hostname ${CLAMAV}.${DOMAIN}" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-clamav.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/vagans/install-clamav.bash -O $BOXESDIR/scripts/install-clamav.bash
-  [ $? -ne 0 ] && die "${CLAMAV} failed to download install-clamav.bash" 
+  [ $? -ne 0 ] && die "${CLAMAV} failed to download install-clamav.bash"
   [ -f $BOXESDIR/scripts/install-clamav.bash ] || die "${CLAMAV} missing install-clamav.bash"
   scp -oStrictHostKeyChecking=no -i ${USERNAME}.key $BOXESDIR/scripts/install-clamav.bash ${USERNAME}@${clamav_ip}: >> $DEBUGLOG 2>&1
   ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${clamav_ip} "sudo bash -x /home/${USERNAME}/install-clamav.bash ${clamav_ip}" >> $DEBUGLOG 2>&1
@@ -204,8 +204,8 @@ fi
 start_vm ${CLAMAV} >> $DEBUGLOG 2>&1
 clamav_ip=$(getip_vm ${CLAMAV})
 ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${clamav_ip} "netstat -ntple" >> $DEBUGLOG 2>&1
-clamav22=$(curl -s ${clamav_ip}:3310 | wc -l)
-if [ $clamav22 -ne 69 ]; then
+clamav1=$(curl -s ${clamav_ip}:3310 | wc -l)
+if [ $clamav1 -ne 1 ]; then
    log "WARNING CLAMAV ${CLAMAV} ${clamav_ip} did not replied as expected"
 else
   log "CLAMAV ${CLAMAV} ${clamav_ip} seems ok"
