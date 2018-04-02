@@ -28,6 +28,7 @@ else
   apt-get -y install oracle-java8-installer >> $DEBUGLOG 2>&1
   java=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
   if [ "$java" != "" ]; then
+    echo 'JAVA_HOME="/usr/lib/jvm/java-8-oracle"' >> /etc/environment
     echo "$(date) $0 installed java ver $java "
   else
     echo "$(date) $0 java install failed "

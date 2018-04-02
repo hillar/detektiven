@@ -3,7 +3,7 @@
 # install freeipa
 #
 
-echo "$(date) starting $0"
+
 
 XENIAL=$(lsb_release -c | cut -f2)
 if [ "$XENIAL" != "xenial" ]; then
@@ -15,35 +15,66 @@ if [ "$(id -u)" != "0" ]; then
    echo "ERROR - This script must be run as root" 1>&2
    exit 1
 fi
+
+log() { echo "$(date) $0: $*"; }
+die() { log "$*" >&2; exit 1; }
+
+log "starting java install"
+
+
 [ -d "/vagrant" ] || mkdir /vagrant
 
+export LC_ALL=C
+export DEBIAN_FRONTEND=noninteractive
+
+IP='127.0.0.1'
+[ -z $1 ] || IP=$1
+
+HOSTNAME=$(hostname -s)
+DOMAINNAME=$(hostname)
+REALM=$(hostname| tr [a-z] [A-Z])
+
+echo "127.0.0.1 localhost" > /etc/hosts
+echo "${IP} ${DOMAINNAME} ${HOSTNAME}" >> /etc/hosts
 
 _PASSWORD_='password'
 _UID_='username'
 
+java=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+if [ "$java" != "" ]; then
+  echo "$(date) $0 java ver $java "
+  source /etc/environment
+  [ -z $JAVA_HOME ] && die "JAVA_HOME not set"
+else
+  die 'no java'
+fi
 
-IP='127.0.0.1'
-[ -z $1 ] || IP=$1
-HOSTNAME='ipa'
-[ -z $2 ] || HOSTNAME=$2
-DOMAIN='example.org'
-[ -z $3 ] || DOMAIN=$3
 
-
-echo "127.0.0.1 localhost" > /etc/hosts
-echo "$IP ${HOSTNAME}.${DOMAIN} ${HOSTNAME}" >> /etc/hosts
-
-export DEBIAN_FRONTEND=noninteractive
 
 # http://gatwards.org/techblog/ipa-server-installation
 apt-get update >> /vagrant/provision.log 2>&1
 apt-get -y install freeipa-server >> /vagrant/provision.log 2>&1
 
 
-DirectoryManagerpassword=$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8)
+DirectoryManagerpassword=$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c16)
 IPAadminpassword="$DirectoryManagerpassword"
 
-echo -en "\n\n\n\n$DirectoryManagerpassword\n$DirectoryManagerpassword\n$IPAadminpassword\n$IPAadminpassword\nyes\n" | ipa-server-install
+#echo -en "\n\n\n\n$DirectoryManagerpassword\n$DirectoryManagerpassword\n$IPAadminpassword\n$IPAadminpassword\nyes\n" | ipa-server-install
+
+#pki-tomcatd[15530]: start-stop-daemon: unable to stat /bin/java (No such file or directory)
+#JAVA_HOME="/usr/lib/jvm/java-8-oracle" >> /etc/environment
+
+ipa-server-install \
+  --unattended \
+  --ip-address=${IP} \
+  --realm=${REALM} \
+  --domain=${DOMAIN} \
+  --ds-password="${IPAadminpassword}" \
+  --master-password="${IPAadminpassword}" \
+  --admin-password="${IPAadminpassword}" \
+  --no-host-dns
+
+
 echo -en "$IPAadminpassword" | kinit admin
 
 # delete ssh & x509 cert self service

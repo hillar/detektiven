@@ -28,6 +28,7 @@ IMAGESDIR="$DIR/images"
 BOXESDIR="$DIR/boxes"
 USERNAME='dummy'
 DOMAIN=$(/bin/hostname -d)
+DOMAIN='testrun'
 export SYSTEMD_PAGER=''
 export LC_ALL=C
 export DEBIAN_FRONTEND=noninteractive
