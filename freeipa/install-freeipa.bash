@@ -19,7 +19,7 @@ fi
 log() { echo "$(date) $0: $*"; }
 die() { log "$*" >&2; exit 1; }
 
-log "starting java install"
+log "starting freeipa install"
 
 
 [ -d "/vagrant" ] || mkdir /vagrant
@@ -36,7 +36,7 @@ REALM=$(hostname| tr [a-z] [A-Z])
 
 echo "127.0.0.1 localhost" > /etc/hosts
 echo "${IP} ${DOMAINNAME} ${HOSTNAME}" >> /etc/hosts
-
+log "${IP} ${DOMAINNAME} ${HOSTNAME}"
 _PASSWORD_='password'
 _UID_='username'
 
@@ -53,7 +53,7 @@ fi
 
 # http://gatwards.org/techblog/ipa-server-installation
 apt-get update >> /vagrant/provision.log 2>&1
-apt-get -y install freeipa-server >> /vagrant/provision.log 2>&1
+apt-get -y install freeipa-server freeipa-server-dns haveged >> /vagrant/provision.log 2>&1
 
 
 DirectoryManagerpassword=$(< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c16)
@@ -68,11 +68,13 @@ ipa-server-install \
   --unattended \
   --ip-address=${IP} \
   --realm=${REALM} \
-  --domain=${DOMAIN} \
+  --domain=${DOMAINNAME} \
   --ds-password="${IPAadminpassword}" \
   --master-password="${IPAadminpassword}" \
   --admin-password="${IPAadminpassword}" \
-  --no-host-dns
+  --no-host-dns \
+  --setup-dns \
+  --auto-forwarders
 
 
 echo -en "$IPAadminpassword" | kinit admin

@@ -128,7 +128,7 @@ if [ ! $(vm_exists ${IPA}) = '0' ]; then
   ipa_ip=$(getip_vm ${IPA})
   [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA}"
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${ipa_ip} >> $DEBUGLOG 2>&1
-  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA} > /etc/hostname';sudo hostname ${IPA}.${DOMAIN}" >> $DEBUGLOG 2>&1
+  ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key ${USERNAME}@${ipa_ip} "sudo su -c 'echo ${IPA}.${DOMAIN} > /etc/hostname';sudo hostname ${IPA}.${DOMAIN}" >> $DEBUGLOG 2>&1
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || wget --no-check-certificate -q https://raw.githubusercontent.com/hillar/detektiven/master/freeipa/install-freeipa.bash -O $BOXESDIR/scripts/install-freeipa.bash
   [ -f $BOXESDIR/scripts/install-freeipa.bash ] || die "${IPA} missing install-freeipa.bash"
   scp -i ${USERNAME}.key $BOXESDIR/scripts/install-freeipa.bash ${USERNAME}@${ipa_ip}: >> $DEBUGLOG 2>&1
