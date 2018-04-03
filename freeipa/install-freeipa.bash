@@ -45,6 +45,13 @@ if [ "$java" != "" ]; then
   echo "$(date) $0 java ver $java "
   source /etc/environment
   [ -z $JAVA_HOME ] && die "JAVA_HOME not set"
+  # /etc/init.d/pki-tomcatd do not 'see' $JAVA_HOME
+  if [ ! -f /bin/java ]; then
+    [ -f $JAVA_HOME/bin/java ] || die "missing java $JAVA_HOME/bin/java"
+    ln -s $JAVA_HOME/bin/java /bin/java
+    java=$(/bin/java -version 2>&1 | awk -F '"' '/version/ {print $2}')
+    [ "$java" != "" ] || die "failed on /bin/java "
+  fi
 else
   die 'no java'
 fi
@@ -70,7 +77,6 @@ ipa-server-install \
   --realm=${REALM} \
   --domain=${DOMAINNAME} \
   --ds-password="${IPAadminpassword}" \
-  --master-password="${IPAadminpassword}" \
   --admin-password="${IPAadminpassword}" \
   --no-host-dns \
   --setup-dns \
