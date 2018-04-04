@@ -156,29 +156,23 @@ echo "\$(date) \$0: starting whiteout"
 apt-get -y autoremove --purge
 apt-get -y clean
 apt-get -y autoclean
-
 # Cleanup DHCP
 if [ -d "/var/lib/dhcp" ]; then
     rm /var/lib/dhcp/*
 fi
-
 # Cleanup tmp
 rm -rf /tmp/*
-
 # Clean up log files
 find /var/log -maxdepth 1 -type f -exec cp /dev/null {} \;
 find /var/log/apt -maxdepth 1 -type f -exec cp /dev/null {} \;
 find /var/log/fsck -maxdepth 1 -type f -exec cp /dev/null {} \;
 journalctl --vacuum-time=1seconds
-
 # Whiteout /boot
 dd if=/dev/zero of=/boot/whitespace bs=1M || echo "dd exit code \$? is suppressed"
 rm /boot/whitespace
-
 # Whiteout /
 dd if=/dev/zero of=/EMPTY bs=1M  || echo "dd exit code \$? is suppressed"
 rm -f /EMPTY
-
 # Make sure we wait until all the data is written to disk
 sync
 echo "\$(date) \$0: done whiteout"
