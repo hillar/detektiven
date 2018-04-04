@@ -151,7 +151,7 @@ EOF
 cat > postinstall.bash <<EOF
 #!/bin/bash
 # Automatically created $(date) with $0
-echo "$(date) $0: starting whiteout"
+echo "\$(date) \$0: starting whiteout"
 # Cleanup apt cache
 apt-get -y autoremove --purge
 apt-get -y clean
@@ -175,13 +175,13 @@ journalctl --vacuum-time=1seconds
 dd if=/dev/zero of=/boot/whitespace bs=1M || echo "dd exit code \$? is suppressed"
 rm /boot/whitespace
 
-# # Whiteout /
+# Whiteout /
 dd if=/dev/zero of=/EMPTY bs=1M  || echo "dd exit code \$? is suppressed"
 rm -f /EMPTY
 
 # Make sure we wait until all the data is written to disk
 sync
-echo "$(date) $0: done whiteout"
+echo "\$(date) \$0: done whiteout"
 EOF
 
 [ -f postinstall.bash ] || die 'missing postinstall.bash'
