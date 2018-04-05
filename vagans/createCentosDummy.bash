@@ -14,20 +14,20 @@ die() { log ": $*" >&2; exit 1; }
 
 export LC_ALL=C
 
-DOMAIN=$(hostname| cut -f2 -d.)
+
 NAME='dummy-centos'
+[ -z $1 ] || NAME=$1
 USERNAME='dummy'
-[ -z $1 ] || USERNAME=$1
-PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
-HELPERS='scripts/virtHelpers.bash'
-[ -z $2 ] || HELPERS=$2
+[ -z $2 ] || USERNAME=$2
+SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+HELPERS="${SCRIPTS}/virtHelpers.bash"
+[ -z $3 ] || HELPERS=$3
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
 
 log "going to delete ${NAME}"
 delete_vm ${NAME} > /dev/null
 [ $(vm_exists ${NAME}) = '0' ] && die "can not delete vm ${NAME}"
-
 
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
 [ -f ${USERNAME}.key ] || die "can not create ${USERNAME}.key"
@@ -80,12 +80,12 @@ firstboot --disabled
 -kexec-tools
 -plymouth*
 -postfix
+-NetworkManager
 %end
 
 %post --interpreter /bin/bash
 set -x
 exec >/var/log/kickstart-post.log 2>&1
-yum -y autoremove postfix
 yum -y install net-tools
 yum -y update
 mkdir /root/.ssh
@@ -140,12 +140,6 @@ virt-install \
 --noreboot \
 --extra-args="auto=true ks=file:/kickstart.cfg console=tty0 console=ttyS0,115200n8 serial"
 
-#start_vm ${NAME} > /dev/null
-#ip=$(getip_vm ${NAME})
-#[ $? -ne 0 ] && die "failed to get ip address for vm ${NAME}"
-#ssh-keygen -f "~/.ssh/known_hosts" -R ${ip}
-#ssh -oStrictHostKeyChecking=no -i ${USERNAME}.key root@${ip} "bash -x whiteoutCentos.bash" > /dev/null
-#stop_vm ${NAME} > /dev/null
 imagefile=$(getfile_vm ${NAME})
 mv $imagefile $imagefile.backup
 qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null

@@ -24,7 +24,7 @@ source ${HELPERS}
 if [ ! $(vm_exists ${DUMMY}) = '0' ]; then
   [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
   log "creating very first CENTOS dummy"
-  bash ${CREATEDUMMY} ${USERNAME} ${HELPERS}
+  bash ${CREATEDUMMY} ${DUMMY} ${USERNAME} ${HELPERS}
   virsh dumpxml ${DUMMY} > ${DUMMY}.xml
 fi
 [ ! $(vm_exists ${DUMMY}) = '0' ] && die "can not create ${DUMMY}"
@@ -48,7 +48,8 @@ fi
   [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA0}"
   log "${IPA0} ${ip} preparing packages "
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${ip} > /dev/null
-  ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} 'whoami' > /dev/null
+  waitforssh ${IPA0} dummy.key root
+  [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
   ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo "${IPA0}.${DOMAIN}" > /etc/hostname; hostname "${IPA0}.${DOMAIN}""
   ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo "${ip} ${IPA0}.${DOMAIN} ${IPA0}" >> /etc/hosts"
   ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "ping -c1 ${IPA0}.${DOMAIN}"
@@ -60,11 +61,16 @@ fi
     # prep some defaults
   else
     log "restoring IPA SERVER from $BACKUP"
+    # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
     # https://pagure.io/freeipa/issue/7231
     # skip install if ver is > 4.5
     ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
     scp -oStrictHostKeyChecking=no -i dummy.key -r $BACKUP root@${ip}:
-    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo -en "${P}\nyes\n"| ipa-restore /root/$BACKUP"
+    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "ipa-restore --unattended --password=${P} /root/$(basename $BACKUP)"
+    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "systemctl stop sssd; find /var/lib/sss/ ! -type d | xargs rm -f"
+    stop_vm ${IPA0}
+    start_vm ${IPA0}
+    waitforssh ${IPA0}
   fi
 
 ip=$(getip_vm ${IPA0})

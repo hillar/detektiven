@@ -117,6 +117,24 @@ getip_vm(){
   fi
 }
 
+waitforssh(){
+  [ -z $3 ] && return 1
+  [ -z $2 ] && return 1
+  [ -z $1 ] && return 1
+  ip=$(getip_vm $1)
+  [ $? -ne 0 ] && return 1
+  counter=0
+  ssh -oStrictHostKeyChecking=no -i $2 $3@${ip} 'whoami' > /dev/null
+  while  [ $? -ne 0 -a $counter -lt 10 ]; do
+    sleep 1
+    let counter++
+    ssh -oStrictHostKeyChecking=no -i $2 $3@${ip} 'whoami' > /dev/null
+  done
+  if [ $counter -eq 10 ]; then
+     return 1
+  fi
+}
+
 # Get image file full path
 #
 # Arguments:
