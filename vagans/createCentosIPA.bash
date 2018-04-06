@@ -58,6 +58,10 @@ fi
   if [ -z $BACKUP ]; then
     log "installing new IPA SERVER"
     ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
+    # Be sure to back up the CA certificates stored in /root/cacert.p12
+    # These files are required to create replicas. The password for these
+    # files is the Directory Manager password
+
     # prep some defaults
   else
     log "restoring IPA SERVER from $BACKUP"
@@ -71,6 +75,10 @@ fi
     stop_vm ${IPA0}
     start_vm ${IPA0}
     waitforssh ${IPA0}
+    [ $? -ne 0 ] && waitforssh ${IPA0}
+    [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
+    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "ipactl status"
+    # Failed to start pki-tomcatd Service
   fi
 
 ip=$(getip_vm ${IPA0})
