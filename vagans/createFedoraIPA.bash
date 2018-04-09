@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
-# build IPA on Centos 7
+# build IPA on Fedora 27
 
 log() { echo "$(date) $0: $*"; }
 die() { log ": $*" >&2; exit 1; }
 
 [ "$EUID" -ne 0 ] && die "Please run as root"
 
-SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-[ -z $1 ] || SCRIPTS=$1
-IPA='freeipa'
+USERNAME='root'
+[ -z $1 ] || USERNAME=$1
+IPA='freeipa-default'
 [ -z $2 ] || IPA=$2
-DOMAIN='domain.tld'
+DOMAIN='idm.domain.tld'
 [ -z $3 ] || DOMAIN=$3
-DUMMY='dummy-centos'
+DUMMY='dummy-fedora'
 [ -z $4 ] || DUMMY=$4
 [ -z $5 ] || BACKUP=$5
 
+USERNAME='root'
+KEYFILE="${USERNAME}.key"
+
+SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HELPERS="${SCRIPTS}/virtHelpers.bash"
 CREATEDUMMY="${SCRIPTS}/createCentosDummy.bash"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
@@ -23,7 +27,7 @@ source ${HELPERS}
 
 if [ ! $(vm_exists ${DUMMY}) = '0' ]; then
   [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
-  log "creating very first CENTOS dummy"
+  log "creating very first ${DUMMY} dummy"
   bash ${CREATEDUMMY} ${DUMMY} ${USERNAME} ${HELPERS}
   virsh dumpxml ${DUMMY} > ${DUMMY}.xml
 fi
@@ -48,16 +52,16 @@ fi
   [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA0}"
   log "${IPA0} ${ip} preparing packages "
   ssh-keygen -f "/root/.ssh/known_hosts" -R ${ip} > /dev/null
-  waitforssh ${IPA0} dummy.key root
+  waitforssh ${IPA0} ${KEYFILE} root
   [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
-  ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo "${IPA0}.${DOMAIN}" > /etc/hostname; hostname "${IPA0}.${DOMAIN}""
-  ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo "${ip} ${IPA0}.${DOMAIN} ${IPA0}" >> /etc/hosts"
-  ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "ping -c1 ${IPA0}.${DOMAIN}"
-  ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} 'yum -y install rng-tools; systemctl enable rngd; systemctl start rngd'
-  ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} 'yum -y install ipa-server ipa-server-dns'
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${IPA0}.${DOMAIN}" > /etc/hostname; hostname "${IPA0}.${DOMAIN}""
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${ip} ${IPA0}.${DOMAIN} ${IPA0}" >> /etc/hosts"
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}.${DOMAIN}"
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install rng-tools; systemctl enable rngd; systemctl start rngd'
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install ipa-server ipa-server-dns'
   if [ -z $BACKUP ]; then
     log "installing new IPA SERVER"
-    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
+    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
     # Be sure to back up the CA certificates stored in /root/cacert.p12
     # These files are required to create replicas. The password for these
     # files is the Directory Manager password
@@ -68,20 +72,20 @@ fi
     # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
     # https://pagure.io/freeipa/issue/7231
     # skip install if ver is > 4.5
-    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
-    scp -oStrictHostKeyChecking=no -i dummy.key -r $BACKUP root@${ip}:
-    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "ipa-restore --unattended --password=${P} /root/$(basename $BACKUP)"
-    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "systemctl stop sssd; find /var/lib/sss/ ! -type d | xargs rm -f"
+    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
+    scp -oStrictHostKeyChecking=no -i ${KEYFILE} -r $BACKUP ${USERNAME}@${ip}:
+    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ipa-restore --unattended --password=${P} /root/$(basename $BACKUP)"
+    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "systemctl stop sssd; find /var/lib/sss/ ! -type d | xargs rm -f"
     stop_vm ${IPA0}
     start_vm ${IPA0}
     waitforssh ${IPA0}
     [ $? -ne 0 ] && waitforssh ${IPA0}
     [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
-    ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "ipactl status"
+    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ipactl status"
     # Failed to start pki-tomcatd Service
   fi
 
 ip=$(getip_vm ${IPA0})
 curl -s $ip | wc -l
-ssh -oStrictHostKeyChecking=no -i dummy.key root@${ip} "curl -s -k https://${IPA0}.${DOMAIN}/ipa/ui/ | wc -l"
+ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "curl -s -k https://${IPA0}.${DOMAIN}/ipa/ui/ | wc -l"
 #TODO check ldap
