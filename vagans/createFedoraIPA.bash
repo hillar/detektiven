@@ -72,7 +72,10 @@ fi
     # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
     # https://pagure.io/freeipa/issue/7231
     # skip install if ver is > 4.5
-    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
+    #ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
+    # still bug
+    # https://pagure.io/freeipa/issue/7473
+    # https://fedorapeople.org/groups/freeipa/prci/jobs/8f8a6bee-3161-11e8-a318-fa163ed2d6e2/report.html
     scp -oStrictHostKeyChecking=no -i ${KEYFILE} -r $BACKUP ${USERNAME}@${ip}:
     ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ipa-restore --unattended --password=${P} /root/$(basename $BACKUP)"
     ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "systemctl stop sssd; find /var/lib/sss/ ! -type d | xargs rm -f"
