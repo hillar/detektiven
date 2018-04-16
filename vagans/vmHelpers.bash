@@ -152,6 +152,7 @@ vm_clone(){
   [ $? -eq 0 ] && die 'child name taken'
   virsh domstate ${CHILD} >/dev/null 2>&1
   [ $? -eq 0 ] && die "child ${CHILD} exists"
+  [ -z $3 ] || USER=$3
 
   virt-clone -o ${PARENT} -n ${CHILD} --reflink --auto-clone >/dev/null 2>&1
   [ $? -eq 0 ] || virt-clone -o ${PARENT} -n ${CHILD} --auto-clone >/dev/null 2>&1
@@ -162,6 +163,8 @@ vm_clone(){
   guestmount -a ${imagefile} -i /tmp/${CHILD}
   [ $? -eq 0 ] || die "guestmount error, ${imagefile}"
   echo ${CHILD} > /tmp/${CHILD}/etc/hostname
+
+  [ -z $USER ] || cat ${USER}.key.pub > /tmp/${CHILD}/root/.ssh/authorized_keys 
   echo "$(date) cloned from ${PARENT} got name ${CHILD}" >> /tmp/${CHILD}/etc/birth.certificate
   umount /tmp/${CHILD}
   rmdir /tmp/${CHILD}

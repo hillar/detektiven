@@ -40,7 +40,7 @@ if ! vm_exists ${IPA0}; then
   fi
   vm_exists ${DUMMY} || die "failed to create dummy ${DUMMY}"
   log "creating IPA ${IPA0}"
-  vm_clone ${DUMMY}  ${IPA0}
+  vm_clone ${DUMMY} ${IPA0} ${USERNAME}
   vm_exists ${IPA0} || die "failed to create IPA ${IPA0}"
 fi
 
