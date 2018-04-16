@@ -55,8 +55,9 @@ fi
   ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${ip} ${IPA0} ${IPA}" >> /etc/hosts"
   ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}"
   if [ -z $BACKUP ]; then
-    ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'LC_ALL="";ipactl status')
-    if [ ! $ipainstalled -eq 0 ]; then
+    #ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'LC_ALL="";ipactl status')
+    ipainstalled=$(ssh -oStrictHostKeyChecking=no -i root.key root@192.168.122.233 'netstat -ntple | grep ns-slapd  | wc -l')
+    if [ ! $ipainstalled -eq 2 ]; then
       log "${IPA0} ${ip} preparing packages "
       ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install rng-tools; systemctl enable rngd; systemctl start rngd'
       ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install ipa-server ipa-server-dns'
@@ -66,11 +67,14 @@ fi
       # Be sure to back up the CA certificates stored in /root/cacert.p12
       # These files are required to create replicas. The password for these
       # files is the Directory Manager password
-
-      # prep some defaults
     else
       log "IPA already installed on ${IPA0}"
     fi
+    # prep some defaults
+    IPAHELPERS="${SCRIPTS}/ipaHelpers.bash"
+    [ -f $IPAHELPERS ] || die "missing $IPAHELPERS"
+    source $IPAHELPERS
+    preparedefaults ${ip} ${KEYFILE} ${USERNAME} ${P}
   else
     log "restoring IPA SERVER from $BACKUP"
     # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
@@ -93,5 +97,5 @@ fi
 
 ip=$(vm_getip ${IPA0})
 curl -s $ip | wc -l
-ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "curl -s -k https://${IPA0}.${DOMAIN}/ipa/ui/ | wc -l"
+ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "curl -s -k https://${IPA0}/ipa/ui/ | wc -l"
 #TODO check ldap
