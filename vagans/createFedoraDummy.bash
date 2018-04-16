@@ -20,15 +20,14 @@ NAME='dummy-fedora'
 USERNAME='dummy'
 [ -z $2 ] || USERNAME=$2
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-HELPERS="${SCRIPTS}/virtHelpers.bash"
+HELPERS="${SCRIPTS}/vmHelpers.bash"
 [ -z $3 ] || HELPERS=$3
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
 
 log "going to delete ${NAME}"
-delete_vm ${NAME} > /dev/null
-[ $(vm_exists ${NAME}) = '0' ] && die "can not delete vm ${NAME}"
-
+vm_delete ${NAME} > /dev/null
+vm_exists ${NAME} && die "can not delete vm ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
 [ -f ${USERNAME}.key ] || die "can not create ${USERNAME}.key"
 [ -f ${USERNAME}.key.pub ] || die "can not find pubkey ${USERNAME}.key.pub"
@@ -120,7 +119,6 @@ chmod +x /root/whiteout.bash
 %end
 EOF
 
-
 virt-install \
 --connect=qemu:///system \
 --name=${NAME} \
@@ -138,7 +136,7 @@ virt-install \
 --noreboot \
 --extra-args="auto=true ks=file:/kickstartFedora27.cfg console=tty0 console=ttyS0,115200n8 serial"
 
-imagefile=$(getfile_vm ${NAME})
+imagefile=$(vm_getimagefile ${NAME})
 mv $imagefile $imagefile.backup
 qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
 rm $imagefile.backup

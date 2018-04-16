@@ -20,53 +20,57 @@ USERNAME='root'
 KEYFILE="${USERNAME}.key"
 
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-HELPERS="${SCRIPTS}/virtHelpers.bash"
-CREATEDUMMY="${SCRIPTS}/createCentosDummy.bash"
+HELPERS="${SCRIPTS}/vmHelpers.bash"
+CREATEDUMMY="${SCRIPTS}/createFedoraDummy.bash"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
 
-if [ ! $(vm_exists ${DUMMY}) = '0' ]; then
-  [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
-  log "creating very first ${DUMMY} dummy"
-  bash ${CREATEDUMMY} ${DUMMY} ${USERNAME} ${HELPERS}
-  virsh dumpxml ${DUMMY} > ${DUMMY}.xml
+
+
+IPA0="${IPA}.${DOMAIN}"
+if ! vm_exists ${IPA0}; then
+  if ! vm_exists ${DUMMY}; then
+    [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
+    log "creating very first ${DUMMY} dummy"
+    bash ${CREATEDUMMY} ${DUMMY} ${USERNAME} ${HELPERS}
+    virsh dumpxml ${DUMMY} > ${DUMMY}.xml
+  fi
+  vm_exists ${DUMMY} || die "failed to create dummy ${DUMMY}"
+  log "creating IPA ${IPA0}"
+  vm_clone ${DUMMY}  ${IPA0}
+  vm_exists ${IPA0} || die "failed to create IPA ${IPA0}"
 fi
-[ ! $(vm_exists ${DUMMY}) = '0' ] && die "can not create ${DUMMY}"
-stop_vm ${DUMMY}
 
-
-
-IPA0="${IPA}"
-if [ ! $(vm_exists ${IPA0}) = '0' ]; then
-  log "creating IPA MASTER ${IPA0}"
-  virt-clone -q -o ${DUMMY} -n ${IPA0} --auto-clone
-fi
-  [ ! $(vm_exists ${IPA0}) = '0' ] && die "can not create IPA MASTER $IPA0"
   [ -f ${IPA}.masterpwd ] || P=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
   [ -f ${IPA}.masterpwd ] || echo $P > ${IPA}.masterpwd
   [ -f ${IPA}.masterpwd ] || die 'can not find Directory Manager (existing master) password'
   P=$(cat ${IPA}.masterpwd)
   #log "$IPA0 Directory Manager password: ${P}"
-  start_vm ${IPA0}
-  ip=$(getip_vm ${IPA0})
+  vm_start ${IPA0}
+  ip=$(vm_getip ${IPA0})
   [ $? -ne 0 ] && die "failed to get ip address for vm ${IPA0}"
-  log "${IPA0} ${ip} preparing packages "
-  ssh-keygen -f "/root/.ssh/known_hosts" -R ${ip} > /dev/null
-  waitforssh ${IPA0} ${KEYFILE} root
+  vm_waitforssh ${IPA0} ${KEYFILE} root
   [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
-  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${IPA0}.${DOMAIN}" > /etc/hostname; hostname "${IPA0}.${DOMAIN}""
-  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${ip} ${IPA0}.${DOMAIN} ${IPA0}" >> /etc/hosts"
-  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}.${DOMAIN}"
-  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install rng-tools; systemctl enable rngd; systemctl start rngd'
-  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install ipa-server ipa-server-dns'
-  if [ -z $BACKUP ]; then
-    log "installing new IPA SERVER"
-    ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
-    # Be sure to back up the CA certificates stored in /root/cacert.p12
-    # These files are required to create replicas. The password for these
-    # files is the Directory Manager password
 
-    # prep some defaults
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${ip} ${IPA0} ${IPA}" >> /etc/hosts"
+  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}"
+  if [ -z $BACKUP ]; then
+    ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'LC_ALL="";ipactl status')
+    if [ ! $ipainstalled -eq 0 ]; then
+      log "${IPA0} ${ip} preparing packages "
+      ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install rng-tools; systemctl enable rngd; systemctl start rngd'
+      ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install ipa-server ipa-server-dns'
+      # !? missing yum install dbus-python
+      log "installing new IPA SERVER"
+      ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo -en 'yes\n\n\n\n${P}\n${P}\n${P}\n${P}\n\n\n\n\nyes\n' | ipa-server-install"
+      # Be sure to back up the CA certificates stored in /root/cacert.p12
+      # These files are required to create replicas. The password for these
+      # files is the Directory Manager password
+
+      # prep some defaults
+    else
+      log "IPA already installed on ${IPA0}"
+    fi
   else
     log "restoring IPA SERVER from $BACKUP"
     # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
@@ -79,16 +83,15 @@ fi
     scp -oStrictHostKeyChecking=no -i ${KEYFILE} -r $BACKUP ${USERNAME}@${ip}:
     ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ipa-restore --unattended --password=${P} /root/$(basename $BACKUP)"
     ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "systemctl stop sssd; find /var/lib/sss/ ! -type d | xargs rm -f"
-    stop_vm ${IPA0}
-    start_vm ${IPA0}
-    waitforssh ${IPA0}
+    vm_reboot ${IPA0}
+    vm_waitforssh ${IPA0}
     [ $? -ne 0 ] && waitforssh ${IPA0}
     [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
     ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ipactl status"
     # Failed to start pki-tomcatd Service
   fi
 
-ip=$(getip_vm ${IPA0})
+ip=$(vm_getip ${IPA0})
 curl -s $ip | wc -l
 ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "curl -s -k https://${IPA0}.${DOMAIN}/ipa/ui/ | wc -l"
 #TODO check ldap

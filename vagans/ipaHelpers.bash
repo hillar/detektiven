@@ -8,26 +8,34 @@
 log() { echo "$(date) $0: $*"; }
 die() { log ": $*" >&2; exit 1; }
 
-hostenroll() {
+preparedefaults() {
   HOSTENROLL='hostenroll'
-
+  SYSADMIN='sysadmin'
   [ -z $1 ] || IPAIP=$1
   [ -z $IPAIP ] && die "no ip for IPA ${IPAIP}"
   [ -z $2 ] || KEYFILE=$2
   [ -z $KEYFILE ] && die "no key file for ${IPAIP}"
-  [ -z $3 ]  || USER=$3
+  [ -z $3 ] || USER=$3
   [ -z $USER ] && die "no user for ${IPAIP}"
   [ -z $4 ] || MASTERPASSWORD=$4
   [ -z $MASTERPASSWORD ] && die "no password for ipa ${IPAIP}"
-  [ -z $5 ] || HOSTENROLLPASSWORD=$5
+  [ -f $HOSTENROLL.passwd ] && HOSTENROLLPASSWORD=$(cat $HOSTENROLL.passwd)
   [ -z $HOSTENROLLPASSWORD ] && HOSTENROLLPASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
   [ -z $HOSTENROLLPASSWORD ] && die "can not create password for ${$HOSTENROLL}"
-
   echo $HOSTENROLLPASSWORD > $HOSTENROLL.passwd
+  [ -f $SYSADMIN.passwd ] && SYSADMINPASSWORD=$(cat $SYSADMIN.passwd)
+  [ -z $SYSADMINPASSWORD ] && SYSADMINPASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+  [ -z $SYSADMINPASSWORD ] && die "can not create password for $SYSADMIN"
+  echo $SYSADMINPASSWORD > $SYSADMIN.passwd
 
 
   read -r -d '' CMD <<EOF
+  LC_ALL="";
   echo -en "${MASTERPASSWORD}" | kinit admin;
+  # delete ssh & x509 cert self service;
+  ipa selfservice-del "Users can manage their own SSH public keys";
+  ipa selfservice-del "Users can manage their own X.509 certificates";
+  # create default host enrollment;
   ipa hostgroup-add default --desc "Default hostgroup for IPA clients";
   ipa automember-add --type=hostgroup default --desc="Default hostgroup for new client enrollments";
   ipa automember-add-condition --type=hostgroup default --inclusive-regex=.* --key=fqdn;
@@ -38,7 +46,25 @@ hostenroll() {
   echo -en "${HOSTENROLLPASSWORD}\n${HOSTENROLLPASSWORD}\n" |ipa passwd ${HOSTENROLL};
   ipa role-add-member HostEnrollment --users=${HOSTENROLL};
   echo -en "${HOSTENROLLPASSWORD}\n${HOSTENROLLPASSWORD}\n${HOSTENROLLPASSWORD}\n" | kinit ${HOSTENROLL};
-  klist
+  klist;
+  echo -en "${MASTERPASSWORD}" | kinit admin;
+  klist;
+  #sudo rule for admins;
+  ipa sudorule-add admin_all --desc="Rule for admins";
+  ipa sudorule-add-user admin_all --groups=admins;
+  ipa sudorule-add-host admin_all --hostgroups=default;
+  ipa sudorule-mod admin_all --cmdcat=all;
+  ipa sudorule-add-option admin_all --sudooption='!authenticate';
+  ipa sudorule-show admin_all;
+  # add sysadmin user;
+  ipa user-add ${SYSADMIN} --first=sys --last=admin;
+  ipa group-add-member admins --users=${SYSADMIN};
+  echo -en "$SYSADMINPASSWORD\n$SYSADMINPASSWORD\n" |ipa passwd ${SYSADMIN};
+  echo -en "$SYSADMINPASSWORD\n$SYSADMINPASSWORD\n$SYSADMINPASSWORD\n" |kinit ${SYSADMIN};
+  klist;
+  echo -en "${MASTERPASSWORD}" | kinit admin;
+  klist;
+
 EOF
   ssh -oStrictHostKeyChecking=no -i ${KEYFILE} root@${IPAIP} "$CMD"
 }
