@@ -26,7 +26,7 @@ HELPERS="${SCRIPTS}/vmHelpers.bash"
 source ${HELPERS}
 
 log "going to delete ${NAME}"
-vm_delete ${NAME} > /dev/null
+vm_exists ${NAME} && vm_delete ${NAME} > /dev/null
 vm_exists ${NAME} && die "can not delete vm ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
 [ -f ${USERNAME}.key ] || die "can not create ${USERNAME}.key"

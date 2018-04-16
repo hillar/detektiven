@@ -56,7 +56,7 @@ fi
   ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}"
   if [ -z $BACKUP ]; then
     #ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'LC_ALL="";ipactl status')
-    ipainstalled=$(ssh -oStrictHostKeyChecking=no -i root.key root@192.168.122.233 'netstat -ntple | grep ns-slapd  | wc -l')
+    ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'netstat -ntple | grep ns-slapd  | wc -l')
     if [ ! $ipainstalled -eq 2 ]; then
       log "${IPA0} ${ip} preparing packages "
       ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'yum -y install rng-tools; systemctl enable rngd; systemctl start rngd'
