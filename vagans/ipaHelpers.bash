@@ -8,9 +8,28 @@
 log() { echo "$(date) $0: $*"; }
 die() { log ": $*" >&2; exit 1; }
 
-preparedefaults() {
+ipa_user_exists() {
+  [ -z $1 ] || IPAIP=$1
+  [ -z $IPAIP ] && die "no ip for IPA ${IPAIP}"
+  [ -z $2 ] || KEYFILE=$2
+  [ -z $KEYFILE ] && die "no key file for ${IPAIP}"
+  [ -z $3 ] || USER=$3
+  [ -z $USER ] && die "no user for ${IPAIP}"
+  [ -z $4 ] || MASTERPASSWORD=$4
+  [ -z $MASTERPASSWORD ] && die "no password for ipa ${IPAIP}"
+  [ -z $5 ] || USERNAME=$5
+  [ -z $USERNAME ] && die "no username to search"
+  exists=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} root@${IPAIP} "LC_ALL="";echo "${P}" | kinit admin > /dev/null; ipa user-find ${USERNAME} > /dev/null; echo \$?")
+  [ $exists -eq 0 ] && log "user ${USERNAME} exists"
+  [ $exists -eq 0 ] || log "user ${USERNAME} not exists"
+  [ $exists -eq 0 ] || return 1
+}
+
+ipa_preparedefaults() {
   HOSTENROLL='hostenroll'
+  [ -z $HOSTENROLL ] || HOSTENROLL=$5
   SYSADMIN='sysadmin'
+  [ -z $SYSADMIN ] || SYSADMIN=$6
   [ -z $1 ] || IPAIP=$1
   [ -z $IPAIP ] && die "no ip for IPA ${IPAIP}"
   [ -z $2 ] || KEYFILE=$2

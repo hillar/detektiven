@@ -14,25 +14,28 @@ DOMAIN='idm.domain.tld'
 [ -z $3 ] || DOMAIN=$3
 DUMMY='dummy-fedora'
 [ -z $4 ] || DUMMY=$4
-[ -z $5 ] || BACKUP=$5
+ENROLL='hostenrollllement'
+[ -z $5 ] || ENROLL=$5
+ADMIN='systemadministrator'
+[ -z $6 ] || ADMIN=$6
+[ -z $7 ] || BACKUP=$7
 
-USERNAME='root'
 KEYFILE="${USERNAME}.key"
 
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+log "starting with ${USERNAME} ${IPA} ${DOMAIN} ${DUMMY} ${ENROLL} ${ADMIN} ${SCRIPTS}"
 HELPERS="${SCRIPTS}/vmHelpers.bash"
 CREATEDUMMY="${SCRIPTS}/createFedoraDummy.bash"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
 
-
-
 IPA0="${IPA}.${DOMAIN}"
 if ! vm_exists ${IPA0}; then
   if ! vm_exists ${DUMMY}; then
     [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
-    log "creating very first ${DUMMY} dummy"
-    bash ${CREATEDUMMY} ${DUMMY} ${USERNAME} ${HELPERS}
+    log "creating very first dummy ${DUMMY} "
+    bash ${CREATEDUMMY} ${USERNAME} ${DUMMY}
     virsh dumpxml ${DUMMY} > ${DUMMY}.xml
   fi
   vm_exists ${DUMMY} || die "failed to create dummy ${DUMMY}"
@@ -53,7 +56,10 @@ fi
   [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
 
   ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "echo "${ip} ${IPA0} ${IPA}" >> /etc/hosts"
-  ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}"
+  png=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ping -c1 ${IPA0}")
+  IPAHELPERS="${SCRIPTS}/ipaHelpers.bash"
+  [ -f $IPAHELPERS ] || die "missing $IPAHELPERS"
+  source $IPAHELPERS
   if [ -z $BACKUP ]; then
     #ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'LC_ALL="";ipactl status')
     ipainstalled=$(ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} 'netstat -ntple | grep ns-slapd  | wc -l')
@@ -71,10 +77,8 @@ fi
       log "IPA already installed on ${IPA0}"
     fi
     # prep some defaults
-    IPAHELPERS="${SCRIPTS}/ipaHelpers.bash"
-    [ -f $IPAHELPERS ] || die "missing $IPAHELPERS"
-    source $IPAHELPERS
-    preparedefaults ${ip} ${KEYFILE} ${USERNAME} ${P}
+    ipa_user_exists ${ip} ${KEYFILE} ${USERNAME} ${P} ${ADMIN} || ipa_preparedefaults ${ip} ${KEYFILE} ${USERNAME} ${P} ${ENROLL} ${ADMIN}
+    ipa_user_exists ${ip} ${KEYFILE} ${USERNAME} ${P} ${ENROLL}
   else
     log "restoring IPA SERVER from $BACKUP"
     # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
@@ -93,9 +97,7 @@ fi
     [ $? -ne 0 ] && die "failed to ssh into vm ${IPA0}"
     ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "ipactl status"
     # Failed to start pki-tomcatd Service
+    ipa_user_exists ${ip} ${KEYFILE} ${USERNAME} ${P} ${ADMIN}
+    ipa_user_exists ${ip} ${KEYFILE} ${USERNAME} ${P} ${ENROLL}
   fi
-
-ip=$(vm_getip ${IPA0})
-curl -s $ip | wc -l
-ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${USERNAME}@${ip} "curl -s -k https://${IPA0}/ipa/ui/ | wc -l"
-#TODO check ldap
+log "done with ${IPA0}"

@@ -6,7 +6,7 @@
 XENIAL=$(lsb_release -c | cut -f2)
 if [ "$XENIAL" != "xenial" ]; then
     echo "sorry, tested only with xenial ;(";
-    exit;
+    exit 1;
 fi
 
 log() { echo "$(date) $0: $*"; }
@@ -15,19 +15,17 @@ die() { log ": $*" >&2; exit 1; }
 export LC_ALL=C
 
 
+USERNAME='root'
+[ -z $1 ] || USERNAME=$1
 NAME='dummy-fedora'
-[ -z $1 ] || NAME=$1
-USERNAME='dummy'
-[ -z $2 ] || USERNAME=$2
+[ -z $2 ] || NAME=$2
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HELPERS="${SCRIPTS}/vmHelpers.bash"
-[ -z $3 ] || HELPERS=$3
+log "starting with ${USERNAME} ${NAME} ${HELPERS}"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
-
-log "going to delete ${NAME}"
-vm_exists ${NAME} && vm_delete ${NAME} > /dev/null
-vm_exists ${NAME} && die "can not delete vm ${NAME}"
+#vm_exists ${NAME} && vm_delete ${NAME} > /dev/null
+vm_exists ${NAME} && die "vm exists ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
 [ -f ${USERNAME}.key ] || die "can not create ${USERNAME}.key"
 [ -f ${USERNAME}.key.pub ] || die "can not find pubkey ${USERNAME}.key.pub"
@@ -140,4 +138,4 @@ imagefile=$(vm_getimagefile ${NAME})
 mv $imagefile $imagefile.backup
 qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
 rm $imagefile.backup
-log "created vm: ${NAME} username: root key: ${USERNAME}.key"
+log "created ${NAME} KEY FILES ${USERNAME}.key && ${USERNAME}.key.pub"
