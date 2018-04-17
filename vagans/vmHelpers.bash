@@ -163,9 +163,23 @@ vm_clone(){
   guestmount -a ${imagefile} -i /tmp/${CHILD}
   [ $? -eq 0 ] || die "guestmount error, ${imagefile}"
   echo ${CHILD} > /tmp/${CHILD}/etc/hostname
-
-  [ -z $USER ] || cat ${USER}.key.pub > /tmp/${CHILD}/root/.ssh/authorized_keys 
   echo "$(date) cloned from ${PARENT} got name ${CHILD}" >> /tmp/${CHILD}/etc/birth.certificate
+  if [ ! -z $USER ]; then
+    path='ERROR'
+    if [ "$USER" == "root" ]; then
+      cat ${USER}.key.pub > /tmp/${CHILD}/root/.ssh/authorized_keys
+      path='/root/.ssh/authorized_keys'
+    else
+      if [ -d /tmp/${CHILD}/home/${USER} ]; then
+        [ -d /tmp/${CHILD}/home/${USER}/.ssh ] || mkdir /tmp/${CHILD}/home/${USER}/.ssh
+        cat ${USER}.key.pub > /tmp/${CHILD}/home/${USER}/.ssh/authorized_keys
+        path="/home/${USER}/.ssh/authorized_keys"
+      else
+        die "user ${USER} not exists in ${PARENT}"
+      fi
+    fi
+    echo "$(date) user ${USER} key set ${path}" >> /tmp/${CHILD}/etc/birth.certificate
+  fi
   umount /tmp/${CHILD}
   rmdir /tmp/${CHILD}
   log "cloned ${PARENT} -> ${CHILD}"
