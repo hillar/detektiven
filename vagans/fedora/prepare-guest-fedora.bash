@@ -13,7 +13,7 @@ source ${VMHELPERS}
 
 [ -z $1 ] && die 'no name'
 [ -z $1 ] || NAME=$1
-PARENT='dummy-fedora-3'
+PARENT='dummy-fedora'
 [ -z $2 ] || PARENT=$2
 USER='root'
 [ -z $3 ] || USER=$3
