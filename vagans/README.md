@@ -9,8 +9,10 @@ The setup needs about XX GB of free RAM and YY GB disk space.
 ## Build
 
 ```shell
-$ wget https://raw.githubusercontent.com/hillar/detektiven/master/vagans/setup.bash
-$ more setup.bash
-$ chmod +x setup.bash
-$ time ./setup.bash
+$ cd yourfavouritedirectoryname
+$ curl -s https://raw.githubusercontent.com/hillar/detektiven/master/vagans/getit.bash | bash
+$ cd detektiven/scripts
+$ more getup.bash
+$ chmod +x getup.bash
+$ time ./getup.bash
 ```
