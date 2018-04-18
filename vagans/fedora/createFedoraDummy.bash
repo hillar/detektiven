@@ -3,14 +3,9 @@
 # creates FEDORA 27 image from scratch with virt-install
 #
 
-XENIAL=$(lsb_release -c | cut -f2)
-if [ "$XENIAL" != "xenial" ]; then
-    echo "sorry, tested only with xenial ;(";
-    exit 1;
-fi
 
-log() { echo "$(date) $0: $*"; }
-die() { log ": $*" >&2; exit 1; }
+log() { echo "$(date) $(basename $0): $*"; }
+die() { log "$*" >&2; exit 1; }
 
 export LC_ALL=C
 
@@ -20,7 +15,7 @@ USERNAME='root'
 NAME='dummy-fedora'
 [ -z $2 ] || NAME=$2
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-HELPERS="${SCRIPTS}/vmHelpers.bash"
+HELPERS="${SCRIPTS}/../common/vmHelpers.bash"
 log "starting with ${USERNAME} ${NAME} ${HELPERS}"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
@@ -132,10 +127,12 @@ virt-install \
 --network network=default,model=virtio \
 --wait=-1 \
 --noreboot \
---extra-args="auto=true ks=file:/kickstartFedora27.cfg console=tty0 console=ttyS0,115200n8 serial"
-
+--extra-args="auto=true ks=file:/kickstartFedora27.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null 2&>1
+[ $? -ne 0 ] && die "failed to create dummy ${NAME}"
 imagefile=$(vm_getimagefile ${NAME})
+[ -f $imagefile ] || die "fail does not exists $imagefile"
 mv $imagefile $imagefile.backup
 qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
 rm $imagefile.backup
+virsh dumpxml ${NAME} > ${NAME}.xml
 log "created ${NAME} KEY FILES ${USERNAME}.key && ${USERNAME}.key.pub"

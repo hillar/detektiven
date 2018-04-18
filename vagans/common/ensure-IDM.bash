@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # ensure IPA
 
-log() { echo "$(date) $0: $*"; }
-die() { log ": $*" >&2; exit 1; }
+log() { echo "$(date) $(basename $0): $*"; }
+die() { log "$*" >&2; exit 1; }
+
 [ "$EUID" -ne 0 ] && die "Please run as root"
+
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 [ -z $1 ] && die 'no IPA name'
@@ -34,8 +36,8 @@ IPAHELPERS="${SCRIPTS}/ipaHelpers.bash"
 source $IPAHELPERS
 IPA0="${IPA}.${DOMAIN}"
 if ! vm_exists ${IPA0} ; then
-  [ -f ${SCRIPTS}/createFedoraIPA.bash ] || die "missing ${SCRIPTS}/createFedoraIPA.bash"
-  bash -x ${SCRIPTS}/createFedoraIPA.bash ${USER} ${IPA} ${DOMAIN} ${DUMMY} ${ENROLL} ${ADMIN}
+  [ -f ${SCRIPTS}/../fedora/createFedoraIPA.bash ] || die "missing ${SCRIPTS}/../fedora/createFedoraIPA.bash"
+  bash ${SCRIPTS}/../fedora/createFedoraIPA.bash ${USER} ${IPA} ${DOMAIN} ${DUMMY} ${ENROLL} ${ADMIN}
   vm_exists ${IPA0}  || die "failed to create ${IPA}"
 fi
 [ -f ${KEYFILE} ] || die "no key file ${KEYFILE} for user ${USER}"

@@ -8,7 +8,7 @@ die() { log ": $*" >&2; exit 1; }
 
 [ "$EUID" -ne 0 ] && die "Please run as root"
 
-DEBUGLOG=/tmp/$0.log
+DEBUGLOG=/tmp/ensure-Virsh.log
 
 virsh list --all >> $DEBUGLOG 2>&1
 if [ $? -ne 0 ]; then
@@ -32,9 +32,9 @@ if [ $? -ne 0 ]; then
   fi
   dnf --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
-    dnf -4 -q -y install @virtualization
-    systemctl enable libvirtd
-    systemctl start libvirtd
+    dnf -4 -y install @virtualization >> $DEBUGLOG 2>&1
+    systemctl enable libvirtd >> $DEBUGLOG 2>&1
+    systemctl start libvirtd >> $DEBUGLOG 2>&1
   fi
   virsh list --all >> $DEBUGLOG 2>&1
   if [ $? -ne 0 ]; then

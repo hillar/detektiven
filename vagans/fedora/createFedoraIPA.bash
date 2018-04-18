@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # build IPA on Fedora 27
 
-log() { echo "$(date) $0: $*"; }
-die() { log ": $*" >&2; exit 1; }
+log() { echo "$(date) $(basename $0): $*"; }
+die() { log "$*" >&2; exit 1; }
 
 [ "$EUID" -ne 0 ] && die "Please run as root"
 
@@ -25,7 +25,7 @@ KEYFILE="${USERNAME}.key"
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 log "starting with ${USERNAME} ${IPA} ${DOMAIN} ${DUMMY} ${ENROLL} ${ADMIN} ${SCRIPTS}"
-HELPERS="${SCRIPTS}/vmHelpers.bash"
+HELPERS="${SCRIPTS}/../common/vmHelpers.bash"
 CREATEDUMMY="${SCRIPTS}/createFedoraDummy.bash"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
@@ -38,7 +38,7 @@ if ! vm_exists ${IPA0}; then
     bash ${CREATEDUMMY} ${USERNAME} ${DUMMY}
     virsh dumpxml ${DUMMY} > ${DUMMY}.xml
   fi
-  vm_exists ${DUMMY} || die "failed to create dummy ${DUMMY}"
+  vm_exists ${DUMMY} || die "no dummy ${DUMMY}"
   log "creating IPA ${IPA0}"
   vm_clone ${DUMMY} ${IPA0} ${USERNAME}
   vm_exists ${IPA0} || die "failed to create IPA ${IPA0}"
