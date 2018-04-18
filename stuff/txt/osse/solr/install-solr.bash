@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # install SOLR
 #
@@ -7,29 +7,20 @@
 # systemctl service SOLR.service
 #
 
-echo "$(date) starting $0"
+log() { echo "$(date) $0: $*"; }
+die() { log ": $*" >&2; exit 1; }
 
-XENIAL=$(lsb_release -c | cut -f2)
-if [ "$XENIAL" != "xenial" ]; then
-    echo "sorry, tested only with xenial ;("; 1>&2
-    exit1;
-fi
+[ "$EUID" -ne 0 ] && die "Please run as root"
 
-if [ "$(id -u)" != "0" ]; then
-   echo "ERROR - This script must be run as root" 1>&2
-   exit 1
-fi
-
-[ -d "/vagrant" ] || mkdir /vagrant
-export LC_ALL=C
-#stupid systemclt ...
-export SYSTEMD_PAGER=''
-
-SOLR='solr'
-VER='7.2.1'
-MEM='512m'
-HOST='127.0.0.1'
+HOST='0.0.0.0'
+[ -z $1 ] || HOST=$1
 PORT='8983'
+[ -z $2 ] || PORT=$2
+ok=$(curl -s http://${HOST}:${PORT}/solr/|wc -l)
+[ $ok -gt 0 ] && die "port taken ${HOST}:${PORT}"
+SOLR='solr'
+VER='7.3.0'
+MEM='512m'
 DEFAULT="solrdefalutcore"
 
 SOLR_USER=$SOLR
@@ -38,17 +29,30 @@ SOLR_DIR="/opt/$SOLR"
 LOG_DIR="/var/log/$SOLR"
 DATA_DIR="/var/data/$SOLR"
 
-java=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
-if [ "$java" != "" ]; then
-  echo "$(date) java ver $java "
+export LC_ALL=C
+#stupid systemclt ...
+export SYSTEMD_PAGER=''
+
+java -version > /dev/null 2&>1
+if [ $? -eq 0 ]; then
+  log "java exists $(java -version) "
 else
-  echo "$(date) installing java"
-  apt -y install software-properties-common >> /vagrant/provision.log 2>&1
-  add-apt-repository ppa:webupd8team/java >> /vagrant/provision.log 2>&1
-  apt-get update >> /vagrant/provision.log 2>&1
+  log "installing java"
+  apt --help > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+  apt -y install software-properties-common >>  /tmp/provision.log 2>&1
+  add-apt-repository ppa:webupd8team/java >>  /tmp/provision.log 2>&1
+  apt-get update >>  /tmp/provision.log 2>&1
   echo "oracle-java8-installer shared/accepted-oracle-license-v1-1 select true" | sudo debconf-set-selections
-  apt-get -y install oracle-java8-installer >> /vagrant/provision.log 2>&1
-  java -version
+  apt-get -y install oracle-java8-installer >>  /tmp/provision.log 2>&1
+  fi
+  dnf --help > /dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    dnf -4 -q -y install java-1.8.0-openjdk wget tar lsof
+  fi
+  java -version > /dev/null 2&>1
+  [ $? -eq 0 ] || die 'failed to install java'
+  log "installed java $(java -version) "
 fi
 
 mkdir -p "$SOLR_DIR"
@@ -61,10 +65,19 @@ useradd -r --uid $SOLR_UID --gid $SOLR_GID $SOLR_USER
 #addgroup --system "$SOLR_GROUP" --quiet
 #adduser --system --home $SOLR_DIR --no-create-home --ingroup $SOLR_GROUP --disabled-password --shell /bin/false "$SOLR_USER"
 
+# TODO
+#*** [WARN] *** Your open file limit is currently 1024.
+# It should be set to 65000 to avoid operational disruption.
+#*** [WARN] ***  Your Max Processes Limit is currently 7890.
+# It should be set to 65000 to avoid operational disruption.
+
 cd /tmp
-[ -f "solr-${VER}.tgz" ] || wget -q http://www-us.apache.org/dist/lucene/solr/7.2.1/solr-${VER}.tgz
+solrurl="http://www-us.apache.org/dist/lucene/solr/${VER}/solr-${VER}.tgz"
+[ -f "solr-${VER}.tgz" ] || wget -q ${solrurl}
+[ -f "solr-${VER}.tgz" ] || die "failed to get solr from ${solrurl}"
 cd "$SOLR_DIR"
 tar -C "$SOLR_DIR" --extract --file /tmp/solr-${VER}.tgz --strip-components=1
+[ $? -eq 0 ] || die "failed to untar /tmp/solr-${VER}.tgz"
 
 # server/solr/configsets/_default/conf/managed-schema
 #     <!-- This can be enabled, in case the client does not know what fields may be searched. It isn't enabled by default
@@ -126,13 +139,17 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 systemctl enable solr.service
+systemctl start solr.service
+sleep 1
+ok=$(curl -s http://${HOST}:${PORT}/solr/|wc -l)
+[ $ok -gt 210 ] || die "not solr admin panel  http://${HOST}:${PORT}/solr/"
+
 
 # java -server -Xms512m -Xmx512m -XX:NewRatio=3 -XX:SurvivorRatio=4 -XX:TargetSurvivorRatio=90 -XX:MaxTenuringThreshold=8 -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -XX:+CMSScavengeBeforeRemark -XX:PretenureSizeThreshold=64m -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=50 -XX:CMSMaxAbortablePrecleanTime=6000 -XX:+CMSParallelRemarkEnabled -XX:+ParallelRefProcEnabled -XX:-OmitStackTraceInFastThrow -verbose:gc -XX:+PrintHeapAtGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -Xloggc:/opt/solr/server/logs/solr_gc.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=9 -XX:GCLogFileSize=20M -Dsolr.log.dir=/opt/solr/server/logs -Djetty.port=8983 -DSTOP.PORT=7983 -DSTOP.KEY=solrrocks -Dhost=127.0.0.1 -Duser.timezone=UTC -Djetty.home=/opt/solr/server -Dsolr.solr.home=/opt/solr/server/solr -Dsolr.data.home=/var/data/solr -Dsolr.install.dir=/opt/solr -Dsolr.default.confdir=/opt/solr/server/solr/configsets/_default/conf -Xss256k -Dsolr.jetty.https.port=8983 -Dsolr.log.muteconsole -XX:OnOutOfMemoryError=/opt/solr/bin/oom_solr.sh 8983 /opt/solr/server/logs -jar start.jar --module=http
 
 #java -jar /opt/solr/server/start.jar STOP.PORT=7983 STOP.KEY=solrrocks
-echo "installed solr to $SOLR_DIR"
-echo "solr server will run on $HOST:$PORT "
-echo "data dir is $DATA_DIR"
-echo "log dir is  $LOG_DIR"
-echo "start solr server with 'systemctl start solr.service'"
-echo "$(date) done $0"
+log "installed solr to $SOLR_DIR"
+log "solr server will run on $HOST:$PORT "
+log "data dir is $DATA_DIR"
+log "log dir is  $LOG_DIR"
+log "done $0"
