@@ -36,7 +36,6 @@ if ! vm_exists ${IPA0}; then
     [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
     log "creating very first dummy ${DUMMY} "
     bash ${CREATEDUMMY} ${USERNAME} ${DUMMY}
-    virsh dumpxml ${DUMMY} > ${DUMMY}.xml
   fi
   vm_exists ${DUMMY} || die "no dummy ${DUMMY}"
   log "creating IPA ${IPA0}"

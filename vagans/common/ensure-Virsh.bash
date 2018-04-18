@@ -17,7 +17,7 @@ if [ $? -ne 0 ]; then
   log "installing virsh, images directory $IMAGESDIR"
   apt --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
-    apt-get -y install qemu-kvm libvirt-bin libvirt-dev ubuntu-vm-builder bridge-utils >> $DEBUGLOG 2>&1
+    apt-get -y install virtinst qemu-kvm qemu-utils libvirt-bin libvirt-dev ubuntu-vm-builder bridge-utils libguestfs-tools >> $DEBUGLOG 2>&1
     systemctl stop libvirt-guests.service >> $DEBUGLOG 2>&1
     systemctl stop libvirt-bin.service >> $DEBUGLOG 2>&1
     ## change default images location
@@ -35,6 +35,7 @@ if [ $? -ne 0 ]; then
   dnf --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
     dnf -4 -y install @virtualization >> $DEBUGLOG 2>&1
+    dnf -4 -y install libguestfs-tools >> $DEBUGLOG 2>&1
     ## change default images location
     mkdir -p $IMAGESDIR
     chown qemu $IMAGESDIR
@@ -49,5 +50,6 @@ if [ $? -ne 0 ]; then
   if [ $? -ne 0 ]; then
     die "failed to install virsh"
   fi
+  virsh net-autostart default >> $DEBUGLOG 2>&1
   log "installed virsh"
 fi
