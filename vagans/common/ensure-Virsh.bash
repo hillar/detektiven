@@ -3,8 +3,8 @@
 # install virsh if missing
 #
 
-log() { echo "$(date) $0: $*"; }
-die() { log ": $*" >&2; exit 1; }
+log() { echo "$(date) $(basename $0): $*"; }
+die() { log "$*" >&2; exit 1; }
 
 [ "$EUID" -ne 0 ] && die "Please run as root"
 
@@ -12,7 +12,9 @@ DEBUGLOG=/tmp/ensure-Virsh.log
 
 virsh list --all >> $DEBUGLOG 2>&1
 if [ $? -ne 0 ]; then
-  log "installing virsh"
+  [ -z $1 ] || IMAGESDIR=$1
+  [ -z $IMAGESDIR ] && die "no images directory"
+  log "installing virsh, images directory $IMAGESDIR"
   apt --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
     apt-get -y install qemu-kvm libvirt-bin libvirt-dev ubuntu-vm-builder bridge-utils >> $DEBUGLOG 2>&1
@@ -33,6 +35,13 @@ if [ $? -ne 0 ]; then
   dnf --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
     dnf -4 -y install @virtualization >> $DEBUGLOG 2>&1
+    ## change default images location
+    mkdir -p $IMAGESDIR
+    chown qemu $IMAGESDIR
+    [ -d /var/lib/libvirt/images ] && rmdir /var/lib/libvirt/images
+    [ -f /var/lib/libvirt/images ] && rm /var/lib/libvirt/images
+    ln -s $IMAGESDIR /var/lib/libvirt/images
+    chown qemu /var/lib/libvirt/images
     systemctl enable libvirtd >> $DEBUGLOG 2>&1
     systemctl start libvirtd >> $DEBUGLOG 2>&1
   fi

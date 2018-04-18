@@ -38,8 +38,9 @@ SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 
 # ensure we have virsh and friends
+IMAGES="$(dirname ${SCRIPTS})/images" # <- change this :: if virsh is not installed, changes /var/lib/libvirt/images 
 [ -f ${SCRIPTS}/common/ensure-Virsh.bash ] || die "missing ${SCRIPTS}/common/ensure-Virsh.bash"
-bash ${SCRIPTS}/common/ensure-Virsh.bash || die "no working virtualization"
+bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGES || die "no working virtualization"
 
 # ensure we have working IDM server
 [ -f ${SCRIPTS}/common/ensure-IDM.bash ] || die "missing ${SCRIPTS}/common/ensure-IDM.bash"
