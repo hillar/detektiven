@@ -1,13 +1,15 @@
 #!/bin/bash
 
-# prepare new fedora
+# prepare new fedora guest
+#
+# run ipa-client install to enroll host 
 
 
 log() { echo "$(date) $0: $*"; }
 die() { log ": $*" >&2; exit 1; }
 [ "$EUID" -ne 0 ] && die "Please run as root"
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-VMHELPERS="${SCRIPTS}/vmHelpers.bash"
+VMHELPERS="${SCRIPTS}/../common/vmHelpers.bash"
 [ -f ${VMHELPERS} ] || die "missing ${VMHELPERS}"
 source ${VMHELPERS}
 

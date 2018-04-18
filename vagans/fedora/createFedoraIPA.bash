@@ -24,7 +24,7 @@ KEYFILE="${USERNAME}.key"
 
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-log "starting with ${USERNAME} ${IPA} ${DOMAIN} ${DUMMY} ${ENROLL} ${ADMIN} ${SCRIPTS}"
+log "starting with ${USERNAME} ${IPA} ${DOMAIN} ${DUMMY} ${ENROLL} ${ADMIN}"
 HELPERS="${SCRIPTS}/../common/vmHelpers.bash"
 CREATEDUMMY="${SCRIPTS}/createFedoraDummy.bash"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"

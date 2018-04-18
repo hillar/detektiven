@@ -22,6 +22,7 @@ if [ $? -ne 0 ]; then
     systemctl stop libvirt-bin.service >> $DEBUGLOG 2>&1
     ## change default images location
     mkdir -p $IMAGESDIR
+    [ -d $IMAGESDIR ] || die "can not create images directory $IMAGESDIR"
     chown libvirt-qemu $IMAGESDIR
     [ -d /var/lib/libvirt/images ] && rmdir /var/lib/libvirt/images
     [ -f /var/lib/libvirt/images ] && rm /var/lib/libvirt/images
@@ -38,6 +39,7 @@ if [ $? -ne 0 ]; then
     dnf -4 -y install libguestfs-tools >> $DEBUGLOG 2>&1
     ## change default images location
     mkdir -p $IMAGESDIR
+    [ -d $IMAGESDIR ] || die "can not create images directory $IMAGESDIR"
     chown qemu $IMAGESDIR
     [ -d /var/lib/libvirt/images ] && rmdir /var/lib/libvirt/images
     [ -f /var/lib/libvirt/images ] && rm /var/lib/libvirt/images

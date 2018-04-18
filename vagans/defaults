@@ -1,0 +1,36 @@
+#
+# change if needed
+#
+
+
+# TODO guest os options: fedora,centos und ubuntu
+# for now all guest are fedora's (because of freeipa)
+GUESTOS='fedora'
+
+# IDM (freeipa) can point to existing installation
+# or one will be built from scratch
+IDM='freeipa-x'
+DOM='idm'
+ORG='organization'
+TLD='topleveldomain'
+BASE="dc=${DOM},dc=${ORG},dc=${TLD}"
+DOMAIN="${DOM}.${ORG}.${TLD}"
+IDMSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
+
+# metrix (influxdb) can point to existing installation
+# or build one from scratch
+INFLUX='influx-x'
+DOM='monitoring'
+INFLUXSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
+
+# syslog (rsyslog) can point to existing installation
+# or build one from scratch
+LOG='syslog-x'
+DOM='monitoring'
+LOGSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
+
+# root dir
+ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# if virsh is not installed, changes /var/lib/libvirt/images
+IMAGESDIR="$(dirname ${ROOT})/images" 

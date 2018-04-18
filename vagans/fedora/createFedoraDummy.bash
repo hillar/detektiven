@@ -16,9 +16,13 @@ NAME='dummy-fedora'
 [ -z $2 ] || NAME=$2
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HELPERS="${SCRIPTS}/../common/vmHelpers.bash"
-log "starting with ${USERNAME} ${NAME} ${HELPERS}"
+log "starting with ${USERNAME} ${NAME}"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
+DEFAULTS="${SCRIPTS}/../defaults"
+[ -f ${DEFAULTS} ] || die "missing ${DEFAULTS}"
+source ${DEFAULTS}
+
 #vm_exists ${NAME} && vm_delete ${NAME} > /dev/null
 vm_exists ${NAME} && die "vm exists ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
@@ -77,7 +81,7 @@ firstboot --disabled
 %post --interpreter /bin/bash
 set -x
 exec >/var/log/kickstart-post.log 2>&1
-yum -y install net-tools
+yum -y install net-tools snoopy telegraf rsyslog ipa-client
 yum -y update
 mkdir /root/.ssh
 echo "$PUBKEY" > /root/.ssh/authorized_keys

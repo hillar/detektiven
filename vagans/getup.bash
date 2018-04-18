@@ -2,15 +2,23 @@
 #
 # build up vm's running detektiven
 #
-# ! WARNING installing virsh if not installed
+# !!! all params are in "./defaults", change there if needed
+#
+# ! WARNING installing virsh if not found
 #
 # vm's:
+# infra
 # 1. freeipa
 # 2. metrix
-# 3. ...
+# 3. syslog
+# workers
+# 1. clamav
+# 2. tika
+# 3. solr
+# 4. ...
 
 log() { echo "$(date) $0: $*"; }
-die() { log ": $*" >&2; exit 1; }
+die() { log "$*" >&2; exit 1; }
 
 # apt or dnf
 apt --help > /dev/null 2>&1
@@ -19,29 +27,22 @@ dnf --help > /dev/null 2>&1
 [ $? -eq 0 ] && DANPFT='dnf'
 [ -z ${DANPFT} ] && die 'no apt nor dnf'
 
-# TODO guest os as param, options: fedora,centos und ubuntu
-# for now all guest are fedora's
-GUESTOS='fedora'
-
-# TODO IDM (freeipa) as param to existing installation
-# currently build one from scratch
-IDM='freeipa-x'
-DOM='domain'
-ORG='organization'
-TLD='topleveldomain'
-BASE="dc=${DOM},dc=${ORG},dc=${TLD}"
-DOMAIN="${DOM}.${ORG}.${TLD}"
-IDMSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
-
 # current working directory
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# load params
+DEFAULTS="${SCRIPTS}/defaults"
+[ -f ${DEFAULTS} ] || die "missing ${DEFAULTS}"
+source ${DEFAULTS}
 
 # ensure we have virsh and friends
-IMAGES="$(dirname ${SCRIPTS})/images" # <- change this :: if virsh is not installed, changes /var/lib/libvirt/images 
 [ -f ${SCRIPTS}/common/ensure-Virsh.bash ] || die "missing ${SCRIPTS}/common/ensure-Virsh.bash"
-bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGES || die "no working virtualization"
+bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGESDIR || die "no working virtualization"
 
-# ensure we have working IDM server
+# ensure working IDM server
 [ -f ${SCRIPTS}/common/ensure-IDM.bash ] || die "missing ${SCRIPTS}/common/ensure-IDM.bash"
 bash ${SCRIPTS}/common/ensure-IDM.bash ${IDM} ${DOM} ${ORG} ${TLD} || die "no working IDM on ${IDM}.${DOM}.${ORG}.${TLD}"
+
+# ensure working syslog server
+
+# ensure working metrix server
