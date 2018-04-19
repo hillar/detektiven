@@ -84,7 +84,7 @@ vm_getip(){
     sleep 3
     last=$(virsh domifaddr $1|wc -l)
   done
-  ip=$(virsh domifaddr $1 | grep ipv4 | head -1| awk '{print $4}'| cut -f1 -d"/" | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
+  ip=$(virsh domifaddr $1 | grep ipv4 | tail -1| awk '{print $4}'| cut -f1 -d"/" | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}')
   ok=$(echo $ip | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'| wc -l)
   if [ $ok -eq 1 ]; then
       echo $ip

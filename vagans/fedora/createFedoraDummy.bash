@@ -3,7 +3,6 @@
 # creates FEDORA 27 image from scratch with virt-install
 #
 
-
 log() { echo "$(date) $(basename $0): $*"; }
 die() { log "$*" >&2; exit 1; }
 
@@ -27,8 +26,9 @@ DEFAULTS="${SCRIPTS}/../defaults"
 [ -z $INFLUX ] && INFLUX='influx-x'
 [ -z $MON ] && MON='monitoring'
 [ -z $LOG ] && LOG='syslog-x'
-INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
-LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
+[ -z ${INFLUXSERVER} ] && INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
+[ -z ${LOGSERVER} ] && LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
+[ -z ${TELEGRAFVERSION} ] && TELEGRAFVERSION='telegraf-1.6.0-1'
 
 vm_exists ${NAME} && die "vm exists ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
@@ -40,8 +40,8 @@ OS_TYPE="linux"
 OS_VARIANT="fedora27"
 PUBKEY=$(cat ${USERNAME}.key.pub)
 
-cat > kickstartFedora27.cfg <<EOF
-# Automatically created $(date) with $0
+cat > kickstartFedora27.${NAME}.cfg <<EOF
+# Automatically created $(date) for ${NAME} with $0
 text
 install
 lang en_GB.UTF-8
@@ -82,16 +82,61 @@ firstboot --disabled
 -kexec-tools
 -plymouth*
 -postfix
+net-tools
+rsyslog
+ipa-client
+wget
 %end
 
 %post --interpreter /bin/bash
 set -x
 exec >/var/log/kickstart-post.log 2>&1
-yum -y install net-tools snoopy telegraf rsyslog ipa-client
-yum -y update
+date
+echo "$(date) born as ${NAME} roots ${LOCATION}" > /etc/birth.certificate
+yum -y install snoopy
+wget -q https://dl.influxdata.com/telegraf/releases/telegraf-${TELEGRAFVERSION}.x86_64.rpm
+yum -y localinstall telegraf-${TELEGRAFVERSION}.x86_64.rpm
+mv /etc/telegraf/telegraf.conf /etc/telegraf/telegraf.conf.orig
+cat > /etc/telegraf/telegraf.conf  <<TEWZ
+[global_tags]
+[agent]
+  interval = "10s"
+  round_interval = true
+  metric_batch_size = 1000
+  metric_buffer_limit = 10000
+  collection_jitter = "0s"
+  flush_interval = "10s"
+  flush_jitter = "0s"
+  precision = "s"
+  debug = false
+  quiet = false
+  logfile = ""
+  hostname = ""
+  omit_hostname = false
+[[inputs.cpu]]
+  percpu = true
+  totalcpu = true
+  collect_cpu_time = false
+  report_active = false
+[[inputs.disk]]
+  ignore_fs = ["tmpfs", "devtmpfs", "devfs"]
+[[inputs.diskio]]
+[[inputs.kernel]]
+[[inputs.mem]]
+[[inputs.processes]]
+[[inputs.swap]]
+[[inputs.system]]
+[[inputs.net]]
+[[inputs.netstat]]
+TEWZ
+cat > /etc/telegraf/telegraf.d/${INFLUXSERVER}.conf <<TEWX
+[[outputs.influxdb]]
+urls = ["udp://${INFLUXSERVER}:8089"]
+TEWX
 mkdir /root/.ssh
 echo "$PUBKEY" > /root/.ssh/authorized_keys
 echo "$NAME.$DOMAIN" > /etc/hostname
+echo "*.* @${LOGSERVER}:514" >> /etc/rsyslog.conf
 cat > /root/whiteout.bash <<TEWC
 #!/bin/bash
 # Automatically created $(date) with $0
@@ -103,7 +148,7 @@ rm -rf /var/cache/yum
 # Cleanup tmp
 rm -rf /tmp/*
 # Clean up log files
-find /var/log -maxdepth 1 -type f -exec cp /dev/null {} \;
+#find /var/log -maxdepth 1 -type f -exec cp /dev/null {} \;
 find /var/log/yum -maxdepth 1 -type f -exec cp /dev/null {} \;
 find /var/log/fsck -maxdepth 1 -type f -exec cp /dev/null {} \;
 journalctl --vacuum-time=1seconds
@@ -118,7 +163,11 @@ sync
 echo "\$(date) \$0: done whiteout"
 TEWC
 chmod +x /root/whiteout.bash
+date
+yum -y update
+date
 /root/whiteout.bash
+date
 %end
 EOF
 
@@ -130,19 +179,19 @@ virt-install \
 --os-type ${OS_TYPE} \
 --disk size=16,path=/var/lib/libvirt/images/${NAME}.qcow2,format=qcow2,bus=virtio,cache=none \
 --location ${LOCATION} \
---initrd-inject=kickstartFedora27.cfg \
+--initrd-inject=kickstartFedora27.${NAME}.cfg \
 --virt-type=kvm \
 --controller usb,model=none \
 --graphics none \
 --network network=default,model=virtio \
 --wait=-1 \
 --noreboot \
---extra-args="auto=true ks=file:/kickstartFedora27.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null 
+--extra-args="auto=true ks=file:/kickstartFedora27.${NAME}.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null
 [ $? -ne 0 ] && die "failed to create dummy ${NAME}"
 imagefile=$(vm_getimagefile ${NAME})
 [ -f $imagefile ] || die "fail does not exists $imagefile"
-mv $imagefile $imagefile.backup
-qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
-rm $imagefile.backup
+#mv $imagefile $imagefile.backup
+#qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
+#rm $imagefile.backup
 virsh dumpxml ${NAME} > ${NAME}.xml
 log "created ${NAME} KEY FILES ${USERNAME}.key && ${USERNAME}.key.pub"

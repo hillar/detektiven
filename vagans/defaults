@@ -28,6 +28,9 @@ READONLY='onlyread'
 INFLUX='influx-x'
 MON='monitoring'
 INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
+IFLUXDBVERSION='1.5.2'
+# telegraf version, see https://portal.influxdata.com/downloads
+TELEGRAFVERSION='1.6.0-1'
 
 # syslog (rsyslog) can point to existing installation
 # or build one from scratch
