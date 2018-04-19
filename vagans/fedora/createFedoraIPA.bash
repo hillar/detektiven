@@ -27,8 +27,8 @@ DEFAULTS="${SCRIPTS}/../defaults"
 [ -f ${DEFAULTS} ] || log "using hardcoded prarams, as missing defaults ${DEFAULTS}"
 [ -z ${SSHUSER} ] && SSHUSER='root'
 [ -z ${ENROLL} ] && ENROLL='hostenroll'
-[ -z ${ADMIN}] && ADMIN='sysadm'
-[ -z ${READONLY}] && READONLY='onlyread'
+[ -z ${ADMIN} ] && ADMIN='sysadm'
+[ -z ${READONLY} ] && READONLY='onlyread'
 
 KEYFILE="${SSHUSER}.key"
 
@@ -41,11 +41,11 @@ source ${HELPERS}
 IPA0="${IPA}.${DOMAIN}"
 if ! vm_exists ${IPA0}; then
   if ! vm_exists ${DUMMY}; then
+    log "no parent ${DUMMY}, going to create new"
     [ -f ${CREATEDUMMY} ] || die "missing ${CREATEDUMMY}"
-    log "creating very first dummy ${DUMMY} "
     bash ${CREATEDUMMY} ${SSHUSER} ${DUMMY}
   fi
-  vm_exists ${DUMMY} || die "no dummy ${DUMMY}"
+  vm_exists ${DUMMY} || die "no new parent ${DUMMY}"
   log "creating IPA ${IPA0}"
   vm_clone ${DUMMY} ${IPA0} ${SSHUSER}
   vm_exists ${IPA0} || die "failed to create IPA ${IPA0}"

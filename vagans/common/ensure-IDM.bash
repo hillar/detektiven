@@ -22,11 +22,11 @@ source ${DEFAULTS}
 
 [ -z ${IPA} ] && die 'no IPA name'
 MASTERPASSWORDFILE="${IPA}.masterpwd"
-[ -z ${DOM} ] && die "no DOMAIN "
+[ -z ${IDM} ] && die "no DOMAIN "
 [ -z ${ORG} ] && die "no ORG "
 [ -z ${TLD} ] && die "no TLD "
-BASE="dc=${DOM},dc=${ORG},dc=${TLD}"
-IDMDOMAIN="${DOM}.${ORG}.${TLD}"
+BASE="dc=${IDM},dc=${ORG},dc=${TLD}"
+IDMDOMAIN="${IDM}.${ORG}.${TLD}"
 [ -z ${SSHUSER} ] && die 'no SSHUSER'
 KEYFILE="${SSHUSER}.key"
 [ -z ${ENROLL} ] && die 'no ENROLL'
@@ -39,10 +39,10 @@ IPA0="${IPA}.${IDMDOMAIN}"
 
 # ping existing ipa, if no pong, look for vm
 ping -c1 ${IPA0}
-if [ $? -ne 0]; then
+if [ $? -ne 0 ]; then
   if ! vm_exists ${IPA0} ; then
     [ -f ${SCRIPTS}/../fedora/createFedoraIPA.bash ] || die "missing ${SCRIPTS}/../fedora/createFedoraIPA.bash"
-    bash ${SCRIPTS}/../fedora/createFedoraIPA.bash ${TLD} ${ORG} ${DOM} ${IPA}
+    bash ${SCRIPTS}/../fedora/createFedoraIPA.bash ${TLD} ${ORG} ${IDM} ${IPA}
     vm_exists ${IPA0}  || die "failed to create ${IPA}"
   fi
   [ -f ${KEYFILE} ] || die "no key file ${KEYFILE} for user ${SSHUSER}"
@@ -53,6 +53,7 @@ if [ $? -ne 0]; then
   [ -z ${ip} ] && die "no ip for ${IPA0}"
   vm_waitforssh ${IPA0} ${KEYFILE} ${SSHUSER} || die "failed to ssh into vm ${IPA0}"
 fi
+[ -f ${KEYFILE} ] || die "user ${SSHUSER} no keyfile ${KEYFILE}"
 ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "whoami > /dev/null; echo \$?")
 [ ${ok} -ne 0 ] && die "incorrect ssh user ${IPA0}"
 ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "LC_ALL="";echo "${P}" | kinit admin > /dev/null; echo \$?")

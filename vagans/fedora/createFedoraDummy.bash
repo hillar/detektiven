@@ -9,16 +9,15 @@ die() { log "$*" >&2; exit 1; }
 
 export LC_ALL=C
 
-
 USERNAME='root'
 [ -z $1 ] || USERNAME=$1
 NAME='fedora-dummy'
 [ -z $2 ] || NAME=$2
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HELPERS="${SCRIPTS}/../common/vmHelpers.bash"
-log "starting with ${USERNAME} ${NAME}"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
+log "starting with ${USERNAME} ${NAME}"
 DEFAULTS="${SCRIPTS}/../defaults"
 [ -f ${DEFAULTS} ] && source ${DEFAULTS}
 [ -f ${DEFAULTS} ] && log "loading params from  ${DEFAULTS}"
@@ -31,8 +30,6 @@ DEFAULTS="${SCRIPTS}/../defaults"
 INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
 LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
 
-
-#vm_exists ${NAME} && vm_delete ${NAME} > /dev/null
 vm_exists ${NAME} && die "vm exists ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
 [ -f ${USERNAME}.key ] || die "can not create ${USERNAME}.key"
@@ -140,7 +137,7 @@ virt-install \
 --network network=default,model=virtio \
 --wait=-1 \
 --noreboot \
---extra-args="auto=true ks=file:/kickstartFedora27.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null 2&>1
+--extra-args="auto=true ks=file:/kickstartFedora27.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null 
 [ $? -ne 0 ] && die "failed to create dummy ${NAME}"
 imagefile=$(vm_getimagefile ${NAME})
 [ -f $imagefile ] || die "fail does not exists $imagefile"
