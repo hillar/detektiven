@@ -41,7 +41,7 @@ bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGESDIR || die "no working virtualiz
 
 # ensure working IDM server
 [ -f ${SCRIPTS}/common/ensure-IDM.bash ] || die "missing ${SCRIPTS}/common/ensure-IDM.bash"
-bash ${SCRIPTS}/common/ensure-IDM.bash ${IDM} ${DOM} ${ORG} ${TLD} || die "no working IDM on ${IDM}.${DOM}.${ORG}.${TLD}"
+bash ${SCRIPTS}/common/ensure-IDM.bash || die "no working IDM on ${IPA}.${IDM}.${ORG}.${TLD}"
 
 # ensure working syslog server
 

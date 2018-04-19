@@ -6,31 +6,37 @@
 # TODO guest os options: fedora,centos und ubuntu
 # for now all guest are fedora's (because of freeipa)
 GUESTOS='fedora'
+# user name to do automatic install jobs
+SSHUSER='root'
 
 # IDM (freeipa) can point to existing installation
 # or one will be built from scratch
-IDM='freeipa-x'
-DOM='idm'
+# please see https://www.freeipa.org/page/Deployment_Recommendations#Domain
+IPA='freeipa-x'
+IDM='idm'
 ORG='organization'
 TLD='topleveldomain'
-BASE="dc=${DOM},dc=${ORG},dc=${TLD}"
-DOMAIN="${DOM}.${ORG}.${TLD}"
-IDMSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
+BASE="dc=${IDM},dc=${ORG},dc=${TLD}"
+IDMDOMAIN="${IDM}.${ORG}.${TLD}"
+IDMSERVER="${IPA}.${IDM}.${ORG}.${TLD}"
+ENROLL='hostenroll'
+ADMIN='sysadm'
+READONLY='onlyread'
 
 # metrix (influxdb) can point to existing installation
 # or build one from scratch
 INFLUX='influx-x'
-DOM='monitoring'
-INFLUXSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
+MON='monitoring'
+INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
 
 # syslog (rsyslog) can point to existing installation
 # or build one from scratch
 LOG='syslog-x'
-DOM='monitoring'
-LOGSERVER="${IDM}.${DOM}.${ORG}.${TLD}"
+LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
 
 # root dir
-ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# defaults to one dir down where this file is
+ROOT="dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # if virsh is not installed, changes /var/lib/libvirt/images
-IMAGESDIR="$(dirname ${ROOT})/images" 
+IMAGESDIR="${ROOT}/images"

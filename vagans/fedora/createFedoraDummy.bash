@@ -12,7 +12,7 @@ export LC_ALL=C
 
 USERNAME='root'
 [ -z $1 ] || USERNAME=$1
-NAME='dummy-fedora'
+NAME='fedora-dummy'
 [ -z $2 ] || NAME=$2
 SCRIPTS="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HELPERS="${SCRIPTS}/../common/vmHelpers.bash"
@@ -20,8 +20,17 @@ log "starting with ${USERNAME} ${NAME}"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
 DEFAULTS="${SCRIPTS}/../defaults"
-[ -f ${DEFAULTS} ] || die "missing ${DEFAULTS}"
-source ${DEFAULTS}
+[ -f ${DEFAULTS} ] && source ${DEFAULTS}
+[ -f ${DEFAULTS} ] && log "loading params from  ${DEFAULTS}"
+[ -f ${DEFAULTS} ] || log "using hardcoded prarams, as missing defaults ${DEFAULTS}"
+[ -z $TLD ] && TLD='topleveldomain'
+[ -z $ORG ] && ORG='organization'
+[ -z $INFLUX ] && INFLUX='influx-x'
+[ -z $MON ] && MON='monitoring'
+[ -z $LOG ] && LOG='syslog-x'
+INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
+LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
+
 
 #vm_exists ${NAME} && vm_delete ${NAME} > /dev/null
 vm_exists ${NAME} && die "vm exists ${NAME}"
