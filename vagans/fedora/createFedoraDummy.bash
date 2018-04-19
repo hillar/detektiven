@@ -83,8 +83,6 @@ firstboot --disabled
 -plymouth*
 -postfix
 net-tools
-rsyslog
-ipa-client
 wget
 %end
 
@@ -93,7 +91,12 @@ set -x
 exec >/var/log/kickstart-post.log 2>&1
 date
 echo "$(date) born as ${NAME} roots ${LOCATION}" > /etc/birth.certificate
+yum -y update
+yum -y install ipa-client
+yum -y install rsyslog
+echo "*.* @${LOGSERVER}:514" >> /etc/rsyslog.conf
 yum -y install snoopy
+/usr/sbin/snoopy-enable
 wget -q https://dl.influxdata.com/telegraf/releases/telegraf-${TELEGRAFVERSION}.x86_64.rpm
 yum -y localinstall telegraf-${TELEGRAFVERSION}.x86_64.rpm
 mv /etc/telegraf/telegraf.conf /etc/telegraf/telegraf.conf.orig
@@ -135,8 +138,7 @@ urls = ["udp://${INFLUXSERVER}:8089"]
 TEWX
 mkdir /root/.ssh
 echo "$PUBKEY" > /root/.ssh/authorized_keys
-echo "$NAME.$DOMAIN" > /etc/hostname
-echo "*.* @${LOGSERVER}:514" >> /etc/rsyslog.conf
+echo "$NAME" > /etc/hostname
 cat > /root/whiteout.bash <<TEWC
 #!/bin/bash
 # Automatically created $(date) with $0
@@ -163,8 +165,6 @@ sync
 echo "\$(date) \$0: done whiteout"
 TEWC
 chmod +x /root/whiteout.bash
-date
-yum -y update
 date
 /root/whiteout.bash
 date
