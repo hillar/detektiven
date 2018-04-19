@@ -6,6 +6,10 @@
 # TODO guest os options: fedora,centos und ubuntu
 # for now all guest are fedora's (because of freeipa)
 GUESTOS='fedora'
+
+# very first vm imaga name, used for cloning
+DUMMY="${GUESTOS}-dummy"
+
 # user name to do automatic install jobs
 SSHUSER='root'
 
@@ -23,12 +27,14 @@ ENROLL='hostenroll'
 ADMIN='sysadm'
 READONLY='onlyread'
 
-# metrix (influxdb) can point to existing installation
+# metrix (influxdb+kapacitor+chronograf) can point to existing installation
 # or build one from scratch
 INFLUX='influx-x'
 MON='monitoring'
 INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
 IFLUXDBVERSION='1.5.2'
+CHRONOGRAFVERSION='1.4.4.1'
+KAPACITORVERSION='1.4.1'
 # telegraf version, see https://portal.influxdata.com/downloads
 TELEGRAFVERSION='1.6.0-1'
 

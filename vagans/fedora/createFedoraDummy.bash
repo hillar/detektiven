@@ -21,6 +21,9 @@ DEFAULTS="${SCRIPTS}/../defaults"
 [ -f ${DEFAULTS} ] && source ${DEFAULTS}
 [ -f ${DEFAULTS} ] && log "loading params from  ${DEFAULTS}"
 [ -f ${DEFAULTS} ] || log "using hardcoded prarams, as missing defaults ${DEFAULTS}"
+[ -z ${DUMMY} ] && DUMMY='fedora-dummy'
+NAME="${DUMMY}"
+[ -z $2 ] || NAME=$2
 [ -z $TLD ] && TLD='topleveldomain'
 [ -z $ORG ] && ORG='organization'
 [ -z $INFLUX ] && INFLUX='influx-x'
@@ -170,7 +173,7 @@ date
 date
 %end
 EOF
-
+log "Please be patient. This may take a few minutes ..."
 virt-install \
 --connect=qemu:///system \
 --name=${NAME} \

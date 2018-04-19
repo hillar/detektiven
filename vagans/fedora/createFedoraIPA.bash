@@ -25,6 +25,7 @@ DEFAULTS="${SCRIPTS}/../defaults"
 [ -f ${DEFAULTS} ] && source ${DEFAULTS}
 [ -f ${DEFAULTS} ] && log "loading params from  ${DEFAULTS}"
 [ -f ${DEFAULTS} ] || log "using hardcoded prarams, as missing defaults ${DEFAULTS}"
+[ -z ${DUMMY} ] && DUMMY='fedora-dummy'
 [ -z ${SSHUSER} ] && SSHUSER='root'
 [ -z ${ENROLL} ] && ENROLL='hostenroll'
 [ -z ${ADMIN} ] && ADMIN='sysadm'

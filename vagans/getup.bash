@@ -46,3 +46,5 @@ bash ${SCRIPTS}/common/ensure-IDM.bash || die "no working IDM on ${IPA}.${IDM}.$
 # ensure working syslog server
 
 # ensure working metrix server
+[ -f ${SCRIPTS}/common/ensure-Metrix.bash ] || die "missing ${SCRIPTS}/common/ensure-Metrix.bash"
+bash ${SCRIPTS}/common/ensure-Metrix.bash || die "no working metrix on INFLUXSERVER"
