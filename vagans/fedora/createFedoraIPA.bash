@@ -39,7 +39,7 @@ CREATEDUMMY="${SCRIPTS}/createFedoraDummy.bash"
 [ -f ${HELPERS} ] || die "missing ${HELPERS}"
 source ${HELPERS}
 
-IPA0="${IPA}.${DOMAIN}"
+IPA0="${IPA}.${DOM}.${ORG}.${TLD}"
 if ! vm_exists ${IPA0}; then
   if ! vm_exists ${DUMMY}; then
     log "no parent ${DUMMY}, going to create new"
