@@ -40,7 +40,7 @@ if ! vm_exists ${INFLUXSERVER} ; then
 fi
 # start vm
 vm_start ${INFLUXSERVER} > /dev/null 2>&1 || die "failed to start ${INFLUXSERVER}"
-vm_getip ${INFLUXSERVER} > /dev/null 2>&1 || die "failed to get ip ${INFLUXSERVER}"
+ip=$(vm_getip ${INFLUXSERVER}) || die "failed to get ip ${INFLUXSERVER}"
 [ -z ${SSHUSER} ] && die 'no SSHUSER'
 KEYFILE="${SSHUSER}.key"
 [ -f ${KEYFILE} ] || die "no key file ${KEYFILE} for user ${SSHUSER}"
@@ -48,7 +48,7 @@ vm_waitforssh ${INFLUXSERVER} ${KEYFILE} ${SSHUSER} > /dev/null 2>&1 || die "fai
 
 # ping new metrix port 8089, if no pong, die
 nc -h > /dev/null 2>&1 || die "no nc, please install!"
-nc -vz -u ${INFLUXSERVER} 8089 > /dev/null 2>&1
+nc -vz -u ${ip} 8089 > /dev/null 2>&1
 if [ $? -eq 0 ]; then
   log "metrix works ${INFLUXSERVER} 8089"
   exit 0
