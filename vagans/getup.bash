@@ -44,7 +44,10 @@ bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGESDIR || die "no working virtualiz
 bash ${SCRIPTS}/common/ensure-IDM.bash || die "no working IDM on ${IPA}.${IDM}.${ORG}.${TLD}"
 
 # ensure working syslog server
+common/ensure-syslog.bash
+[ -f ${SCRIPTS}/common/ensure-syslog.bash ] || die "missing ${SCRIPTS}/common/ensure-syslog.bash"
+bash ${SCRIPTS}/common/ensure-syslog.bash || die "no working syslog on ${LOGSERVER}"
 
 # ensure working metrix server
 [ -f ${SCRIPTS}/common/ensure-Metrix.bash ] || die "missing ${SCRIPTS}/common/ensure-Metrix.bash"
-bash ${SCRIPTS}/common/ensure-Metrix.bash || die "no working metrix on INFLUXSERVER"
+bash ${SCRIPTS}/common/ensure-Metrix.bash || die "no working metrix on ${INFLUXSERVER}"
