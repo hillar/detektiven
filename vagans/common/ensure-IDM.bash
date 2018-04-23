@@ -38,7 +38,7 @@ KEYFILE="${SSHUSER}.key"
 IPA0="${IPA}.${IDMDOMAIN}"
 
 # ping existing ipa, if no pong, look for vm
-ping -c1 ${IPA0}
+ping -c1 ${IPA0} > /dev/null 2>&1
 if [ $? -ne 0 ]; then
   if ! vm_exists ${IPA0} ; then
     [ -f ${SCRIPTS}/../fedora/createFedoraIPA.bash ] || die "missing ${SCRIPTS}/../fedora/createFedoraIPA.bash"
@@ -52,17 +52,21 @@ if [ $? -ne 0 ]; then
   ip=$(vm_getip ${IPA0})
   [ -z ${ip} ] && die "no ip for ${IPA0}"
   vm_waitforssh ${IPA0} ${KEYFILE} ${SSHUSER} || die "failed to ssh into vm ${IPA0}"
+  ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "whoami > /dev/null; echo \$?")
+  [ ${ok} -ne 0 ] && die "incorrect ssh user ${IPA0}"
+  [ -f ${MASTERPASSWORDFILE} ] || die "no master password for ${IPA0}"
+  P=$(cat ${MASTERPASSWORDFILE})
+  ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "LC_ALL="";echo "${P}" | kinit admin > /dev/null; echo \$?")
+  [ ${ok} -ne 0 ] && die "incorrect master password ${IPA0}"
+  ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ADMIN}
+  ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ENROLL}
+  #ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${READONLY}
+else
+  [ -f ${MASTERPASSWORDFILE} ] || die "no master password for ${IPA0}"
+  P=$(cat ${MASTERPASSWORDFILE})
+  ldapsearch -x -D "uid=admin,cn=users,cn=accounts,${BASE}" -w ${P} -h ${IPA0} -b "cn=accounts,${BASE}" -s sub 'uid=admin' > /dev/null
+  [ $? -ne 0 ] && die "ldap error ${IPA0}"
+  ldapsearch -x -D "uid=admin,cn=users,cn=accounts,${BASE}" -w ${P} -h ${IPA0} -b "cn=accounts,${BASE}" -s sub 'uid=hostenroll' > /dev/null
+  [ $? -ne 0 ] && die "ldap error ${IPA0}"
+  log "${IPA0} seems ok"
 fi
-[ -f ${KEYFILE} ] || die "user ${SSHUSER} no keyfile ${KEYFILE}"
-ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "whoami > /dev/null; echo \$?")
-[ ${ok} -ne 0 ] && die "incorrect ssh user ${IPA0}"
-ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "LC_ALL="";echo "${P}" | kinit admin > /dev/null; echo \$?")
-[ ${ok} -ne 0 ] && die "incorrect master password ${IPA0}"
-ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ADMIN}
-ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ENROLL}
-#ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${READONLY}
-ldapsearch -x -D "uid=admin,cn=users,cn=accounts,${BASE}" -w ${P} -h ${ip} -b "cn=accounts,${BASE}" -s sub 'uid=admin' > /dev/null
-[ $? -ne 0 ] && die "ldap error ${IPA0}"
-ldapsearch -x -D "uid=admin,cn=users,cn=accounts,${BASE}" -w ${P} -h ${ip} -b "cn=accounts,${BASE}" -s sub 'uid=hostenroll' > /dev/null
-[ $? -ne 0 ] && die "ldap error ${IPA0}"
-log "${IPA0} seems ok"

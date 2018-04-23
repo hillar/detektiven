@@ -44,7 +44,6 @@ bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGESDIR ${TLD} ${ORG} || die "no wor
 bash ${SCRIPTS}/common/ensure-IDM.bash || die "no working IDM on ${IPA}.${IDM}.${ORG}.${TLD}"
 
 # ensure working syslog server
-common/ensure-syslog.bash
 [ -f ${SCRIPTS}/common/ensure-syslog.bash ] || die "missing ${SCRIPTS}/common/ensure-syslog.bash"
 bash ${SCRIPTS}/common/ensure-syslog.bash || die "no working syslog on ${LOGSERVER}"
 
