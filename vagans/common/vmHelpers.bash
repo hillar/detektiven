@@ -159,6 +159,7 @@ vm_clone(){
   [ $? -eq 0 ] || die "virt-clone error ${PARENT} -> ${CHILD}"
 
   imagefile=$(virsh dumpxml ${CHILD} | grep ${CHILD} | grep file | cut -f2 -d"'")
+  # TODO tmp dir name
   mkdir /tmp/${CHILD}
   guestmount -a ${imagefile} -i /tmp/${CHILD}
   [ $? -eq 0 ] || die "guestmount error, ${imagefile}"

@@ -16,6 +16,9 @@ SSHUSER='root'
 # IDM (freeipa) can point to existing installation
 # or one will be built from scratch
 # please see https://www.freeipa.org/page/Deployment_Recommendations#Domain
+# please set your virtual net dns reso
+# virsh net-edit default
+# <domain name='organization.topleveldomain' localOnly='yes'/>
 IPA='freeipa-x'
 IDM='idm'
 ORG='organization'

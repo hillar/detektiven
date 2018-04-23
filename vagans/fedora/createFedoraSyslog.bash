@@ -36,6 +36,7 @@ cat > "install-${NAME}.bash" <<EOF
 # $(date) created with $0
 dnf -y install wget rsyslog
 mv /etc/rsyslog.conf /etc/rsyslog.conf.orig
+
 cat > /etc/rsyslog.conf <<TEXZ
 # provides UDP syslog reception
 module(load="imudp")
@@ -44,9 +45,9 @@ input(type="imudp" port="514")
 module(load="imtcp")
 input(type="imtcp" port="514")
 # dir layout
-\$template DYNremote,"/var/log/%programname%/%\$YEAR%/%\$MONTH%/%\$DAY%/%hostname%.log"
+\\\$template DYNremote,"/var/log/remote/%programname%/%\\\$YEAR%/%\\\$MONTH%/%\\\$DAY%/%hostname%.log"
 if \
-        \$source != 'localhost' \
+        \\\$source != 'localhost' \
 then    ?DYNremote
 global(workDirectory="/var/lib/rsyslog")
 module(load="builtin:omfile" Template="RSYSLOG_TraditionalFileFormat")
@@ -59,6 +60,7 @@ cron.*                                                  /var/log/cron
 uucp,news.crit                                          /var/log/spooler
 local7.*                                                /var/log/boot.log
 TEXZ
+
 systemctl enable syslog
 systemctl restart syslog
 EOF

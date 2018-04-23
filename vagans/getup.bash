@@ -37,7 +37,7 @@ source ${DEFAULTS}
 
 # ensure we have virsh and friends
 [ -f ${SCRIPTS}/common/ensure-Virsh.bash ] || die "missing ${SCRIPTS}/common/ensure-Virsh.bash"
-bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGESDIR || die "no working virtualization"
+bash ${SCRIPTS}/common/ensure-Virsh.bash $IMAGESDIR ${TLD} ${ORG} || die "no working virtualization"
 
 # ensure working IDM server
 [ -f ${SCRIPTS}/common/ensure-IDM.bash ] || die "missing ${SCRIPTS}/common/ensure-IDM.bash"
