@@ -47,6 +47,8 @@ if ! vm_exists ${IPA0}; then
     bash ${CREATEDUMMY} ${SSHUSER} ${DUMMY}
   fi
   vm_exists ${DUMMY} || die "no new parent ${DUMMY}"
+  KEYFILE="${SSHUSER}.key"
+  [ -f ${KEYFILE} ] || die "no key file ${KEYFILE} for user ${SSHUSER}"
   log "creating IPA ${IPA0}"
   vm_clone ${DUMMY} ${IPA0} ${SSHUSER}
   vm_exists ${IPA0} || die "failed to create IPA ${IPA0}"
