@@ -65,4 +65,4 @@ systemctl enable syslog
 systemctl restart syslog
 EOF
 scp -oStrictHostKeyChecking=no -i ${KEYFILE} "install-${NAME}.bash" ${SSHUSER}@${ip}:
-#ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${SSHUSER}@${ip} "bash install-${NAME}.bash"
+ssh -oStrictHostKeyChecking=no -i ${KEYFILE} ${SSHUSER}@${ip} "bash install-${NAME}.bash"
