@@ -50,3 +50,48 @@ bash ${SCRIPTS}/common/ensure-syslog.bash || die "no working syslog on ${LOGSERV
 # ensure working metrix server
 [ -f ${SCRIPTS}/common/ensure-Metrix.bash ] || die "missing ${SCRIPTS}/common/ensure-Metrix.bash"
 bash ${SCRIPTS}/common/ensure-Metrix.bash || die "no working metrix on ${INFLUXSERVER}"
+
+
+# load vm helpers
+VMHELPERS="${SCRIPTS}/common/vmHelpers.bash"
+[ -f ${VMHELPERS} ] || die "missing ${VMHELPERS}"
+source ${VMHELPERS}
+
+# prepare java dummy
+[ -z ${DUMMY} ] && die "no DUMMY"
+NAME="${DUMMY}-java"
+if ! vm_exists ${NAME}; then
+  [ -z ${SSHUSER} ] && die "no SSHUSER"
+  KEYFILE="${SSHUSER}.key"
+  [ -f ${KEYFILE} ] || die "no key file ${KEYFILE} for user ${SSHUSER}"
+  INSTALLSCRIPT="${SCRIPTS}/common/ensure-java.bash"
+  [ -f ${INSTALLSCRIPT} ] || die "missing ${INSTALLSCRIPT}"
+  log "creating new ${NAME} from ${DUMMY}"
+  vm_clone ${DUMMY} ${NAME} ${SSHUSER} || die "failed to clone from ${DUMMY}"
+  vm_start ${NAME} > /dev/null || die "failed to start ${NAME}"
+  ip=$(vm_getip ${NAME}) || die "failed to get ip for ${NAME}"
+  vm_waitforssh ${NAME} ${USER}.key ${USER} > /dev/null || die "failed ssh to ${NAME}"
+  scp -i ${USER}.key ${INSTALLSCRIPT} ${USER}@${ip}:
+  ssh -i ${USER}.key ${USER}@${ip} "sudo bash $(basename ${INSTALLSCRIPT})"
+  [ $? -ne 0 ] && die "failed install ${INSTALLSCRIPT}"
+  vm_stop ${NAME}
+fi
+
+# prepare nodejs dummy
+NAME="${DUMMY}-nodejs"
+if ! vm_exists ${NAME}; then
+  [ -z ${SSHUSER} ] && die "no SSHUSER"
+  KEYFILE="${SSHUSER}.key"
+  [ -f ${KEYFILE} ] || die "no key file ${KEYFILE} for user ${SSHUSER}"
+  INSTALLSCRIPT="${SCRIPTS}/common/ensure-nodejs.bash"
+  [ -f ${INSTALLSCRIPT} ] || die "missing ${INSTALLSCRIPT}"
+  log "creating new ${NAME} from ${DUMMY}"
+  vm_clone ${DUMMY} ${NAME} ${SSHUSER} || die "failed to clone from ${DUMMY}"
+  vm_start ${NAME} > /dev/null || die "failed to start ${NAME}"
+  ip=$(vm_getip ${NAME}) || die "failed to get ip for ${NAME}"
+  vm_waitforssh ${NAME} ${USER}.key ${USER} > /dev/null || die "failed ssh to ${NAME}"
+  scp -i ${USER}.key ${INSTALLSCRIPT} ${USER}@${ip}:
+  ssh -i ${USER}.key ${USER}@${ip} "sudo bash $(basename ${INSTALLSCRIPT})"
+  [ $? -ne 0 ] && die "failed install ${INSTALLSCRIPT}"
+  vm_stop ${NAME}
+fi

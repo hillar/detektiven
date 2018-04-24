@@ -102,7 +102,8 @@ vm_waitforssh(){
   [ $? -ne 0 ] && die "no ip for $1"
   counter=0
   ssh-keygen -f "~/.ssh/known_hosts" -R $ip > /dev/null 2>&1
-  ssh-keygen -f "/root/.ssh/known_hosts" -R $ip > /dev/null 2>&1=$(ssh -oStrictHostKeyChecking=no -i $2 $3@${ip} 'hostname') > /dev/null 2>&1
+  ssh-keygen -f "/root/.ssh/known_hosts" -R $ip > /dev/null 2>&1
+  h=$(ssh -oStrictHostKeyChecking=no -i $2 $3@${ip} 'hostname') > /dev/null 2>&1
   while  [ $? -ne 0 -a $counter -lt 30 ]; do
     sleep 2
     let counter++
