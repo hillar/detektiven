@@ -81,10 +81,19 @@ vm_waitforssh ${NAME} ${USER}.key ${USER} > /dev/null || die "failed ssh to ${NA
 cat > install-guest-${NAME}.bash <<EOF
 #!/bin/bash
 # created $(date) by $0
+shortname(){ echo "$1"|cut -f1 -d. ; }
 LC_ALL="";
+
 #echo "${IPAIP} ${IDMSERVER}" >> /etc/hosts
 ping -c1 ${IDMSERVER} > /dev/null
-if [ \$? -eq 0 ]; then
+if ! host ${IDMSERVER}; then
+  if ! host $(shortname ${IDMSERVER}); then
+    echo "can not resolve ${IDMSERVER}"
+    exit 1
+  else
+      IDMSERVER=$(shortname ${IDMSERVER})
+  fi
+fi
   #wait for domain
   domain=\$(hostname -d|wc -l)
   counter=0
@@ -109,10 +118,7 @@ if [ \$? -eq 0 ]; then
     echo "ERROR, can not log in as ${ADMIN}"
     exit 1
   fi
-else
-  echo "ERROR, can not find ${IDMSERVER}"
-  exit 1
-fi
+
 telegraf --help > /dev/null 2>&1
 if [ $? -ne 0 ]; then
   wget -q https://dl.influxdata.com/telegraf/releases/telegraf-${TELEGRAFVERSION}.x86_64.rpm

@@ -30,13 +30,15 @@ IDMDOMAIN="${IDM}.${ORG}.${TLD}"
 [ -z ${SSHUSER} ] && die 'no SSHUSER'
 KEYFILE="${SSHUSER}.key"
 [ -z ${ENROLL} ] && die 'no ENROLL'
+[ -f ${ENROLL}.passwd ] || die "no npassword for ${ENROLL}"
 [ -z ${ADMIN} ] && die 'no ADMIN'
+[ -f ${ADMIN}.passwd ] || die "no npassword for ${ADMIN}"
 [ -z ${READONLY} ] && die 'no READONLY'
 
 # good to go..
 
 IPA0="${IPA}.${IDMDOMAIN}"
-
+LDAPSERVER="${IPA0}"
 # ping existing ipa, if no pong, look for vm
 ping -c1 ${IPA0} > /dev/null 2>&1
 if [ $? -ne 0 ]; then
@@ -51,6 +53,7 @@ if [ $? -ne 0 ]; then
   vm_running ${IPA0} || vm_start ${IPA0}
   ip=$(vm_getip ${IPA0})
   [ -z ${ip} ] && die "no ip for ${IPA0}"
+  LDAPSERVER=${ip}
   vm_waitforssh ${IPA0} ${KEYFILE} ${SSHUSER} || die "failed to ssh into vm ${IPA0}"
   ok=$(ssh -i ${KEYFILE} ${SSHUSER}@${ip} "whoami > /dev/null; echo \$?")
   [ ${ok} -ne 0 ] && die "incorrect ssh user ${IPA0}"
@@ -61,12 +64,12 @@ if [ $? -ne 0 ]; then
   ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ADMIN}
   ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ENROLL}
   #ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${READONLY}
-else
-  [ -f ${MASTERPASSWORDFILE} ] || die "no master password for ${IPA0}"
-  P=$(cat ${MASTERPASSWORDFILE})
-  ldapsearch -x -D "uid=admin,cn=users,cn=accounts,${BASE}" -w ${P} -h ${IPA0} -b "cn=accounts,${BASE}" -s sub 'uid=admin' > /dev/null
-  [ $? -ne 0 ] && die "ldap error ${IPA0}"
-  ldapsearch -x -D "uid=admin,cn=users,cn=accounts,${BASE}" -w ${P} -h ${IPA0} -b "cn=accounts,${BASE}" -s sub 'uid=hostenroll' > /dev/null
-  [ $? -ne 0 ] && die "ldap error ${IPA0}"
-  log "${IPA0} seems ok"
 fi
+#can enroll account to bind
+ldapsearch -x -D "uid=${ENROLL},cn=users,cn=accounts,${BASE}" -w $(cat ${ENROLL}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${ENROLL}" > /dev/null
+[ $? -ne 0 ] && die "ldap error ${LDAPSERVER}, cant find ${ENROLL}"
+ldapsearch -x -D "uid=${ADMIN},cn=users,cn=accounts,${BASE}" -w $(cat ${ADMIN}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${ADMIN}" > /dev/null
+[ $? -ne 0 ] && die "ldap error ${LDAPSERVER}, cant find ${ADMIN}"
+#r=$(ldapsearch -x -D "uid=${ADMIN},cn=users,cn=accounts,${BASE}" -w $(cat ${ADMIN}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${READONLY}" | grep numEntries|wc -l)
+#[ $r -eq 0 ] && die "ldap error ${LDAPSERVER}, cant find ${READONLY}"
+log "${IPA0} seems ok"
