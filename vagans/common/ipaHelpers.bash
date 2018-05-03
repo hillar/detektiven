@@ -26,10 +26,12 @@ ipa_user_exists() {
 }
 
 ipa_preparedefaults() {
+  READONLY='onlyread'
+  [ -z $7 ] || READONLY=$7
   HOSTENROLL='hostenroll'
-  [ -z $HOSTENROLL ] || HOSTENROLL=$5
+  [ -z $6 ] || HOSTENROLL=$6
   SYSADMIN='sysadmin'
-  [ -z $SYSADMIN ] || SYSADMIN=$6
+  [ -z $5 ] || SYSADMIN=$5
   [ -z $1 ] || IPAIP=$1
   [ -z $IPAIP ] && die "no ip for IPA ${IPAIP}"
   [ -z $2 ] || KEYFILE=$2
@@ -46,6 +48,10 @@ ipa_preparedefaults() {
   [ -z $SYSADMINPASSWORD ] && SYSADMINPASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
   [ -z $SYSADMINPASSWORD ] && die "can not create password for $SYSADMIN"
   echo $SYSADMINPASSWORD > $SYSADMIN.passwd
+  [ -f $READONLY.passwd ] && READONLYPASSWORD=$(cat $READONLY.passwd)
+  [ -z $READONLYPASSWORD ] && READONLYPASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
+  [ -z $READONLYPASSWORD ] && die "can not create password for $READONLY"
+  echo $READONLYPASSWORD > $READONLY.passwd
 
 
   read -r -d '' CMD <<EOF
@@ -81,8 +87,21 @@ ipa_preparedefaults() {
   echo -en "$SYSADMINPASSWORD\n$SYSADMINPASSWORD\n" |ipa passwd ${SYSADMIN};
   echo -en "$SYSADMINPASSWORD\n$SYSADMINPASSWORD\n$SYSADMINPASSWORD\n" |kinit ${SYSADMIN};
   klist;
+  # add readonly user;
   echo -en "${MASTERPASSWORD}" | kinit admin;
   klist;
+  ipa permission-add ReadOnlyLDAP  --filter='(!(cn=admins))'  --right=read --right=search --right=compare
+  ipa privilege-add ReadOnlyLDAP
+  ipa privilege-add-permission ReadOnlyLDAP --permissions=ReadOnlyLDAP
+  ipa role-add ReadOnlyLDAP
+  ipa role-add-privilege ReadOnlyLDAP --privileges=ReadOnlyLDAP
+  ipa user-add ${READONLY} --first=read --last=only;
+  echo -en "$READONLYPASSWORD\n$READONLYPASSWORD\n" |ipa passwd ${READONLY};
+  ipa role-add-member ReadOnlyLDAP --users=${READONLY}
+  echo -en "$READONLYPASSWORD\n$READONLYPASSWORD\n$READONLYPASSWORD\n" |kinit ${READONLY};
+  klist;
+
+
 
 EOF
   ssh -oStrictHostKeyChecking=no -i ${KEYFILE} root@${IPAIP} "$CMD"

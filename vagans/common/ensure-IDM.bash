@@ -70,6 +70,8 @@ ldapsearch -x -D "uid=${ENROLL},cn=users,cn=accounts,${BASE}" -w $(cat ${ENROLL}
 [ $? -ne 0 ] && die "ldap error ${LDAPSERVER}, cant find ${ENROLL}"
 ldapsearch -x -D "uid=${ADMIN},cn=users,cn=accounts,${BASE}" -w $(cat ${ADMIN}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${ADMIN}" > /dev/null
 [ $? -ne 0 ] && die "ldap error ${LDAPSERVER}, cant find ${ADMIN}"
-#r=$(ldapsearch -x -D "uid=${ADMIN},cn=users,cn=accounts,${BASE}" -w $(cat ${ADMIN}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${READONLY}" | grep numEntries|wc -l)
-#[ $r -eq 0 ] && die "ldap error ${LDAPSERVER}, cant find ${READONLY}"
+r=$(ldapsearch -x -D "uid=${ADMIN},cn=users,cn=accounts,${BASE}" -w $(cat ${ADMIN}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${READONLY}" | grep numEntries|wc -l)
+[ $r -eq 0 ] && die "ldap error ${LDAPSERVER}, cant find ${READONLY}"
+r=$(ldapsearch -x -D "uid=${READONLY},cn=users,cn=accounts,${BASE}" -w $(cat ${READONLY}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${READONLY}" | grep numEntries|wc -l)
+[ $r -eq 0 ] && die "ldap error ${LDAPSERVER}, cant bind as ${READONLY}"
 log "${IPA0} seems ok"

@@ -95,8 +95,9 @@ if [ -z $BACKUP ]; then
     log "IPA already installed on ${IPA0}"
   fi
   # prep some defaults
-  ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ADMIN} || ipa_preparedefaults ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ENROLL} ${ADMIN}
+  ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ADMIN} || ipa_preparedefaults ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ADMIN} ${ENROLL} ${READONLY}
   ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${ENROLL}
+  ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${READONLY}
 else
   log "restoring IPA SERVER from $BACKUP"
   # https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7-beta/html/linux_domain_identity_authentication_and_policy_guide/restore
