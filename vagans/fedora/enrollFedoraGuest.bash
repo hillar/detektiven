@@ -77,7 +77,7 @@ if ! vm_exists ${NAME}; then
   vm_clone ${PARENT} ${NAME} ${SSHUSER} || die "failed to clone from ${PARENT}"
 fi
 vm_start ${NAME} > /dev/null || die "failed to start ${NAME}"
-ip=$(vm_getip ${NAME}) || die "failed to get ip for ${NAME}"
+ip=$(vm_getip ${NAME}) || ip=$(vm_getip ${NAME}) || die "failed to get ip for ${NAME}"
 vm_waitforssh ${NAME} ${USER}.key ${USER} > /dev/null || die "failed ssh to ${NAME}"
 cat > install-guest-${NAME}.bash <<EOF
 #!/bin/bash

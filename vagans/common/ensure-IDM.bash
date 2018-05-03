@@ -30,9 +30,7 @@ IDMDOMAIN="${IDM}.${ORG}.${TLD}"
 [ -z ${SSHUSER} ] && die 'no SSHUSER'
 KEYFILE="${SSHUSER}.key"
 [ -z ${ENROLL} ] && die 'no ENROLL'
-[ -f ${ENROLL}.passwd ] || die "no npassword for ${ENROLL}"
 [ -z ${ADMIN} ] && die 'no ADMIN'
-[ -f ${ADMIN}.passwd ] || die "no npassword for ${ADMIN}"
 [ -z ${READONLY} ] && die 'no READONLY'
 
 # good to go..
@@ -66,6 +64,9 @@ if [ $? -ne 0 ]; then
   #ipa_user_exists ${ip} ${KEYFILE} ${SSHUSER} ${P} ${READONLY}
 fi
 #can enroll account to bind
+[ -f ${ENROLL}.passwd ] || die "no password for ${ENROLL}"
+[ -f ${ADMIN}.passwd ] || die "no password for ${ADMIN}"
+[ -f ${READONLY}.passwd ] || die "no password for ${READONLY}"
 ldapsearch -x -D "uid=${ENROLL},cn=users,cn=accounts,${BASE}" -w $(cat ${ENROLL}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${ENROLL}" > /dev/null
 [ $? -ne 0 ] && die "ldap error ${LDAPSERVER}, cant find ${ENROLL}"
 ldapsearch -x -D "uid=${ADMIN},cn=users,cn=accounts,${BASE}" -w $(cat ${ADMIN}.passwd) -h ${LDAPSERVER} -b "cn=accounts,${BASE}" -s sub "uid=${ADMIN}" > /dev/null

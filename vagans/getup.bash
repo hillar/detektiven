@@ -68,6 +68,8 @@ $(vm_getip ${LOGSERVER}) ${LOGSERVER}
 $(vm_getip ${INFLUXSERVER}) ${INFLUXSERVER}
 # END DETECTIVEN CORE HOSTS
 EOF
+# send SIGHUP to dnsmasq
+virsh net-update default add dns-host '<host ip="192.168.122.145"><hostname>blah.laine.org</hostname></host>'  --live --config
 
 # prepare java dummy
 [ -z ${DUMMY} ] && die "no DUMMY"
@@ -107,3 +109,8 @@ if ! vm_exists ${NAME}; then
   [ $? -ne 0 ] && die "failed install ${INSTALLSCRIPT}"
   vm_stop ${NAME}
 fi
+
+# tika
+
+fedora/enrollFedoraGuest.bash common/install-tika.bash tika.${ORG}.${TLD} fedora-dummy-java
+curl $(vm_getip tika.${ORG}.${TLD}):9998 || die "tika tika.${ORG}.${TLD} not listening on $(vm_getip tika.${ORG}.${TLD})"

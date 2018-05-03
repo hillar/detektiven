@@ -14,8 +14,8 @@ export SYSTEMD_PAGER=''
 export LC_ALL=C
 
 TIKA='tika'
-VER='1.17'
-HOST='127.0.0.1'
+VER='1.18'
+HOST='0.0.0.0'
 [ -z $1 ] || HOST=$1
 PORT='9998'
 MINMEM='512m'
@@ -41,9 +41,8 @@ cd "$TIKA_DIR/jar"
 [ -f "tika-server-$VER.jar" ] || wget -q "http://www-eu.apache.org/dist/tika/tika-server-$VER.jar"
 md5sum "tika-server-$VER.jar"
 
-addgroup --system "$TIKA_GROUP" --quiet
-adduser --system --home $TIKA_DIR --no-create-home --ingroup $TIKA_GROUP --disabled-password --shell /bin/false "$TIKA_USER" --quiet
-
+groupadd --system "$TIKA_GROUP" || addgroup --system "$TIKA_GROUP" --quiet
+adduser --system --home $TIKA_DIR --no-create-home --gid $TIKA_GROUP --shell /bin/false "$TIKA_USER" || adduser --system --home $TIKA_DIR --no-create-home --ingroup $TIKA_GROUP --disabled-password --shell /bin/false "$TIKA_USER" --quiet
 mkdir -p $LOG_DIR
 chown $TIKA_USER:$TIKA_GROUP "$LOG_DIR"
 
@@ -98,8 +97,9 @@ Type=simple
 [Install]
 WantedBy=multi-user.target
 EOF
-systemctl daemon-reload
-systemctl enable tika.service >> /vagrant/provision.log 2>&1
+systemctl daemon-reload >> /tmp/provision.log 2>&1
+systemctl enable tika.service >> /tmp/provision.log 2>&1
+systemctl start tika.service >> /tmp/provision.log 2>&1
 
 echo "installed tika to $TIKA_DIR"
 echo "tika server will run on $HOST:$PORT "
