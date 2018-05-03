@@ -57,6 +57,18 @@ VMHELPERS="${SCRIPTS}/common/vmHelpers.bash"
 [ -f ${VMHELPERS} ] || die "missing ${VMHELPERS}"
 source ${VMHELPERS}
 
+# set hosts
+
+sed -i '/^# BEGIN DETECTIVEN CORE HOSTS/,/^# END DETECTIVEN CORE HOSTS/ d' /etc/hosts
+cat <<EOF >>/etc/hosts
+# BEGIN DETECTIVEN CORE HOSTS
+# created $(date) with $0
+$(vm_getip ${IDMSERVER}) ${IDMSERVER}
+$(vm_getip ${LOGSERVER}) ${LOGSERVER}
+$(vm_getip ${INFLUXSERVER}) ${INFLUXSERVER}
+# END DETECTIVEN CORE HOSTS
+EOF
+
 # prepare java dummy
 [ -z ${DUMMY} ] && die "no DUMMY"
 NAME="${DUMMY}-java"

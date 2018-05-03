@@ -35,6 +35,7 @@ INSTALLSCRIPT=$1
 NAME=$2
 host ${NAME} >/dev/null 2>&1
 [ $? -eq 0 ] && die 'name taken'
+[ "${NAME}" == "$(shortname ${NAME})" ] && die 'no domain in name'
 # defaults
 DEFAULTS="${SCRIPTS}/../defaults"
 [ -f ${DEFAULTS} ] && source ${DEFAULTS}
@@ -81,19 +82,32 @@ vm_waitforssh ${NAME} ${USER}.key ${USER} > /dev/null || die "failed ssh to ${NA
 cat > install-guest-${NAME}.bash <<EOF
 #!/bin/bash
 # created $(date) by $0
-shortname(){ echo "$1"|cut -f1 -d. ; }
+log() { echo "\$(date) \$0: \$*"; }
+die() { log ": \$*" >&2; exit 1; }
+shortname(){ echo "\$1"|cut -f1 -d. ; }
+getworkingname(){
+  wn=\$1
+  if ! host \$1 > /dev/null 2>&1; then
+    if ! host \$(shortname \$1) > /dev/null 2>&1; then
+      return 1
+    else
+        wn=\$(shortname \$1)
+    fi
+  fi
+  ping -c1 \${wn} > /dev/null 2>&1
+  if [ \$? -eq 0 ]; then
+    echo \${wn}
+  else
+    return 2
+  fi
+}
+
 LC_ALL="";
 
-#echo "${IPAIP} ${IDMSERVER}" >> /etc/hosts
-ping -c1 ${IDMSERVER} > /dev/null
-if ! host ${IDMSERVER}; then
-  if ! host $(shortname ${IDMSERVER}); then
-    echo "can not resolve ${IDMSERVER}"
-    exit 1
-  else
-      IDMSERVER=$(shortname ${IDMSERVER})
-  fi
-fi
+IDMSERVER=\$(getworkingname ${IDMSERVER}) || die "no IDM server ${IDMSERVER}"
+LOGSERVER=\$(getworkingname ${LOGSERVER}) || die "no IDM server ${LOGSERVER}"
+INFLUXSERVER=\$(getworkingname ${INFLUXSERVER}) || die "no IDM server ${INFLUXSERVER}"
+log "enrolling with \${IDMSERVER} \${LOGSERVER} \${INFLUXSERVER}"
   #wait for domain
   domain=\$(hostname -d|wc -l)
   counter=0
@@ -110,7 +124,7 @@ fi
   echo "\$hn > /etc/hostname"
   hostname \$hn
   dnf -y install ipa-client;
-  ipa-client-install -p ${ENROLL} -w ${ENROLLPASSWORD} --domain ${IDMDOMAIN} --server ${IDMSERVER} --fixed-primary --no-ntp --force --unattended --force-join || exit 1
+  ipa-client-install -p ${ENROLL} -w ${ENROLLPASSWORD} --domain ${IDMDOMAIN} --server \${IDMSERVER} --fixed-primary --no-ntp --force --unattended --force-join || exit 1
   echo "${ADMINPASSWORD}" | kinit ${ADMIN}
   if [ $? -eq 0 ]; then
       klist
@@ -160,6 +174,7 @@ TEWZ
 fi
 # remove any previous influxdb server
 rm /etc/telegraf/telegraf.d/*
+
 cat > /etc/telegraf/telegraf.d/${INFLUXSERVER}.conf <<TEWX
 [[outputs.influxdb]]
 urls = ["udp://${INFLUXSERVER}:8089"]
