@@ -112,5 +112,10 @@ fi
 
 # tika
 
-fedora/enrollFedoraGuest.bash common/install-tika.bash tika.${ORG}.${TLD} fedora-dummy-java
+bash fedora/enrollFedoraGuest.bash common/install-tika.bash tika.${ORG}.${TLD} fedora-dummy-java
 curl $(vm_getip tika.${ORG}.${TLD}):9998 || die "tika tika.${ORG}.${TLD} not listening on $(vm_getip tika.${ORG}.${TLD})"
+
+# solr
+
+bash fedora/enrollFedoraGuest.bash common/install-solr.bash solr.${ORG}.${TLD} fedora-dummy-java
+curl $(vm_getip solr.${ORG}.${TLD}):8983/solr/ || die "solr solr.${ORG}.${TLD} not listening on $(vm_getip solr.${ORG}.${TLD})"

@@ -79,6 +79,7 @@ do
 done
 cd ..
 npm install --unsafe-perm >> /vagrant/provision.log 2>&1
+npm rebuild --update-binary lzma-native >> /vagrant/provision.log 2>&1
 cd /provision/detektiven-master/stuff/txt/osse/browser/osse-browser
 npm install >> /vagrant/provision.log 2>&1
 npm run build >> /vagrant/provision.log 2>&1

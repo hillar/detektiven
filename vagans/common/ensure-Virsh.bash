@@ -56,7 +56,7 @@ if [ $? -ne 0 ]; then
   if [ $? -ne 0 ]; then
     die "failed to install virsh"
     virsh net-destroy default
-cat > <<EOF
+cat > network-default.xml<<EOF
 <network>
   <name>default</name>
   <uuid>0021e15d-5468-4214-b9dc-0b5c04c74c55</uuid>
