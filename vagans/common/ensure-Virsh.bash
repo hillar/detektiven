@@ -17,7 +17,7 @@ if [ $? -ne 0 ]; then
   log "installing virsh, images directory $IMAGESDIR"
   [ -z $2 ] || TLD=$2
   [ -z ${TLD} ] && die 'no TLD'
-  [ -z $3 ] || TLD=$3
+  [ -z $3 ] || ORG=$3
   [ -z ${ORG} ] && die 'no ORG'
   apt --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then

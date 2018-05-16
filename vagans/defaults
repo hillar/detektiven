@@ -48,7 +48,7 @@ LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
 
 # root dir
 # defaults to one dir down where this file is
-ROOT="dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT=$(dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ))
 
 # if virsh is not installed, changes /var/lib/libvirt/images
 IMAGESDIR="${ROOT}/images"
