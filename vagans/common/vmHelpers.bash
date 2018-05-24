@@ -113,6 +113,7 @@ vm_waitforssh(){
      die "no ssh for $1"
   else
     [ "$h" == "$1" ] && log "ssh ok $1 ( ssh -i $2 $3@${ip} )"
+    [ "$h" == "$1" ] || log "WARNING hostname $h does not match vm name $1"
   fi
 }
 
@@ -154,36 +155,68 @@ vm_clone(){
   virsh domstate ${CHILD} >/dev/null 2>&1
   [ $? -eq 0 ] && die "child ${CHILD} exists"
   [ -z $3 ] || USER=$3
+  [ -z ${USER} ] && USER='root'
+  # file or not
+  imagefile=$(virsh domblklist ${PARENT} | grep vda | awk '{print $2}')
+  domblk=$(virsh vol-info ${imagefile}| grep Type:| awk '{print $2}')
+  if [ "${domblk}" == "file" ]; then
+    virt-clone -o ${PARENT} -n ${CHILD} --reflink --auto-clone >/dev/null 2>&1
+    [ $? -eq 0 ] || virt-clone -o ${PARENT} -n ${CHILD} --auto-clone >/dev/null 2>&1
+    [ $? -eq 0 ] || die "virt-clone error ${PARENT} -> ${CHILD}"
 
-  virt-clone -o ${PARENT} -n ${CHILD} --reflink --auto-clone >/dev/null 2>&1
-  [ $? -eq 0 ] || virt-clone -o ${PARENT} -n ${CHILD} --auto-clone >/dev/null 2>&1
-  [ $? -eq 0 ] || die "virt-clone error ${PARENT} -> ${CHILD}"
-
-  imagefile=$(virsh dumpxml ${CHILD} | grep ${CHILD} | grep file | cut -f2 -d"'")
-  # TODO tmp dir name
-  mkdir /tmp/${CHILD}
-  guestmount -a ${imagefile} -i /tmp/${CHILD}
-  [ $? -eq 0 ] || die "guestmount error, ${imagefile}"
-  echo ${CHILD} > /tmp/${CHILD}/etc/hostname
-  echo "$(date) cloned from ${PARENT} got name ${CHILD}" >> /tmp/${CHILD}/etc/birth.certificate
-  if [ ! -z $USER ]; then
-    path='ERROR'
-    if [ "$USER" == "root" ]; then
-      cat ${USER}.key.pub > /tmp/${CHILD}/root/.ssh/authorized_keys
-      path='/root/.ssh/authorized_keys'
-    else
-      if [ -d /tmp/${CHILD}/home/${USER} ]; then
-        [ -d /tmp/${CHILD}/home/${USER}/.ssh ] || mkdir /tmp/${CHILD}/home/${USER}/.ssh
-        cat ${USER}.key.pub > /tmp/${CHILD}/home/${USER}/.ssh/authorized_keys
-        path="/home/${USER}/.ssh/authorized_keys"
+    # TODO tmp dir name
+    mkdir /tmp/${CHILD}
+    guestmount -a ${imagefile} -i /tmp/${CHILD}
+    [ $? -eq 0 ] || die "guestmount error, ${imagefile}"
+    echo ${CHILD} > /tmp/${CHILD}/etc/hostname
+    echo "$(date) cloned from ${PARENT} got name ${CHILD}" >> /tmp/${CHILD}/etc/birth.certificate
+    if [ ! -z $USER ]; then
+      path='ERROR'
+      if [ "$USER" == "root" ]; then
+        cat ${USER}.key.pub > /tmp/${CHILD}/root/.ssh/authorized_keys
+        path='/root/.ssh/authorized_keys'
       else
-        die "user ${USER} not exists in ${PARENT}"
+        if [ -d /tmp/${CHILD}/home/${USER} ]; then
+          [ -d /tmp/${CHILD}/home/${USER}/.ssh ] || mkdir /tmp/${CHILD}/home/${USER}/.ssh
+          cat ${USER}.key.pub > /tmp/${CHILD}/home/${USER}/.ssh/authorized_keys
+          path="/home/${USER}/.ssh/authorized_keys"
+        else
+          die "user ${USER} not exists in ${PARENT}"
+        fi
       fi
+      echo "$(date) user ${USER} key set ${path}" >> /tmp/${CHILD}/etc/birth.certificate
     fi
-    echo "$(date) user ${USER} key set ${path}" >> /tmp/${CHILD}/etc/birth.certificate
+    umount /tmp/${CHILD}
+    rmdir /tmp/${CHILD}
+    log "cloned ${PARENT} -> ${CHILD}"
+  else
+    POOL=$(virsh domblklist ${PARENT} | grep vda | awk '{print $2}'| cut -f1 -d/)
+    [ -z ${POOL} ] && die "no pool name"
+    virsh pool-info ${POOL} || die "no pool ${POOL}"
+    virsh vol-info --pool ${POOL} ${CHILD}-vda && die "vol already exists ${POOL} ${CHILD}-vda"
+    # clone vol
+    virsh vol-clone --pool ${POOL} --vol ${PARENT}-vda --newname ${CHILD}-vda || die "failed to clone disk ${POOL}/${PARENT}-vda -> ${POOL}/${CHILD}-vda"
+    # dump the xml
+    virsh dumpxml ${PARENT} > /tmp/${CHILD}.xml
+    # things need to be removed
+    # <uuid>b4baafde-d397-4e4a-8022-7a9e3911d15c</uuid>
+    # ! do not remove <secret type='ceph' uuid='
+    sed -i '/<uuid.*/{s///;:a;n;ba}' /tmp/${CHILD}.xml
+    # <mac address='52:54:00:94:fe:51'/>
+    sed -i '/mac address/d' /tmp/${CHILD}.xml
+    # and actually rename the vm and volume
+    # <name>fedora-dummy</name>
+    # <source protocol='rbd' name='vmlive0/clone1-vda'>
+    sed -i 's/'${PARENT}'/'${CHILD}'/' /tmp/${CHILD}.xml
+    # create the CHILD vm
+    virsh define /tmp/${CHILD}.xml || die "Failed to define domain ${CHILD}"
+    # start and ssh in to change hostname
+    vm_start ${CHILD} || die "failed to start ${CHILD}"
+    ip=$(vm_getip ${CHILD}) || die "${CHILD} failed to get ip"
+    vm_waitforssh ${CHILD} ${USER}.key ${USER} || vm_waitforssh ${CHILD} ${USER}.key ${USER} || die " ${CHILD} failed to ssh in"
+    ssh -i ${USER}.key ${USER}@${ip} "hostnamectl set-hostname ${CHILD}" || die "${CHILD} failed to set hostname "
+    ssh -i ${USER}.key ${USER}@${ip} "hostname"
+    log "done with ${PARENT} -> ${CHILD} (${ip})"
   fi
-  umount /tmp/${CHILD}
-  rmdir /tmp/${CHILD}
-  log "cloned ${PARENT} -> ${CHILD}"
 
 }

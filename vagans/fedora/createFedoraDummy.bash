@@ -20,7 +20,7 @@ log "starting with ${USERNAME} ${NAME}"
 DEFAULTS="${SCRIPTS}/../defaults"
 [ -f ${DEFAULTS} ] && source ${DEFAULTS}
 [ -f ${DEFAULTS} ] && log "loading params from  ${DEFAULTS}"
-[ -f ${DEFAULTS} ] || log "using hardcoded prarams, as missing defaults ${DEFAULTS}"
+[ -f ${DEFAULTS} ] || log "using hardcoded params, as missing defaults ${DEFAULTS}"
 [ -z ${DUMMY} ] && DUMMY='fedora-dummy'
 NAME="${DUMMY}"
 [ -z $2 ] || NAME=$2
@@ -32,6 +32,10 @@ NAME="${DUMMY}"
 [ -z ${INFLUXSERVER} ] && INFLUXSERVER="${INFLUX}.${MON}.${ORG}.${TLD}"
 [ -z ${LOGSERVER} ] && LOGSERVER="${LOG}.${MON}.${ORG}.${TLD}"
 [ -z ${TELEGRAFVERSION} ] && TELEGRAFVERSION='telegraf-1.6.0-1'
+[ -z ${IMAGESPOOL} ] && IMAGESPOOL=$(virsh pool-list --name | head -1 | awk '{print $1}')
+[ -z ${RAM} ] && RAM=2048
+[ -z ${CPUS} ] && CPUS=2
+[ -z ${DISKSIZE} ] && DISKSIZE="16G"
 
 vm_exists ${NAME} && die "vm exists ${NAME}"
 [ -f ${USERNAME}.key ] || ssh-keygen -t rsa -N "" -f ./${USERNAME}.key > /dev/null
@@ -40,7 +44,7 @@ vm_exists ${NAME} && die "vm exists ${NAME}"
 
 LOCATION='https://www.mirrorservice.org/sites/dl.fedoraproject.org/pub/fedora/linux/releases/27/Server/x86_64/os/'
 OS_TYPE="linux"
-OS_VARIANT="fedora27"
+OS_VARIANT="fedora18"
 PUBKEY=$(cat ${USERNAME}.key.pub)
 
 cat > kickstartFedora27.${NAME}.cfg <<EOF
@@ -169,32 +173,61 @@ echo "\$(date) \$0: done whiteout"
 TEWC
 chmod +x /root/whiteout.bash
 date
-/root/whiteout.bash
+#/root/whiteout.bash
 date
 %end
 EOF
 log "Please be patient. This may take a few minutes ..."
-virt-install \
---connect=qemu:///system \
---name=${NAME} \
---ram=2048 \
---vcpus=2 \
---os-type ${OS_TYPE} \
---disk size=16,path=/var/lib/libvirt/images/${NAME}.qcow2,format=qcow2,bus=virtio,cache=none \
---location ${LOCATION} \
---initrd-inject=kickstartFedora27.${NAME}.cfg \
---virt-type=kvm \
---controller usb,model=none \
---graphics none \
---network network=default,model=virtio \
---wait=-1 \
---noreboot \
---extra-args="auto=true ks=file:/kickstartFedora27.${NAME}.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null
-[ $? -ne 0 ] && die "failed to create dummy ${NAME}"
-imagefile=$(vm_getimagefile ${NAME})
-[ -f $imagefile ] || die "fail does not exists $imagefile"
-#mv $imagefile $imagefile.backup
-#qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
-#rm $imagefile.backup
+
+#check pool
+
+if virsh pool-info ${IMAGESPOOL} ; then
+  #ve=$(virsh vol-list --pool ${POOL} --details | grep " $FILE " | wc -l)
+  #if [ $ve -ne 1 ]; then
+    virsh vol-create-as ${IMAGESPOOL} ${NAME}-vda --capacity ${DISKSIZE} --format raw
+  #fi
+  virt-install \
+  --connect=qemu:///system \
+  --name=${NAME} \
+  --ram=${RAM} \
+  --vcpus=${CPUS} \
+  --os-type ${OS_TYPE} \
+  --os-varian ${OS_VARIANT} \
+  --location ${LOCATION} \
+  --initrd-inject=kickstartFedora27.${NAME}.cfg \
+  --disk vol=${IMAGESPOOL}/${NAME}-vda \
+  --virt-type=kvm \
+  --controller usb,model=none \
+  --graphics none \
+  --network network=default,model=virtio \
+  --wait=-1 \
+  --noreboot \
+  --extra-args="auto=true ks=file:/kickstartFedora27.${NAME}.cfg console=tty0 console=ttyS0,115200n8 serial"
+
+else
+  virt-install \
+  --connect=qemu:///system \
+  --name=${NAME} \
+  --ram=${RAM} \
+  --vcpus=${CPUS} \
+  --os-type ${OS_TYPE} \
+  --os-varian ${OS_VARIANT} \
+  --disk size=${DISKSIZE},path=/var/lib/libvirt/images/${NAME}.qcow2,format=qcow2,bus=virtio,cache=none \
+  --location ${LOCATION} \
+  --initrd-inject=kickstartFedora27.${NAME}.cfg \
+  --virt-type=kvm \
+  --controller usb,model=none \
+  --graphics none \
+  --network network=default,model=virtio \
+  --wait=-1 \
+  --noreboot \
+  --extra-args="auto=true ks=file:/kickstartFedora27.${NAME}.cfg console=tty0 console=ttyS0,115200n8 serial" > /dev/null
+  [ $? -ne 0 ] && die "failed to create dummy ${NAME}"
+  imagefile=$(vm_getimagefile ${NAME})
+  [ -f $imagefile ] || die "fail does not exists $imagefile"
+  #mv $imagefile $imagefile.backup
+  #qemu-img convert -O qcow2 -c $imagefile.backup $imagefile > /dev/null
+  #rm $imagefile.backup
+fi
 virsh dumpxml ${NAME} > ${NAME}.xml
 log "created ${NAME} KEY FILES ${USERNAME}.key && ${USERNAME}.key.pub"

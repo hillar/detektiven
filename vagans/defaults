@@ -52,3 +52,5 @@ ROOT=$(dirname $( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd ))
 
 # if virsh is not installed, changes /var/lib/libvirt/images
 IMAGESDIR="${ROOT}/images"
+# if virsh has vol
+IMAGESPOOL=$(virsh pool-list --name | head -1| awk '{print $1}')
