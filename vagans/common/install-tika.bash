@@ -38,7 +38,7 @@ fi
 mkdir -p "$TIKA_DIR/bin"
 mkdir -p "$TIKA_DIR/jar"
 cd "$TIKA_DIR/jar"
-[ -f "tika-server-$VER.jar" ] || wget -q "http://www-eu.apache.org/dist/tika/tika-server-$VER.jar"
+[ -f "tika-server-$VER.jar" ] || wget -q "http://archive.apache.org/dist/tika/tika-server-${VER}.jar"
 md5sum "tika-server-$VER.jar"
 
 groupadd --system "$TIKA_GROUP" || addgroup --system "$TIKA_GROUP" --quiet
