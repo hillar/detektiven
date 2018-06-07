@@ -19,7 +19,7 @@ PORT='8983'
 ok=$(curl -s http://${HOST}:${PORT}/solr/|wc -l)
 [ $ok -gt 0 ] && die "port taken ${HOST}:${PORT}"
 SOLR='solr'
-VER='7.3.0'
+VER='7.3.1'
 MEM='512m'
 DEFAULT="solrdefalutcore"
 
@@ -50,7 +50,7 @@ groupadd -r --gid $SOLR_GID $SOLR_GROUP
 useradd -r --uid $SOLR_UID --gid $SOLR_GID $SOLR_USER
 
 cd /tmp
-solrurl="http://www-us.apache.org/dist/lucene/solr/${VER}/solr-${VER}.tgz"
+solrurl="http://archive.apache.org/dist/lucene/solr/${VER}/solr-${VER}.tgz"
 [ -f "solr-${VER}.tgz" ] || wget -q ${solrurl}
 [ -f "solr-${VER}.tgz" ] || die "failed to get solr from ${solrurl}"
 cd "$SOLR_DIR"
