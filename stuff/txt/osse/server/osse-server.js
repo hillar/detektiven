@@ -415,8 +415,17 @@ let osse = http.createServer(basic, async (req, res) => {
                       doc['_server_'] = results[i].server.HR
                       if (results[i].highlighting) {
                         //TODO if args.hl.fl == array
+                        /*
                         if (results[i].highlighting[doc['id']] && results[i].highlighting[doc['id']][args.hl.fl]) {
                           doc['_highlighting_'] = results[i].highlighting[doc['id']][args.hl.fl]
+                          delete(results[i].highlighting[doc['id']])
+                        }
+                        */
+                        if (results[i].highlighting[doc['id']] ) {
+                          doc['_highlighting_'] = ''
+                          for (let hk in results[i].highlighting[doc['id']]) {
+                            doc['_highlighting_'] += hk+' :: '+results[i].highlighting[doc['id']][hk]
+                          }
                           delete(results[i].highlighting[doc['id']])
                         }
                       }

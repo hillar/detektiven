@@ -44,7 +44,7 @@
       <div v-if="settings" class="columns is-multiline is-mobile">
          <div class="column is-one-quarter">
             <h3>SETTINGS</h3>
-            <b-field label="content field name">
+            <b-field label="highlight field name(s)">
                <b-input v-model="contentField"></b-input>
             </b-field>
             <b-field label="connector fields names">
@@ -231,7 +231,7 @@
                 connectorFields,
                 total: 0,
                 loading: false,
-                contentField:  'content',
+                contentField:  '*',
                 sortField: 'score',
                 sortOrder: 'desc',
                 page: 1,
