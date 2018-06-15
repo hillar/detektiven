@@ -364,6 +364,52 @@ export default {
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
     })
+    // on click show content 
+    let that = this
+    let clickon = false
+    this.cy.on('tap', 'node', function(e){
+        if (clickon === false){
+            clickon = true
+          var n = e.target;
+          var a2 = n.animation({
+            style: {
+              'width': 60,
+              'height': 60
+            },
+            duration: 300
+          });
+          a2.play().promise('complete').then(function(){
+            return a2.rewind().reverse().play().promise('complete');
+          }).then(function(){
+            n.removeStyle();
+            that.exportNodeJson(n)
+            clickon = false
+          });
+        }
+    })
+    // on mouse higlight edges
+    this.cy.on('mouseover', 'node', function(e){
+          var n = e.target;
+          n.neighborhood('edge').style( { 'line-color' : 'black' });
+          var a2 = n.animation({
+            style: {
+              'width': 60,
+              'height': 60
+            },
+            duration: 100
+          });
+          a2.play().promise('complete').then(function(){
+            return a2.rewind().reverse().play().promise('complete');
+          }).then(function(){
+            n.removeStyle();
+          });
+
+    })
+    this.cy.on('mouseout', 'node', function(e){
+        var n = e.target;
+        n.neighborhood('edge').removeStyle();
+    })
+    //
 
     this.root = this.thing.id
     if (!this.cy.getElementById(this.thing.id).length){
