@@ -356,8 +356,25 @@
                    errorsPush('noPreview',u)
                    this.$snackbar.open('contact your admin, backend returned no data')
                 } else {
+                  /*
                   if (answer.response.numFound != undefined && answer.response.docs && answer.response.docs[0] && answer.response.docs[0][this.contentField]) {
                       row.content = answer.response.docs[0][this.contentField].join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                      this.$modal.open('<pre>'+row.content+'</pre>')
+                  } else {
+                    this.$toast.open('no content, sorry ;(')
+                    if (!answer.response.docs) errorsPush('noDocs',answer.response)
+                    if (!answer.response.docs[0]) errorsPush('emptyDoc',answer.response)
+                  }
+                  */
+                  if (answer.response.numFound != undefined && answer.response.docs && answer.response.docs[0]) {
+                      if (this.contentField === "*"){
+                        row.content = JSON.stringify(answer.response.docs[0],null,2)
+                      } else {
+                        let cfs = this.contentField.split(",")
+                        for (let cf of cfs){
+                          if (answer.response.docs[0][cf] && answer.response.docs[0][cf].join) row.content += '\n'+answer.response.docs[0][cf].join('\n').replace(/(\n\n\n\n)/gm,"\n").replace(/(\n\n\n)/gm,"\n").replace(/(\n\n)/gm,"\n");
+                        }
+                      }
                       this.$modal.open('<pre>'+row.content+'</pre>')
                   } else {
                     this.$toast.open('no content, sorry ;(')
