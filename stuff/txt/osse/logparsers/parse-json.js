@@ -1,9 +1,10 @@
 const cliParams = require('commander')
-const fs = require('fs');
-const zlib = require('zlib');
-const crypto = require('crypto');
+const fs = require('fs')
+const zlib = require('zlib')
+const lzma = require('lzma-native')
+const crypto = require('crypto')
 const byline = require('byline')
-const http = require('http');
+const http = require('http')
 const { Writable } = require('stream');
 
 cliParams
@@ -92,8 +93,10 @@ fileMD5(config.file).then(filehash => {
   const input = fs.createReadStream(config.file)
   const gzip = zlib.createGunzip()
   const bl = byline.createStream()
-
-  input.pipe(gzip).pipe(bl).pipe(output)
+  const xzout = fs.createWriteStream(`${config.file}.xz`)
+  gzip.pipe(bl).pipe(output)
+  gzip.pipe(lzma.createCompressor({preset:9})).pipe(xzout)
+  input.pipe(gzip)
 
 }).catch(err => {
   console.error(err)
