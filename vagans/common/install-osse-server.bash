@@ -176,7 +176,7 @@ cat > /etc/cron.d/check-osse-subscriptions << EOF
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
 MAILTO=root
-*/15 * * * * $OSSE_USER $OSSE_DIR/bin/check-osse-subscriptions.bash $OSSE_DIR/conf/config.json 1> $LOG_DIR/subscriptions.log 2> $LOG_DIR/subscriptions.error
+*/15 * * * * $OSSE_USER $OSSE_DIR/bin/check-osse-subscriptions.bash $OSSE_DIR/conf/config.json 1>> $LOG_DIR/subscriptions.log 2>> $LOG_DIR/subscriptions.error
 EOF
 
 log "installed $OSSE to $OSSE_DIR"
