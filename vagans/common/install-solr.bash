@@ -108,6 +108,7 @@ After=network.target
 PIDFile=$SOLR_DIR/bin/solr-$PORT.pid
 User=$SOLR_USER
 Group=$SOLR_GROUP
+LimitNOFILE=65536
 EnvironmentFile=-/etc/default/solr
 ExecStart=$SOLR_DIR/bin/solr start -h \${SOLR_HOST} -p \${SOLR_PORT} -m \${SOLR_MEM} -t \${SOLR_DATA_DIR}
 ExecStop=$SOLR_DIR/bin/solr stop

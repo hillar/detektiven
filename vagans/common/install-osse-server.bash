@@ -19,12 +19,15 @@ IPAHOST=$2
 [ -z $2 ] && IPAHOST="127.0.0.1"
 
 log "starting with ${IP} ${IPAHOST}"
-
+# TODO look if there is defaults ...
 OSSE='osse-server'
 OSSE_DIR="/opt/$OSSE"
 HOST=$IP
 PORT='9983'
 MD5FIELDNAME='file_md5_s'
+BASE="dc=IDM,dc=ORG,dc=TLD"
+IDMSERVER="${IPAHOST}"
+READONLY='onlyread'
 
 OSSE_USER=$OSSE
 OSSE_GROUP=$OSSE
@@ -48,7 +51,7 @@ if [ ! -d /provision/detektiven-master/stuff/txt/osse ]; then
 fi
 
 groupadd --system ${OSSE_GROUP} &>> ${DEBUG}
-adduser --system --home $OSSE_DIR --no-create-home --gid $OSSE_GROUP --shell /bin/false "$OSSE_USER" &>> ${DEBUG}
+adduser --system --home $OSSE_DIR --no-create-home --gid $(getent group ${OSSE_GROUP} | cut -d: -f3) --shell /bin/false "$OSSE_USER" &>> ${DEBUG}
 getent shadow "$OSSE_USER" &>> ${DEBUG} || die "failed to create user $OSSE_USER $OSSE_GROUP"
 
 mkdir -p "$OSSE_DIR/bin"
@@ -80,14 +83,42 @@ mkdir -p $SPOOL_DIR
 node osse-server.js -g > ../conf/config.json.defaults || die "cant not create sample defaults config $(pwd)"
 cat > $OSSE_DIR/conf/config.json <<EOF
 {
-  "portListen": "$PORT",
-  "ipBind": "$HOST",
-  "ipaServer": "$IPAHOST",
-  "usersFile": "$SESS_DIR/users.json",
-  "uploadDirectory": "$SPOOL_DIR",
-  "subscriptionsDirectory": "$SUBS_DIR",
+  "portListen": "${PORT}",
+  "ipBind": "${HOST}",
+  "usersFile": "$DATA_DIR/users/users.json",
+  "uploadDirectory": "${SPOOL_DIR}",
+  "subscriptionsDirectory": "${SUBS_DIR}",
   "staticDirectory": "$OSSE_DIR/js/dist",
-  "md5Fieldname":"$MD5FIELDNAME"
+  "smtpfrom": "noreply-osse@localhost",
+  "smtphost": "127.0.0.1",
+  "smtpport": 25,
+  "ipaServer": "${IDMSERVER}",
+  "ipaBase": "${BASE}",
+  "ipaBindpass": "password",
+  "ipaBinduser": "${READONLY}",
+  "ipaUsergroup": "osse",
+  "ipaUserField": "uid",
+  "realm": "osse",
+  "reauth": 60000,
+  "metaFilename": "meta.json",
+  "subscriptionsFilename": "subscriptions.json",
+  "etlMapping": "file:///",
+  "md5Fieldname": "${MD5FIELDNAME}",
+  "uploadFileServer": "127.0.0.1",
+  "uploadFileServerProto": "http",
+  "filesPort": 8125,
+  "uploadUser": "uploadonly",
+  "servers": [
+    {
+      "HR": "hardCodedDefault",
+      "type": "solr",
+      "proto": "http",
+      "host": "localhost",
+      "port": 8983,
+      "collection": "solrdefalutcore",
+      "rotationperiod": "none"
+    }
+  ]
 }
 EOF
 
@@ -135,9 +166,23 @@ EOF
 systemctl daemon-reload &>> ${DEBUG}
 systemctl enable $OSSE.service &>> ${DEBUG}
 
+
+cd $OSSE_DIR/bin
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/server/check-osse-subscriptions.bash
+chmod +x check-osse-subscriptions.bash
+cat > /etc/cron.d/check-osse-subscriptions << EOF
+# check osse-server subscritions
+# $(date) created by $0
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+*/15 * * * * $OSSE_USER $OSSE_DIR/bin/check-osse-subscriptions.bash $OSSE_DIR/conf/config.json 1> $LOG_DIR/subscriptions.log 2> $LOG_DIR/subscriptions.error
+EOF
+
 log "installed $OSSE to $OSSE_DIR"
 log "$OSSE server will run on $HOST:$PORT "
 log "config is $OSSE_DIR/conf/config.json"
+log "subs cron file is /etc/cron.d/check-osse-subscriptions"
 log "start $OSSE server with 'systemctl start $OSSE.service'"
 
 log "done"

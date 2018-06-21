@@ -16,7 +16,7 @@ else
   apt --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
     curl -sL https://deb.nodesource.com/setup_9.x | sudo -E bash - >>  /tmp/provision.log 2>&1
-    apt-get install -y nodejs >>  /tmp/provision.log 2>&1
+    apt-get install -y nodejs npm >>  /tmp/provision.log 2>&1
   fi
   dnf --help > /dev/null 2>&1
   if [ $? -eq 0 ]; then
