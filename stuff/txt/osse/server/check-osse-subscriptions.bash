@@ -3,7 +3,8 @@
 # sends osse-server subscriptions emails
 # reads conf from osse-server config.json
 #
-# */15 */5 * * * * /opt/osse-server/bin/check-osse-subscriptions.bash /opt/osse-server/conf/config.json &>> /var/log/osse-server/subscriptions.log
+# add to crontab, sample:
+# */15 * * * * /opt/osse-server/bin/check-osse-subscriptions.bash /opt/osse-server/conf/config.json 1> /var/log/osse-server/subscriptions.log 2> /var/log/osse-server/subscriptions.error
 #
 # TODO: add support for elastic
 

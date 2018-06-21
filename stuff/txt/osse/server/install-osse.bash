@@ -153,9 +153,11 @@ cd $OSSE_DIR/bin
 wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/server/check-osse-subscriptions.bash
 chmod +x check-osse-subscriptions.bash
 cat > /etc/cron.d/check-osse-subscriptions << EOF
+# check osse-server subscritions
+# $(date) created by $0
 SHELL=/bin/bash
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
-MAILTO=root HOME=/
+MAILTO=root
 */15 * * * * $OSSE_USER $OSSE_DIR/bin/check-osse-subscriptions.bash $OSSE_DIR/conf/config.json 1> $LOG_DIR/subscriptions.log 2> $LOG_DIR/subscriptions.error
 EOF
 
