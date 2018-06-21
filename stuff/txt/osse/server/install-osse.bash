@@ -149,9 +149,20 @@ EOF
 systemctl daemon-reload
 systemctl enable $OSSE.service >> /vagrant/provision.log 2>&1
 
+cd $OSSE_DIR/bin
+wget -q https://raw.githubusercontent.com/hillar/detektiven/master/stuff/txt/osse/server/check-osse-subscriptions.bash
+chmod +x check-osse-subscriptions.bash
+cat > /etc/cron.d/check-osse-subscriptions << EOF
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root HOME=/
+*/15 * * * * $OSSE_USER $OSSE_DIR/bin/check-osse-subscriptions.bash $OSSE_DIR/conf/config.json 1> $LOG_DIR/subscriptions.log 2> $LOG_DIR/subscriptions.error
+EOF
+
 echo "installed $OSSE to $OSSE_DIR"
 echo "$OSSE server will run on $HOST:$PORT "
 echo "config is $OSSE_DIR/conf/config.json"
+echo "subs cron file is /etc/cron.d/check-osse-subscriptions"
 echo "start $OSSE server with 'systemctl start $OSSE.service'"
 
 echo "$(date) done $0"
