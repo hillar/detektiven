@@ -100,24 +100,29 @@ fileMD5(config.file).then(async (filehash) => {
     console.error(`exists id:${filehash} filename:${config.file}`)
     process.exit(1)
   }
-  spool=[]
-  counter=0
+  let spool=[]
+  let header
+  let counter=0
+  const delimiter=';'
   output = new Writable();
   output._write = async (c,e,n) => {
     let line = c.toString()
-    let l = {}
-
-    let id = crypto.createHash('md5').update(line).digest("hex");
-    try {
-        l = Object.assign({},JSON.parse(line.substring(line.search("{"),line.search("}")+1)));
-    } catch (e) {
-
-    }
-    spool.push(Object.assign(l,{md5:filehash,id:id,logline:line}))
-    counter++
-    if (spool.length > 2047) {
-      await post(JSON.stringify(spool))
-      spool = []
+    if (! header ) {
+      header=line.split(delimiter)
+    } else {
+      let l = {}
+      // TODO handle quotes (/("[^"]*")|[^;]+/g)
+      let ll = line.split(delimiter)
+      header.forEach(function (column, i) {
+        l[column] = ll[i].trim()
+      })
+      let id = crypto.createHash('md5').update(line).digest("hex");
+      spool.push(Object.assign(l,{md5:filehash,id:id,logline:line}))
+      counter++
+      if (spool.length > 2047) {
+        await post(JSON.stringify(spool))
+        spool = []
+      }
     }
     n()
   }
