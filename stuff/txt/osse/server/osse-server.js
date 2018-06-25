@@ -753,7 +753,7 @@ let osse = http.createServer(basic, async (req, res) => {
             })
             subsBusBoy.on('finish', async function() {
               let uploadtime = nowAsJSON()
-              let emails = '' // TODO
+              let emails = users[username]['ipa']['mail']
               let subsFile = false
               let subscriptionsDirectory = await ensureDirectory(path.join(config.subscriptionsDirectory,username))
               if (subscriptionsDirectory) {
@@ -763,7 +763,9 @@ let osse = http.createServer(basic, async (req, res) => {
                 res.end('try again')
                 let msg = 'writing subscriptions failed'
                 logError({ip,username,msg})
-              } else res.end('thanks for subscriptions')
+              } else {
+                res.end('thanks for subscriptions')
+              }
             })
             req.pipe(subsBusBoy);
           } catch (error){
