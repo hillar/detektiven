@@ -1,4 +1,5 @@
 const cliParams = require('commander')
+const os = require('os')
 const fs = require('fs')
 const zlib = require('zlib')
 const lzma = require('lzma-native')
@@ -25,6 +26,33 @@ config.file = cliParams.file
 config.host = cliParams.host
 config.port = cliParams.port
 config.core = cliParams.core
+
+
+async function get(q) {
+  const options = {
+    hostname: config.host,
+    port: config.port,
+    path: `/solr/${config.core}/select?wt=json&q=${q}`,
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    method: 'GET'
+  }
+  return new Promise((resolve, reject) => {
+    const req = http.request(options, (res) => {
+      res.setEncoding('utf8');
+      let data = '';
+  	  const { statusCode, statusMessage, headers } = res
+      if (statusCode !== 200) { console.error(statusMessage, options); process.exit(1) }
+      res.on('data', (chunk) => {
+            data += chunk
+      })
+      res.on('end', () => { resolve(JSON.parse(data)) })
+      res.on('error', (e) => { console.error(e); process.exit(1)} )
+    })
+    req.end()
+  })
+}
 
 async function post(postdata) {
   const options = {
@@ -62,7 +90,16 @@ const fileMD5 = path => new Promise((resolve, reject) => {
 	rs.on('end', () => resolve(hash.digest('hex')))
 })
 
-fileMD5(config.file).then(filehash => {
+fileMD5(config.file).then(async (filehash) => {
+  const r = await get(`id:${filehash}`)
+  if (! r.response ) {
+    console.error(`error host:${config.host} ${r}`);
+    process.exit(1)
+  }
+  if (r.response.numFound && r.response.numFound > 0) {
+    console.error(`exists id:${filehash} filename:${config.file}`)
+    process.exit(1)
+  }
   spool=[]
   counter=0
   output = new Writable();
@@ -85,6 +122,7 @@ fileMD5(config.file).then(filehash => {
     n()
   }
   output._final = async (n) => {
+    spool.push({id:filehash,filename:config.file,parsetime:new Date,parser:os.hostname()})
     await post(JSON.stringify(spool))
     console.log(filehash,counter)
     n()
@@ -93,9 +131,9 @@ fileMD5(config.file).then(filehash => {
   const input = fs.createReadStream(config.file)
   const gzip = zlib.createGunzip()
   const bl = byline.createStream()
-  const xzout = fs.createWriteStream(`${config.file}.xz`)
   gzip.pipe(bl).pipe(output)
-  gzip.pipe(lzma.createCompressor({preset:9})).pipe(xzout)
+  //const xzout = fs.createWriteStream(`${config.file}.xz`)
+  //gzip.pipe(lzma.createCompressor({preset:9})).pipe(xzout)
   input.pipe(gzip)
 
 }).catch(err => {
