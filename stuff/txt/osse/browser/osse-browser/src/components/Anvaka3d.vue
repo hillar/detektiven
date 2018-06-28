@@ -67,24 +67,25 @@ export default {
     }
   },
   methods: {
-    async expandNode(renderer,graph,id,data){
+    async expandNode(graph,id){
         console.log('expandNode',id)
         return new Promise(async (resolve, reject) => {
-          this.loading = true
-          let qs = await getConnectors(data,this.connectors.concat(['aliases','alias_for']))
-          for (const q of qs ) {
-            const docs = await findDocs(q)
-            console.log('docs',q,docs.length)
-            //graph.beginUpdate();
-            graph.addNode(q,{__size__:6, __color__:0x0000ff})
-            graph.addLink(id,q)
-            for (const doc of docs) {
-              graph.addNode(doc.id,doc)
-              graph.addLink(q,doc.id)
+          const node = graph.getNode(id)
+          if (node.data && node.data.doc) {
+            let qs = await getConnectors(node.data.doc,this.connectors)
+            graph.beginUpdate();
+            for (const q of qs ) {
+              const docs = await findDocs(q)
+              console.log('docs',q,docs.length)
+              if (!graph.getNode(q)) graph.addNode(q,{__size__:6, __color__:0x0000ff})
+              if (!graph.getLink(id,q)) graph.addLink(id,q)
+              for (const doc of docs) {
+                if (!graph.getNode(doc.id)) graph.addNode(doc.id,{doc:doc})
+                if (!graph.getLink(q,doc.id)) graph.addLink(q,doc.id)
+              }
             }
-            //graph.endUpdate();
+            graph.endUpdate();
           }
-          this.loading = false
           resolve(true)
       })
     },
@@ -96,13 +97,30 @@ export default {
       }
       let root = await findDocs(`id:${this.thing.id}`)
       console.log(root)
-      graph.addNode(this.thing.id,{id:this.thing.id, __size__:10, __color__:0xff0000,data:root[0]})
-      await this.expandNode(renderer,graph,this.thing.id,root[0])
-      const renderer = renderGraph(graph,{container: document.getElementById('a3')})
+      graph.addNode(this.thing.id,{id:this.thing.id, __size__:10, __color__:0xff0000,doc:root[0]})
+      await this.expandNode(graph,this.thing.id)
+      await new Promise((resolve, reject) => {
+        console.log('exp loop start',this.thing.id)
+        graph.forEachLinkedNode(this.thing.id, async (linkedNode, link) => {
+            console.log('linkedNode',linkedNode.links)
+            for (const link of linkedNode.links) {
+              console.log('link',link.fromId,link.toId)
+              if (link.toId !== linkedNode.id){
+                await this.expandNode(graph,link.toId)
+              }
+            }
+        })
+        resolve()
+      })
+      const renderer = renderGraph(graph,{container: document.getElementById('a3'),stable:true})
+      //renderer.showNode(this.thing.id)
+      const that = this
       renderer.on('nodeclick', function(node) {
+        //that.expandNode(graph, node.id)
+        renderer.showNode(node.id)
         console.log('Clicked on ' + JSON.stringify(node));
       });
-
+      /*
       renderer.on('nodedblclick', function(node) {
         console.log('Double clicked on ' + JSON.stringify(node));
       });
@@ -110,7 +128,8 @@ export default {
       renderer.on('nodehover', function(node) {
         console.log('Hover node ' + JSON.stringify(node));
       });
-
+      */
+      this.loading = false
     }
   },
   async mounted() { this._mounted()}

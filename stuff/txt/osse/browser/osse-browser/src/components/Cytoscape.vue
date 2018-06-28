@@ -32,7 +32,7 @@ async function getConnectors(doc,fields){
 async function findDocs(q,f,rows){
   return new Promise((resolve, reject) => {
     if (!q) resolve(false)
-    if (!rows) rows = 32
+    if (!rows) rows = 128
     let fl = '*,content:[value v=""]'
     /*
     if (Array.isArray(f) && f.length>0) {
@@ -323,6 +323,10 @@ export default {
           select: this.peekNodeContent
         },
         {
+          content: "<h1 style='color:green'>+</h1>",
+          select: this.expandNode
+        },
+        {
           content: 'export',
           select: this.exportNodeFile
         },
@@ -364,7 +368,7 @@ export default {
       ],
       fillColor: "rgba(96, 125, 139, 0.75)"
     })
-    // on click show content 
+    // on click show content
     let that = this
     let clickon = false
     this.cy.on('tap', 'node', function(e){
@@ -387,7 +391,13 @@ export default {
           });
         }
     })
+    // dblclick
+    this.cy.on('dblclick', 'node', function(e){
+      var n = e.target;
+      n.neighborhood('edge').style( { 'line-color' : 'red' });
+    })
     // on mouse higlight edges
+
     this.cy.on('mouseover', 'node', function(e){
           var n = e.target;
           n.neighborhood('edge').style( { 'line-color' : 'black' });
