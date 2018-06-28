@@ -46,8 +46,9 @@ mkdir -p "$DATA_DIR"
 SOLR_UID="$PORT"
 SOLR_GID="$PORT"
 
-groupadd -r --gid $SOLR_GID $SOLR_GROUP
-useradd -r --uid $SOLR_UID --gid $SOLR_GID $SOLR_USER
+groupadd -r --gid $SOLR_GID $SOLR_GROUP &>/dev/null
+useradd -r --uid $SOLR_UID --gid $SOLR_GID $SOLR_USER &>/dev/null
+getent shadow "$SOLR_USER" &>/dev/null || die "failed to create user $SOLR_USER"
 
 cd /tmp
 solrurl="http://archive.apache.org/dist/lucene/solr/${VER}/solr-${VER}.tgz"
@@ -61,8 +62,13 @@ tar -C "$SOLR_DIR" --extract --file /tmp/solr-${VER}.tgz --strip-components=1
 #     <!-- This can be enabled, in case the client does not know what fields may be searched. It isn't enabled by default
 #         because it's very expensive to index everything twice. -->
 #    <!-- <copyField source="*" dest="_text_"/> -->
+# +
+#  That field is auto-populated with the current datetime each time a document is inserted into the index.
+# <field name="timestamp_indexed" type="date" indexed="true" stored="true" default="NOW" multiValued="false"/>
 
-sed -i -e 's,<!-- <copyField source="\*" dest="_text_"\/> -->,<copyField source="*" dest="_text_"/>\n<dynamicField name="*" type="text_general" indexed="true" stored="true" multiValued="true"/>,g' server/solr/configsets/_default/conf/managed-schema
+sed -i -e 's,<!-- <copyField source="\*" dest="_text_"\/> -->,\n<!-- modified for osse-server -->\n<field name="timestamp_indexed" type="pdate" indexed="true" stored="true" default="NOW" multiValued="false"/>\n<copyField source="*" dest="_text_"/>\n<dynamicField name="*" type="text_general" indexed="true" stored="true" multiValued="true"/>,g' server/solr/configsets/_default/conf/managed-schema
+
+
 
 mkdir -p "$SOLR_DIR/server/logs"
 ln -s  "$SOLR_DIR/server/logs" "$LOG_DIR"
@@ -71,7 +77,7 @@ chown -R $SOLR_USER:$SOLR_GROUP "$DATA_DIR"
 chown -R $SOLR_USER:$SOLR_GROUP "$LOG_DIR"
 
 # run as solr to create default core
-sudo -u "$SOLR_USER" sh -s "$@" <<EOF
+sudo -u "$SOLR_USER" sh -s "$@" &>/dev/null <<EOF
   whoami
   $SOLR_DIR/bin/solr start -t $DATA_DIR -q
   sleep 1
@@ -119,16 +125,29 @@ EOF
 systemctl daemon-reload
 systemctl enable solr.service
 systemctl start solr.service
-sleep 1
+# wait solr to start up to 60 sec
 ok=$(curl -s http://${HOST}:${PORT}/solr/|wc -l)
-[ $ok -gt 210 ] || die "not solr admin panel  http://${HOST}:${PORT}/solr/"
+counter=0
+while  [ $ok -lt 200 -a $counter -lt 30 ]; do
+  sleep 2
+  let counter++
+  ok=$(curl -s http://${HOST}:${PORT}/solr/|wc -l)
+done
+if [ $counter -eq 30 ]; then
+   die "failed to start solr on ${HOST}:${PORT}"
+else
+  log "started solr on ${HOST}:${PORT} took $((counter*2))"
+fi
 
 
 # java -server -Xms512m -Xmx512m -XX:NewRatio=3 -XX:SurvivorRatio=4 -XX:TargetSurvivorRatio=90 -XX:MaxTenuringThreshold=8 -XX:+UseConcMarkSweepGC -XX:+UseParNewGC -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -XX:+CMSScavengeBeforeRemark -XX:PretenureSizeThreshold=64m -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=50 -XX:CMSMaxAbortablePrecleanTime=6000 -XX:+CMSParallelRemarkEnabled -XX:+ParallelRefProcEnabled -XX:-OmitStackTraceInFastThrow -verbose:gc -XX:+PrintHeapAtGC -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+PrintTenuringDistribution -XX:+PrintGCApplicationStoppedTime -Xloggc:/opt/solr/server/logs/solr_gc.log -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=9 -XX:GCLogFileSize=20M -Dsolr.log.dir=/opt/solr/server/logs -Djetty.port=8983 -DSTOP.PORT=7983 -DSTOP.KEY=solrrocks -Dhost=127.0.0.1 -Duser.timezone=UTC -Djetty.home=/opt/solr/server -Dsolr.solr.home=/opt/solr/server/solr -Dsolr.data.home=/var/data/solr -Dsolr.install.dir=/opt/solr -Dsolr.default.confdir=/opt/solr/server/solr/configsets/_default/conf -Xss256k -Dsolr.jetty.https.port=8983 -Dsolr.log.muteconsole -XX:OnOutOfMemoryError=/opt/solr/bin/oom_solr.sh 8983 /opt/solr/server/logs -jar start.jar --module=http
 
 #java -jar /opt/solr/server/start.jar STOP.PORT=7983 STOP.KEY=solrrocks
 log "installed solr to $SOLR_DIR"
-log "solr server will run on $HOST:$PORT "
 log "data dir is $DATA_DIR"
 log "log dir is  $LOG_DIR"
+log "stop with: systemctl stop solr.service"
+log "start with: systemctl start solr.service"
+log "delete all docs with: curl 'http://${HOST}:${PORT}/solr/${DEFAULT}/update?commit=true' -H 'Content-Type: text/xml' --data-binary '<delete><query>*:*</query></delete>'"
+log "delete older than 365 days with: curl 'http://${HOST}:${PORT}/solr/${DEFAULT}/update?commit=true' -H 'Content-Type: text/xml' --data-binary '<delete><query>timestamp_indexed:[* TO NOW-365DAYS]</query></delete>'"
 log "done $0"
