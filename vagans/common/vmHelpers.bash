@@ -90,7 +90,17 @@ vm_getip(){
       echo $ip
       return 0
   else
-      return 1
+      ping -c 2 $1 &> /dev/null
+      maca=$(virsh domiflist $1 | grep bridge | head -1 | awk '{print $5}')
+      ip=$(arp | grep "${maca}" | awk '{print $1}')
+      ok2=$(echo $ip | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'| wc -l)
+      #echo "$maca $ip $ok2"
+      if [ $ok2 -eq 1 ]; then
+        echo $ip
+        return 0
+      else
+        return 1
+      fi
   fi
 }
 
