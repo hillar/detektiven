@@ -174,6 +174,8 @@ vm_clone(){
     [ $? -eq 0 ] || virt-clone -o ${PARENT} -n ${CHILD} --auto-clone >/dev/null 2>&1
     [ $? -eq 0 ] || die "virt-clone error ${PARENT} -> ${CHILD}"
 
+    imagefile=$(virsh domblklist ${CHILD} | grep vda | awk '{print $2}')
+
     # TODO tmp dir name
     mkdir /tmp/${CHILD}
     guestmount -a ${imagefile} -i /tmp/${CHILD}
